@@ -15,6 +15,7 @@ source(here("adult_modeling/scripts/grid_approximation.R"))
 source(here("adult_modeling/scripts/noisy_update.R"))
 source(here("adult_modeling/scripts/get_stimuli_and_observations.R"))
 ```
+
 # some parameters
 
 ```{r}

@@ -141,8 +141,11 @@ generate_noisy_observations <- function(block,
   trial_num <- rep(seq(obs_num), obs_num)
   
   obs$trial_num <- rep(seq(obs_num), obs_num)
-  obs$trial_observation_num <- trial_observation_num
+  # obs$trial_observation_num <- trial_observation_num
   
+  obs %<>% 
+    group_by(trial_num) %>%
+    mutate(observation_num = 1:n())
   
   return(obs)
   
