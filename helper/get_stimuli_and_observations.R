@@ -92,13 +92,11 @@ make_individual_creature <- function(creature_theta){
 
 
 generate_noisy_observations <- function(block, 
-                                        exposure_type, 
-                                        short_exposure_samps, 
-                                        long_exposure_samps, 
-                                        normal_exposure_samps, 
-                                        epsilon
-){
-  
+                                        exposure_type = "self_paced", 
+                                        short_exposure_samps = 1, 
+                                        long_exposure_samps = 1, 
+                                        normal_exposure_samps = 1, 
+                                        epsilon) {
   if(exposure_type == "forced_short"){
     first_trial_samps = short_exposure_samps
   }else if (exposure_type == "forced_long"){
@@ -165,7 +163,7 @@ noisy_observation_feature <- function(
 
 noisy_observation_creature <- function(
   creature, 
-  n_sample, 
+  n_sample = 1, 
   epsilon
 ){
   sapply(creature, function(y){noisy_observation_feature(
