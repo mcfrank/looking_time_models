@@ -118,6 +118,8 @@ posterior_o2_s2 <- grid_with_theta_and_epsilon(grid_theta = grid_theta,
                                                beta_prior= beta_prior, 
                                                alpha_epsilon = alpha_epsilon, 
                                                beta_epsilon = beta_epsilon)
+
+
 ```
 
 Now let's think through how to compute the KL and posterior predictive.
@@ -156,7 +158,93 @@ y = 0, z = 0
 
 BUT we will want to sum the probability across the values of Y because all we care about is the prediction about z!
 
+to do so we need to keep track of all epsilon? 
 ```{r}
+posterior_o2_s1 <- grid_with_theta_and_epsilon_has_epsilon(grid_theta = grid_theta, 
+                                               grid_epsilon = grid_epsilon, 
+                                               noisy_observation = head(o2_s1,2), 
+                                               alpha_prior = alpha_prior, 
+                                               beta_prior= beta_prior, 
+                                               alpha_epsilon = alpha_epsilon, 
+                                               beta_epsilon = beta_epsilon)
+
+posterior_o2_s2 <- grid_with_theta_and_epsilon_has_epsilon(grid_theta = grid_theta, 
+                                               grid_epsilon = grid_epsilon, 
+                                               noisy_observation = head(o2_s2,2), 
+                                               alpha_prior = alpha_prior, 
+                                               beta_prior= beta_prior, 
+                                               alpha_epsilon = alpha_epsilon, 
+                                               beta_epsilon = beta_epsilon)
+
+
+```
+
+
+```{r}
+
+noise_post_pred <- function(theta, p_theta, epsilon, heads = TRUE) {
+   ifelse(heads, 
+          # z = 1
+          # summing across y = 1 z = 1 and y = 0 z = 1
+          sum((1 - epsilon) * sum(theta * p_theta)) + sum(epsilon * (1 - sum(theta * p_theta))), 
+          # summing across y = 1 z = 0 and y = 0 z = 0
+           sum(epsilon * (1 - sum(theta * p_theta)) + sum((1 - epsilon) * sum(theta * p_theta)))
+   )
+}
+
+
+noise_post_pred <- function(df, heads = TRUE) {
+  epsilon = df %>% 
+    distinct(epsilon) %>% 
+    pull()
+  if (heads){
+    calculated <- df %>% 
+      mutate(
+        y_head = theta * posterior ,
+        y_tail  =  (1-theta) * posterior
+      ) %>% 
+      group_by(epsilon) %>% 
+      summarise(
+        y_head_sum = sum(y_head), 
+        y_tail_sum = sum(y_tail)
+      ) %>% 
+      mutate(
+        y_head = (1-epsilon) * y_head_sum, 
+        y_tail = (epsilon) * y_tail_sum
+      )
+      
+    post_pre <- sum(calculated$y_head, 
+        calculated$y_tail)
+  }else{
+    
+    calculated <- df %>% 
+      mutate(
+        y_head = (1-theta) * posterior ,
+        y_tail  =  theta * posterior
+      ) %>% 
+      group_by(epsilon) %>% 
+      summarise(
+        y_head_sum = sum(y_head), 
+        y_tail_sum = sum(y_tail)
+      ) %>% 
+      mutate(
+        y_head = epsilon * y_head_sum, 
+        y_tail = (1-epsilon) * y_tail_sum
+      )
+      
+    post_pre <- sum(calculated$y_head, 
+        calculated$y_tail)
+    
+  }
+  
+  return(post_pre)
+  
+}
+
+post_pred_s1_0 <- noise_post_pred(posterior_o2_s1, heads = FALSE)
+post_pred_s1_1 <- noise_post_pred(posterior_o2_s1, heads = TRUE)
+post_pred_s1_0
+post_pred_s1_1
 
 ```
 
