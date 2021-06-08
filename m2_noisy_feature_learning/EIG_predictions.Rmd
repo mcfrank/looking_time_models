@@ -385,7 +385,7 @@ ggplot(lens, aes(x = stimulus_idx, y = length)) +
 
 # Level up - multiple sims.
 
-Hard to see what's going on here, so let's run 100 trials of this type. 
+Hard to see what's going on here, so let's run 100 trials of this type.
 
 ```{r}
 # generate stimuli up front
