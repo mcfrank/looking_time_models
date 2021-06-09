@@ -28,7 +28,7 @@ source(here("helper/get_stimuli_and_observations.R"))
 # Generate scenario
 
 ```{r}
-num_features = 1
+num_features = 2
 num_features_simple = 1
 # num_features_complex = 8
 trials_per_block = 8
@@ -64,8 +64,8 @@ grid_theta <- seq(0.1, 1, 0.2)
 grid_epsilon <- seq(0.1, 1, 0.2)
 alpha_prior = 1
 beta_prior = 1
-alpha_epsilon = 1 
-beta_epsilon = 10
+alpha_epsilon = 10 
+beta_epsilon = 1
 
 obs_matrix <- simple_observations %>% 
   ungroup() %>%
@@ -176,7 +176,8 @@ posterior_o2_s1 <-
                                           alpha_prior = alpha_prior, 
                                           beta_prior= beta_prior, 
                                           alpha_epsilon = alpha_epsilon, 
-                                          beta_epsilon = beta_epsilon)
+                                          beta_epsilon = beta_epsilon
+                                          )
 
 posterior_o2_s2 <- 
   grid_with_theta_and_epsilon_has_epsilon(grid_theta = grid_theta, 
@@ -255,7 +256,7 @@ max_obs <- 100 # need to pad with NAs
 # generate stimuli up front
 simple_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
                                              deviant_positions = deviant_positions,  
-                                             total_feature = num_features, 
+                                             total_feature = 1, 
                                              feature_theta = 0.8, 
                                              feature_number = num_features_simple, 
                                              dissimilar_ratio = dissimilarity_ratio) 
@@ -295,7 +296,7 @@ while (stimulus_idx <= trials_per_block) {
     df$stimulus_idx[t] <- stimulus_idx
     
     # get posterior
-    obs_mat <- matrix(unlist(observations), ncol = num_features, byrow = TRUE)
+    obs_mat <- matrix(unlist(observations), ncol = 1, byrow = TRUE)
     
     posterior_at_t <- 
       grid_with_theta_and_epsilon_has_epsilon(grid_theta = grid_theta, 
@@ -310,16 +311,18 @@ while (stimulus_idx <= trials_per_block) {
     # make possible scenarios
     observations[[t+1]] <- NA
     observations[[t+1]][f] <- FALSE
-    obs_mat_plus_0 <- matrix(unlist(observations), ncol = num_features, byrow = TRUE)
+    obs_mat_plus_0 <- matrix(unlist(observations), ncol = 1, byrow = TRUE)
     observations[[t+1]] <- NA
     observations[[t+1]][f] <- TRUE
-    obs_mat_plus_1 <- matrix(unlist(observations), ncol = num_features, byrow = TRUE)
+    obs_mat_plus_1 <- matrix(unlist(observations), ncol = 1, byrow = TRUE)
+    
+  
     
     # update posteriors for both scenarios
     posterior_at_t_plus_1_if_0 <- 
       grid_with_theta_and_epsilon_has_epsilon(grid_theta = grid_theta, 
                                               grid_epsilon = grid_epsilon, 
-                                              noisy_observation = obs_mat_plus_0, 
+                                              noisy_observation = obs_mat_plus_0 %>% t(), 
                                               alpha_prior = alpha_prior, 
                                               beta_prior= beta_prior, 
                                               alpha_epsilon = alpha_epsilon, 
@@ -328,7 +331,7 @@ while (stimulus_idx <= trials_per_block) {
     posterior_at_t_plus_1_if_1 <- 
       grid_with_theta_and_epsilon_has_epsilon(grid_theta = grid_theta, 
                                               grid_epsilon = grid_epsilon, 
-                                              noisy_observation = obs_mat_plus_1, 
+                                              noisy_observation = obs_mat_plus_1 %>% t(), 
                                               alpha_prior = alpha_prior, 
                                               beta_prior= beta_prior, 
                                               alpha_epsilon = alpha_epsilon, 
