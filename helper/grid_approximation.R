@@ -194,28 +194,30 @@ grid_with_theta_and_epsilon_has_epsilon <- function(
 ){
   # special case this is for when only update based on 1 observation
   
-  if(!is.matrix(noisy_observation)){
-    feature_number = length(noisy_observation)
+  # if(!is.matrix(noisy_observation)){
+  #   feature_number = length(noisy_observation)
+  #   
+  #   lapply(seq(1, feature_number, 1), 
+  #          function(x){
+  #            update_grid_with_theta_and_epsilon_has_epsilon(
+  #              feature_i = x, 
+  #              grid_theta = grid_theta, 
+  #              grid_epsilon = grid_epsilon, 
+  #              observations = noisy_observation[x], 
+  #              alpha_theta = alpha_prior, 
+  #              beta_theta = beta_prior,
+  #              alpha_epsilon = alpha_epsilon, 
+  #              beta_epsilon = beta_epsilon
+  #            )
+  #          }
+  #   ) %>% 
+  #     bind_rows()
+  #   
+  #   
+  #   
+  # }else{
+  #   
     
-    lapply(seq(1, feature_number, 1), 
-           function(x){
-             update_grid_with_theta_and_epsilon_has_epsilon(
-               feature_i = x, 
-               grid_theta = grid_theta, 
-               grid_epsilon = grid_epsilon, 
-               observations = noisy_observation[x], 
-               alpha_theta = alpha_prior, 
-               beta_theta = beta_prior,
-               alpha_epsilon = alpha_epsilon, 
-               beta_epsilon = beta_epsilon
-             )
-           }
-    ) %>% 
-      bind_rows()
-    
-    
-    
-  }else{
     feature_number = ncol(noisy_observation)
     
     lapply(seq(1, feature_number, 1), 
@@ -233,7 +235,7 @@ grid_with_theta_and_epsilon_has_epsilon <- function(
            }
     ) %>% 
       bind_rows()
-  }
+  
   
   
   
