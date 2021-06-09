@@ -1,0 +1,49 @@
+---
+title: "tidy up infrastructure"
+author: "anjie"
+date: "6/9/2021"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(here)
+
+```
+
+```{r}
+source(here("helper/new_get_stimuli.R"))
+```
+
+```{r}
+num_features = 100
+num_features_simple = 30
+# num_features_complex = 8
+trials_per_block = 8
+deviant_positions = 4
+dissimilarity_ratio = 0.2
+epsilon = 0.1
+
+```
+
+```{r}
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = 0.8, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+simple_stimuli
+```
+
+```{r}
+noisy_observation_creature(
+  stimuli_df = simple_stimuli,
+  trial_index  = 1, 
+  n_sample = 1, 
+  epsilon = 0.01
+)
+
+```
+
