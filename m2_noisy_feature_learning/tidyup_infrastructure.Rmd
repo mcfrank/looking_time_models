@@ -12,11 +12,13 @@ library(here)
 
 ```{r}
 source(here("helper/new_get_stimuli.R"))
+source(here("helper/new_get_observation.R"))
+source(here("helper/new_grid_approximation.R"))
 ```
 
 ```{r}
-num_features = 100
-num_features_simple = 30
+num_features = 10
+num_features_simple = 3
 # num_features_complex = 8
 trials_per_block = 8
 deviant_positions = 4
@@ -38,12 +40,49 @@ simple_stimuli
 ```
 
 ```{r}
-noisy_observation_creature(
+o1 <- noisy_observation_creature(
   stimuli_df = simple_stimuli,
   trial_index  = 1, 
   n_sample = 1, 
   epsilon = 0.01
 )
 
+o2 <- bind_rows(o1, o1)
+
+o2
+```
+
+```{r}
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+# currently not tracking: 
+# actual observation and timestep. might not be relevant yet. 
+grid_apprxoimation_with_observation(
+  noisy_observation = o2, 
+  track_epsilon = TRUE, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
+
+grid_apprxoimation_with_observation(
+  noisy_observation = o1, 
+  track_epsilon = TRUE, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
 ```
 
