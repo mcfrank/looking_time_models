@@ -67,7 +67,9 @@ lp_z_given_theta <- function(z_bar,
                              theta, 
                              epsilon){
   
-  sum(sapply(z_bar, function(x){lp_z_ij_given_theta(zij = x, 
+  z_bar = z_bar %>% pull()
+  sum(sapply(z_bar, 
+             function(x){lp_z_ij_given_theta(zij = x, 
                                                     theta = theta, 
                                                     epsilon = epsilon)}))
   
