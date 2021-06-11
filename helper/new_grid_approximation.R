@@ -50,7 +50,7 @@ grid_apprxoimation_with_observation <- function(
   
 ){
   
-  total_feature_number = ncol(noisy_observation)
+  total_feature_number = ncol(noisy_observation %>% select(starts_with("V")))
   
   posterior_df <- lapply(seq(1, total_feature_number, 1), 
          function(x){
