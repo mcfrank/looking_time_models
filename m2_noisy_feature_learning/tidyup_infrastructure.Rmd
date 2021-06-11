@@ -48,6 +48,7 @@ o1 <- noisy_observation_creature(
   epsilon = 0.01
 )
 
+o1
 o2 <- bind_rows(o1, o1)
 
 o2
@@ -173,7 +174,7 @@ main_simulation <- function(
                           stimuli_sequence, 
                           noise_parameter, 
                           eig_from_world = .005,
-                          max_observation = 500, # should this be per trial or in total? currently per trial 
+                          max_observation = 500, # should this be per trial or in total? currently in total 
                           grid_theta = grid_theta, 
                           grid_epsilon = grid_epsilon, 
                           alpha_prior = alpha_prior, 
@@ -235,6 +236,7 @@ main_simulation <- function(
                                 t = t))
     
     # calculate posterior at t 
+    # optimization possible!
     posterior_at_t <- grid_apprxoimation_with_observation(
                           noisy_observation = observations, 
                           track_epsilon = TRUE, 
@@ -253,6 +255,7 @@ main_simulation <- function(
     # approach 2(simplest): either same with the next observed, or completely flipped 
     # approach 3(moderate): set a parameter on the creature level to determine how many are flipped and how many are not
     # appraoch 4(wacky): make the parameter change throughout the experiment 
+    # approach 5(wacky but simple): democratic approach 
     obs_t_plus_1_same <- make_possible_scenario(observation_df = observations, 
                                                 scenario = "same") 
     
@@ -318,6 +321,319 @@ main_simulation <- function(
 }
 ```
 
+## brute force 
+```{r}
+
+    
+get_possible_creatures <- function(current_observation){
+  
+  flip_observation <- as.logical(1 - (current_observation) %>% 
+                                    as.logical()) %>% 
+                      as.vector() %>% 
+                      as_tibble_row(.name_repair = ~ names(current_observation)) 
+  
+  combine_observations <- bind_rows(current_observation, flip_observation)
+  
+  all_possible_creatures <- combine_observations %>% 
+    cross_df() %>% 
+    mutate(index = row_number())
+  
+  # will return a df of possible creatures 
+  return (all_possible_creatures) 
+}    
+
+get_possible_kls <- function(
+                         observations, 
+                         all_possible_outcomes, 
+                         posterior_at_t, 
+                         grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon){
+  
+  all_possible_outcomes <- all_possible_outcomes %>% 
+    mutate(index = row_number())
+  
+  possible_kls <- tibble(
+    "index" = all_possible_outcomes$index, 
+    "kl" = rep(NA, all_possible_outcomes$index %>% length())
+  )
+  for (i in 1: nrow(all_possible_outcomes)){
+    
+    current_scenario <- observations %>% 
+      bind_rows(all_possible_outcomes %>% 
+              filter(index == i))
+      
+    posterior_for_current_scenario <- grid_apprxoimation_with_observation(
+                          noisy_observation = current_scenario, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+    
+    
+    # now calculate kl feature by feature 
+    features <- posterior_for_current_scenario %>% 
+      distinct(feature_index) %>% 
+      pull()
+    
+    creature_kl <- dkl(posterior_for_current_scenario$posterior, 
+                 posterior_at_t$posterior)
+      
+    
+    # bind creature kl with other kl 
+    
+    possible_kls$kl[i] <- creature_kl
+    
+    
+  }
+  
+  
+  # will return a df of possible kls 
+  return (possible_kls)  
+}
+```
+
+```{r}
+kls <- get_possible_kls(observations = observations, 
+                 all_possible_outcomes = all_possible_outcomes, 
+                         posterior_at_t = posterior_at_t, 
+                         grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+```
+
+
+## calculating post predictives deluxe 
+```{r}
+noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
+  # probability of a head is:
+  # (didn't get flipped * it's a head) + (got flipped + it was a tail)
+  p_1 <- sum(((1 - epsilon) * theta * posterior) + 
+               (epsilon * (1-theta) * posterior))
+  
+  # the alternative:
+  # (didn't get flipped * it's a tail) + (got flipped + it's a head)
+  # p_0 <- sum(((1 - epsilon) * (1 - theta) * posterior) + 
+  #                 (epsilon * theta * posterior))
+  
+  # flip if you are asking for 0 probability
+  ifelse(heads, p_1, 1 - p_1)
+  
+}
+
+creature_noisy_post_pred <- function(
+  outcome_index, 
+  all_possible_outcomes, 
+  posterior_at_t){
+  
+  observation_at_t_plus_one <- all_possible_outcomes %>% 
+    filter(index == outcome_index)
+  
+  feature_n <- observation_at_t_plus_one %>% 
+    select(starts_with("V")) %>% 
+    ncol()
+  
+  
+    
+  # calculate post predctive for each feature
+  feature_predictive <- lapply(seq(1, feature_n, 1), 
+         function(x,
+                  observation = observation_at_t_plus_one,
+                  posterior = posterior_at_t){
+         
+           f_posterior <- posterior %>% 
+             filter(feature_index == x)
+           
+           f_observation <- observation[x] %>% 
+             pull()
+           
+           noisy_post_pred(f_posterior$theta, 
+                           f_posterior$epsilon, 
+                           f_posterior$posterior, 
+                           f_observation)
+           
+         }) 
+  
+    return(feature_predictive %>% unlist() %>% prod())
+  
+  
+}
+
+get_all_possible_creature_pred <- function(
+  all_possible_outcomes, 
+  posterior_at_t
+){
+  
+  
+  all_preds <- lapply(all_possible_outcomes$index, 
+         function(x, 
+                  apo = all_possible_outcomes, 
+                  pt = posterior_at_t){
+            
+           creature_noisy_post_pred(x, apo, pt)
+ 
+           
+         }) %>% unlist()
+  
+  return(all_preds %>% unlist())
+
+  }
+
+
+```
+
+```{r}
+((kls$kl %*% all_preds) %>% as.vector()) %>% as.numeric()
+
+```
+
+# UPDATED MAIN
+```{r}
+main_simulation <- function(
+                          subject, 
+                          stimuli_sequence, 
+                          noise_parameter, 
+                          eig_from_world = .005,
+                          max_observation = 500, # should this be per trial or in total? currently in total 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                          ){
+  
+  # set up the df that tracks eig  
+  df <- tibble(t = rep(NA,max_observation),
+             stimulus_idx = rep(NA,max_observation), 
+             # also currently aggregating everything
+             dkl_if_same = rep(NA,max_observation), 
+             dkl_if_different = rep(NA,max_observation),
+             post_pred = rep(NA,max_observation), 
+             EIG = rep(NA,max_observation), 
+             # the bottom two rows are calculated by aggregating across all features 
+             p_look_away = rep(NA,max_observation), 
+             look_away = rep(NA,max_observation))
+
+  
+  # set up the df that keep trakc of observation 
+  observations <-  stimuli_sequence %>% 
+    # create an empty dataframe with all the info needed to be tracked 
+    filter(is.na(.)) %>% 
+    mutate(t = NA_integer_) 
+  
+  
+  # the total number of stimuli 
+  total_trial_number = nrow(stimuli_sequence)
+  total_feature_number = stimuli_sequence %>% 
+    select(starts_with("V")) %>% 
+    ncol()
+  
+
+
+  # which stimulus are we looking at
+    stimulus_idx <- 1
+    t <- 1
+  
+  
+  while(stimulus_idx <= total_trial_number){
+    
+    current_stimulus <- stimuli_sequence %>% 
+      filter(trial_number == stimulus_idx)
+    
+    current_observation <- noisy_observation_creature(
+                                stimuli_df = stimuli_sequence,
+                                trial_index  = stimulus_idx, 
+                                n_sample = 1, 
+                                epsilon = noise_parameter
+                              )
+    
+    # add to current observation 
+    observations <- bind_rows(observations, 
+                              current_observation %>% mutate(
+                                trial_number = stimulus_idx, 
+                                trial_type = current_stimulus$trial_type,
+                                t = t))
+    
+    # calculate posterior at t 
+    # optimization possible!
+    posterior_at_t <- grid_apprxoimation_with_observation(
+                          noisy_observation = observations, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+    
+
+    
+    # maybe needs scaling?
+    
+    df$t[t] = t
+    df$stimulus_idx[t] = stimulus_idx
+    
+    # calculate all possible outcomes 
+    # room for optimization because we only need one set 
+    all_possible_outcomes <- get_possible_creatures(current_observation)
+    all_possible_kls <- get_possible_kls(
+                         observations, 
+                         all_possible_outcomes, 
+                         posterior_at_t, 
+                         grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+    
+    
+    all_predictives <- get_all_possible_creature_pred(
+                        all_possible_outcomes, 
+                         posterior_at_t)
+    
+    
+  
+    
+    df$EIG[t] = all_possible_kls$kl %*% all_predictives
+    
+    # flip a coin with p_keep_looking weight
+    df$p_look_away[t] = C / (df$EIG[t] + C)
+    df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+
+    if (df$look_away[t]==TRUE) {
+      stimulus_idx <- stimulus_idx + 1
+    }
+    
+    t <- t + 1 
+      
+      
+  }
+    
+  df <- df %>% mutate(id = subject)
+  
+  
+  return(df)
+}
+```
+
+
+
+
+
+
 
 ```{r}
 sim <- main_simulation(subject = 1,
@@ -355,7 +671,7 @@ sim %>%
 
 # now running simulation on multiple ppl 
 ```{r}
-subject_n = 10
+subject_n = 100
 
 
 sims <- lapply(seq(1, subject_n, 1), 
