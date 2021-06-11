@@ -21,8 +21,8 @@ source(here("helper/new_grid_approximation.R"))
 num_features = 5
 num_features_simple = 3
 # num_features_complex = 8
-trials_per_block = 3
-deviant_positions = c(2)
+trials_per_block = 8
+deviant_positions = c(3, 5)
 dissimilarity_ratio = 0.2
 epsilon = 0.1
 
@@ -168,7 +168,9 @@ noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
   
 }
 
-main_simulation <- function(stimuli_sequence, 
+main_simulation <- function(
+                          subject, 
+                          stimuli_sequence, 
                           noise_parameter, 
                           eig_from_world = .005,
                           max_observation = 500, # should this be per trial or in total? currently per trial 
@@ -213,7 +215,7 @@ main_simulation <- function(stimuli_sequence,
     t <- 1
   
   
-  while(stimulus_idx < total_trial_number){
+  while(stimulus_idx <= total_trial_number){
     
     current_stimulus <- stimuli_sequence %>% 
       filter(trial_number == stimulus_idx)
@@ -234,7 +236,7 @@ main_simulation <- function(stimuli_sequence,
     
     # calculate posterior at t 
     posterior_at_t <- grid_apprxoimation_with_observation(
-                          noisy_observation = current_observation, 
+                          noisy_observation = observations, 
                           track_epsilon = TRUE, 
                           grid_theta = grid_theta, 
                           grid_epsilon = grid_epsilon, 
@@ -308,15 +310,18 @@ main_simulation <- function(stimuli_sequence,
       
       
   }
+    
+  df <- df %>% mutate(id = subject)
   
   
-  
+  return(df)
 }
 ```
 
 
 ```{r}
-sim <- main_simulation(stimuli_sequence = simple_stimuli, 
+sim <- main_simulation(subject = 1,
+                          stimuli_sequence = simple_stimuli, 
                           noise_parameter, 
                           eig_from_world = .005,
                           max_observation = 500, # should this be per trial or in total? currently per trial 
@@ -331,17 +336,97 @@ sim <- main_simulation(stimuli_sequence = simple_stimuli,
 
 
 ```{r}
-df
+sim %>% 
+  ggplot(aes(x = t, y = EIG)) + 
+  geom_line()
+
+sim %>% 
+  ggplot(aes(x = t, y = p_look_away)) + 
+  geom_line()
+
+sim %>% 
+  group_by(stimulus_idx) %>% 
+  summarise(samps_n = n()) %>% 
+  ggplot(aes(stimulus_idx, y = samps_n)) + 
+  geom_line()
+
 ```
 
 
+# now running simulation on multiple ppl 
+```{r}
+subject_n = 10
 
 
+sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = epsilon, 
+                          eig_from_world = .005,
+                          max_observation = 500, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+         }
+  ) %>% 
+    bind_rows()
+```
 
 
+ 
+```{r}
+sims %>% 
+  group_by(id, stimulus_idx) %>% 
+  drop_na() %>% 
+  summarise(n_samps = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = n_samps)) + 
+  geom_point() + 
+  geom_vline(xintercept = c(3, 5)) #+
+  #facet_wrap(~id)
+```
+
+```{r}
+sims %>% 
+  ggplot(aes(x = t, y = EIG, group = id)) + 
+  geom_line(alpha = .3)
+
+sims %>% 
+  ggplot(aes(x = t, y = EIG, group = id)) + 
+  geom_line(alpha = .3) + 
+  facet_wrap(~stimulus_idx)
+
+sims %>% 
+  ggplot(aes(x = t, y = EIG)) + 
+  geom_line(alpha = .3) + 
+  facet_wrap(~id)
+
+# trial level eig doesn't make sense?
+sims %>% 
+  group_by(id, stimulus_idx) %>% 
+  summarise(trial_EIG = sum(EIG)) %>% 
+  ggplot(aes(x = stimulus_idx, 
+             y = trial_EIG, 
+             group = id)) + 
+  geom_line(alpha = .3)
+```
 
 
-
+```{r}
+sims %>% 
+  group_by(id, stimulus_idx) %>% 
+  summarise(
+    trial_length = n(), 
+    trial_EIG = sum(EIG)) %>% 
+  ggplot(aes(x = trial_EIG, 
+             y = trial_length)) + 
+  geom_point(alpha = .3) + 
+  ylim(0, 10) + 
+  xlim(0, 2)
+```
 
 
 
