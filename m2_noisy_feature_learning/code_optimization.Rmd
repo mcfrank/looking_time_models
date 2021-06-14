@@ -1,19 +1,16 @@
 ---
-title: "noisy sim"
+title: "R Notebook"
 output: html_notebook
 ---
 
-# Preliminaries
+
 
 ```{r}
-# library(reshape2)
 library(tidyverse)
 library(here)
 library(matrixStats)
-```
+library(profvis)
 
-```{r}
-## source relevant files
 source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
 source(here("helper/grid_approximation.R"))
@@ -23,13 +20,9 @@ source(here("helper/get_kl_eig.R"))
 
 ```
 
-# set up  all the parameters 
-
-
 ```{r}
-## stimuli related 
-num_features = 2
-num_features_simple = 1
+num_features = 2000
+num_features_simple = 100
 trials_per_block = 8
 deviant_positions = 4
 dissimilarity_ratio = 0.2
@@ -51,13 +44,7 @@ max_obs = 500
 subject_n = 10
 ```
 
-
-# generate stimuli
-
 ```{r}
-
-
-# must satisfy: total feature > (1 + dissimilar ratio) * featureOnumber
 simple_stimuli <- generate_creature_sequence(
   block_length = trials_per_block, 
   deviant_positions = deviant_positions,  # takes a vector, 
@@ -67,8 +54,21 @@ simple_stimuli <- generate_creature_sequence(
   dissimilar_ratio = dissimilarity_ratio)
 ```
 
+```{r}
+profvis({
+  simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = 0.8, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+  
+})
+```
 
-# main simulation (sketchy)
+
+
 ```{r}
 main_simulation <- function(
                           subject, 
@@ -179,12 +179,10 @@ main_simulation <- function(
   
   return(df)
 }
-```
 
 
-```{r}
-
-sims <- lapply(seq(1, subject_n, 1), 
+profvis(
+sims <- lapply(seq(1, 1, 1), 
          function(x){
            main_simulation(subject = x,
                           stimuli_sequence = simple_stimuli, 
@@ -200,46 +198,99 @@ sims <- lapply(seq(1, subject_n, 1),
          }
   ) %>% 
     bind_rows()
+
+)
 ```
+
+
+# Most expensive function 
 
 ```{r}
-sims %>% 
-  group_by(id, stimulus_idx) %>% 
-  drop_na() %>% 
-  summarise(n_samps = n()) %>% 
-  ggplot(aes(x = stimulus_idx, y = n_samps)) + 
-  geom_point() + 
-  geom_vline(xintercept = c(3, 5))
+noisy_observation = noisy_observation_creature(
+                                stimuli_df = simple_stimuli,
+                                trial_index  = 1, 
+                                n_sample = 1, 
+                                epsilon = noise_parameter
+                              )
+
+
+profvis(
+posterior_df <- lapply(seq(1, num_features, 1), 
+         function(x){
+           update_grid_with_theta_and_epsilon(
+             feature_i = x, 
+             grid_theta = grid_theta, 
+             grid_epsilon = grid_epsilon, 
+             observations = noisy_observation[,x], 
+             alpha_theta = alpha_prior, 
+             beta_theta = beta_prior,
+             alpha_epsilon = alpha_epsilon, 
+             beta_epsilon = beta_epsilon
+           )
+         })
+)
 ```
+
+ok try to treat ya 
+```{r}
+update_grid_with_theta_and_epsilon_better <- function(
+  feature_i, 
+  grid_theta, 
+  grid_epsilon, 
+  observations, 
+  alpha_theta, beta_theta, 
+  alpha_epsilon, beta_epsilon
+){
+  
+  
+  samps <- expand_grid(theta = grid_theta,
+                       epsilon = grid_epsilon) 
+  
+  
+  samps$unnormalized_log_posterior <- mapply(function(x, y) 
+    lp_theta_given_z(z_bar = observations, 
+                     theta = x, 
+                     epsilon = y, 
+                     alpha_theta = alpha_theta, 
+                     beta_theta = beta_theta,
+                     alpha_epsilon = alpha_epsilon, 
+                     beta_epsilon = beta_epsilon), 
+    samps$theta, 
+    samps$epsilon)
+  
+  samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
+  
+  # integrate out epsilon by summing p(theta | z) over all the different possible values of epsilon
+  # that's the log-sum-exp line
+  theta_posterior <- samps %>%
+    group_by(theta) %>%
+    summarise(log_posterior = matrixStats::logSumExp(log_posterior)) %>%
+    mutate(posterior = exp(log_posterior)) %>% 
+    mutate(feature_index = feature_i)
+  
+  return(theta_posterior)
+  
+}
+```
+
 
 ```{r}
-sims %>% 
-  ggplot(aes(x = t, y = EIG, group = id)) + 
-  geom_line(alpha = .3)
-
-sims %>% 
-  ggplot(aes(x = t, y = EIG, group = id)) + 
-  geom_line(alpha = .3) + 
-  facet_wrap(~stimulus_idx)
-
-sims %>% 
-  ggplot(aes(x = t, y = EIG)) + 
-  geom_line(alpha = .3) + 
-  facet_wrap(~id)
-
-# trial level eig doesn't make sense?
-sims %>% 
-  group_by(id, stimulus_idx) %>% 
-  summarise(trial_EIG = sum(EIG)) %>% 
-  ggplot(aes(x = stimulus_idx, 
-             y = trial_EIG, 
-             group = id)) + 
-  geom_line(alpha = .3)
+posterior_df <- lapply(seq(1, num_features, 1), 
+         function(x){
+           update_grid_with_theta_and_epsilon(
+             feature_i = x, 
+             grid_theta = grid_theta, 
+             grid_epsilon = grid_epsilon, 
+             observations = noisy_observation[,x], 
+             alpha_theta = alpha_prior, 
+             beta_theta = beta_prior,
+             alpha_epsilon = alpha_epsilon, 
+             beta_epsilon = beta_epsilon
+           )
+         })
 ```
 
-# optimization 
-```{r}
-library([lineprof)
-```
+
+
 
 
