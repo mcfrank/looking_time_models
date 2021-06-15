@@ -23,12 +23,21 @@ noisy_observation_creature <- function(
     select_at(vars(starts_with("V"))) 
     
     
-  sapply(creature, function(y){noisy_observation_feature(
+  observations <- sapply(creature, function(y){noisy_observation_feature(
     feature = y, 
     n_sample = n_sample, 
     epsilon = epsilon
-  )}) %>% 
-    as_tibble_row()
+  ) %>%  
+    as_tibble_row(.name_repair =  make.names)
+    
+    }) 
   
   
+  rename_column <- function(x){paste0("V", x)}
+  tidy_column_names <- lapply(1:ncol(creature), rename_column)
+  colnames(observations) <- tidy_column_names
+  
+  observations <- observations %>% as_tibble()  %>% unnest(cols = starts_with("V"))
+  
+  return(observations)
 }
