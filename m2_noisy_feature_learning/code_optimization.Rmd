@@ -395,7 +395,7 @@ yeah equivalent! maybe we should time them now! let's make them relatively expen
 
 ```{r}
 expensive_theta <- seq(0.01, .99, .01)
-expsensive_epsilon <- seq(0.01, .99, .01)
+expensive_epsilon <- seq(0.01, .99, .01)
 ```
 
 
@@ -407,7 +407,7 @@ ptm <- proc.time()
                           noisy_observation = os, 
                           track_epsilon = TRUE, 
                           grid_theta = expensive_theta, 
-                          grid_epsilon = expsensive_epsilon, 
+                          grid_epsilon = expensive_epsilon, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
@@ -426,7 +426,7 @@ posterior_after_o1 <- grid_apprxoimation_with_observation(
                           noisy_observation = o1, 
                           track_epsilon = TRUE, 
                           grid_theta = expensive_theta, 
-                          grid_epsilon = expsensive_epsilon, 
+                          grid_epsilon = expensive_epsilon, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
@@ -439,7 +439,7 @@ faster_grid_apprxoimation_with_observation(
   last_update_posterior_df = posterior_after_o1, 
   track_epsilon = TRUE, 
   grid_theta = expensive_theta, 
-                          grid_epsilon = expsensive_epsilon, 
+                          grid_epsilon = expensive_epsilon, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
@@ -465,5 +465,65 @@ o100 <- noisy_observation_creature(
 o100
 ```
 
-tbd 
+let's try it out 
+## 100 obs with the old way: 
+```{r}
+ptm <- proc.time()
+
+ posterior_after_os <- grid_apprxoimation_with_observation(
+                          noisy_observation = o100, 
+                          track_epsilon = TRUE, 
+                          grid_theta = expensive_theta, 
+                          grid_epsilon = expensive_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+ 
+ proc.time() - ptm
+```
+
+## 100 obs with the new way 
+```{r}
+ptm <- proc.time()
+
+
+for (i in 1:100){
+
+  obs <- o100[i, ]
+  if (i == 1){
+   pos_df <- faster_grid_apprxoimation_with_observation(
+          timepoint = i, 
+          noisy_observation = obs , 
+          last_update_posterior_df = NULL, 
+          track_epsilon = TRUE, 
+          grid_theta = seq(0.01, .99, .01), 
+          grid_epsilon = seq(0.01, .99, .01), 
+          alpha_prior = 1, 
+          beta_prior = 1,
+          alpha_epsilon = 10, 
+          beta_epsilon = 1
+   )
+   }else {
+      pos_df <- faster_grid_apprxoimation_with_observation(
+          timepoint = i, 
+          noisy_observation = obs , 
+          last_update_posterior_df = pos_df, 
+          track_epsilon = TRUE, 
+          grid_theta = seq(0.01, .99, .01), 
+          grid_epsilon = seq(0.01, .99, .01), 
+          alpha_prior = 1, 
+          beta_prior = 1,
+          alpha_epsilon = 10, 
+          beta_epsilon = 1
+   )
+
+   }
+}
+
+ proc.time() - ptm
+
+
+```
 

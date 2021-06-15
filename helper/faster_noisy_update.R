@@ -1,7 +1,8 @@
-update_lp_theta <- function(theta_value, updated_posterior){
+update_lp_theta <- function(theta_value, epsilon_value, updated_posterior){
   updated_posterior %>% 
     filter(theta == theta_value) %>% 
-    select(normalized_log_posterior) %>% 
+    filter(epsilon == epsilon_value) %>% 
+    select(posterior) %>% 
     pull()
 }
 
@@ -16,7 +17,7 @@ update_lp_theta_given_z_after_observation <- function(new_observation,
   
   #sampling from the updated posterior, which is a broken beta distribution 
   
-  new_lp_theta <- update_lp_theta(theta, updated_posterior)
+  new_lp_theta <- update_lp_theta(theta, epsilon, updated_posterior)
   new_lp_epsilon <- lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)  
   new_lp_z_given_theta <- lp_z_given_theta(new_observation, theta, epsilon)
   
@@ -26,6 +27,8 @@ update_lp_theta_given_z_after_observation <- function(new_observation,
 
 faster_update_grid_with_theta_and_epsilon <- function(
   feature_i, 
+  timepoint,  
+  observation,
   last_update_posterior_df, 
   grid_theta, 
   grid_epsilon, 
@@ -38,22 +41,21 @@ faster_update_grid_with_theta_and_epsilon <- function(
   samps <- expand_grid(theta = grid_theta,
                        epsilon = grid_epsilon) 
   
-  if(nrow(observations == 1)){
-  
-  samps$unnormalized_log_posterior <- mapply(function(x, y) 
-    lp_theta_given_z(z_bar = observations, 
-                     theta = x, 
-                     epsilon = y, 
-                     alpha_theta = alpha_theta, 
-                     beta_theta = beta_theta,
-                     alpha_epsilon = alpha_epsilon, 
-                     beta_epsilon = beta_epsilon), 
-    samps$theta, 
-    samps$epsilon)
+  if(timepoint == 1){
+      samps$unnormalized_log_posterior <- mapply(function(x, y) 
+        lp_theta_given_z(z_bar = observation, 
+                         theta = x, 
+                         epsilon = y, 
+                         alpha_theta = alpha_theta, 
+                         beta_theta = beta_theta,
+                         alpha_epsilon = alpha_epsilon, 
+                         beta_epsilon = beta_epsilon), 
+        samps$theta, 
+        samps$epsilon)
   }else{
     
     samps$unnormalized_log_posterior <- mapply(function(x, y) 
-      update_lp_theta_given_z_after_observation(new_observation = os %>% slice(nrow(os)) %>% select(starts_with("V")), 
+      update_lp_theta_given_z_after_observation(new_observation = observation[feature_i], 
                                                 theta = x, 
                                                 epsilon = y, 
                                                 updated_posterior = last_update_posterior_df, 
@@ -80,6 +82,7 @@ faster_update_grid_with_theta_and_epsilon <- function(
 
 
 faster_grid_apprxoimation_with_observation <- function(
+  timepoint, 
   noisy_observation, 
   last_update_posterior_df, 
   track_epsilon = TRUE, 
@@ -98,10 +101,11 @@ faster_grid_apprxoimation_with_observation <- function(
                          function(x){
                            faster_update_grid_with_theta_and_epsilon(
                              feature_i = x, 
+                             timepoint = timepoint, 
+                             observation = noisy_observation, #just passing one observation this time 
                              last_update_posterior_df = last_update_posterior_df, 
                              grid_theta = grid_theta, 
                              grid_epsilon = grid_epsilon, 
-                             observations = noisy_observation[,x], 
                              alpha_theta = alpha_prior, 
                              beta_theta = beta_prior,
                              alpha_epsilon = alpha_epsilon, 
