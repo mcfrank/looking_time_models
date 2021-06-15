@@ -21,8 +21,8 @@ source(here("helper/get_kl_eig.R"))
 ```
 
 ```{r}
-num_features = 2000
-num_features_simple = 100
+num_features = 3
+num_features_simple = 1
 trials_per_block = 8
 deviant_positions = 4
 dissimilarity_ratio = 0.2
@@ -273,24 +273,197 @@ update_grid_with_theta_and_epsilon_better <- function(
 }
 ```
 
+so it turns out you are a huge problem, let's test you for a bit 
+
+
 
 ```{r}
-posterior_df <- lapply(seq(1, num_features, 1), 
-         function(x){
-           update_grid_with_theta_and_epsilon(
-             feature_i = x, 
-             grid_theta = grid_theta, 
-             grid_epsilon = grid_epsilon, 
-             observations = noisy_observation[,x], 
-             alpha_theta = alpha_prior, 
-             beta_theta = beta_prior,
-             alpha_epsilon = alpha_epsilon, 
-             beta_epsilon = beta_epsilon
-           )
-         })
+
+observations = noisy_observation[,1]
+
+lp_theta_given_z <- function(z_bar, 
+                             theta, epsilon, 
+                             alpha_theta, beta_theta, 
+                             alpha_epsilon, beta_epsilon) {
+ 
+  lp_z_given_theta(z_bar, theta, epsilon) + 
+    lp_theta(theta, alpha_theta, beta_theta) + 
+    lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
+}
+
+
+lp_z_given_theta_better <- function(z_bar, 
+                             theta, 
+                             epsilon){
+  
+  z_bar = z_bar %>% pull()
+  sum(sapply(z_bar, 
+             function(x){lp_z_ij_given_theta(zij = x, 
+                                                    theta = theta, 
+                                                    epsilon = epsilon)}))
+  
+  
+}
 ```
 
 
+so i think the issue is the sequential updating rule is kinda annoying, what if we do it in the more reasonable way? let's first test if we can actually have the equivalent results 
+
+```{r}
+observations <-  stimuli_sequence %>% 
+    # create an empty dataframe with all the info needed to be tracked 
+    filter(is.na(.)) %>% 
+    mutate(t = NA_integer_) 
 
 
+o1 <- noisy_observation_creature(
+                                stimuli_df = stimuli_sequence,
+                                trial_index  = 1, 
+                                n_sample = 1, 
+                                epsilon = noise_parameter
+                              )
+    
+    # add to current observation 
+o1 <- bind_rows(observations, 
+                              o1 %>% mutate(
+                                trial_number = stimulus_idx, 
+                                trial_type = current_stimulus$trial_type,
+                                t = 1))
+
+o2 <- noisy_observation_creature(
+                                stimuli_df = stimuli_sequence,
+                                trial_index  = 1, 
+                                n_sample = 1, 
+                                epsilon = noise_parameter
+                              )
+
+os <- bind_rows(o1, 
+                              o2 %>% mutate(
+                                trial_number = stimulus_idx, 
+                                trial_type = current_stimulus$trial_type,
+                                t = 2))
+    
+    # calculate posterior at t 
+    # optimization possible!
+  posterior_after_os <- grid_apprxoimation_with_observation(
+                          noisy_observation = os, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+  
+   posterior_after_o1 <- grid_apprxoimation_with_observation(
+                          noisy_observation = o1, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+  
+   posterior_after_os
+   posterior_after_o1
+```
+
+
+now let's see if we can get sth equivaleent of os using the more efficient way of calculation 
+```{r}
+source(here("helper/faster_noisy_update.R"))
+
+faster_grid_apprxoimation_with_observation(
+  noisy_observation = os, # i doubt this is a good idea
+  last_update_posterior_df = posterior_after_o1, 
+  track_epsilon = TRUE, 
+  grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+  
+)
+
+```
+
+yeah equivalent! maybe we should time them now! let's make them relatively expensive 
+
+```{r}
+expensive_theta <- seq(0.01, .99, .01)
+expsensive_epsilon <- seq(0.01, .99, .01)
+```
+
+
+## the old way 
+```{r}
+ptm <- proc.time()
+
+ posterior_after_os <- grid_apprxoimation_with_observation(
+                          noisy_observation = os, 
+                          track_epsilon = TRUE, 
+                          grid_theta = expensive_theta, 
+                          grid_epsilon = expsensive_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+ 
+ proc.time() - ptm
+
+```
+
+## the new way 
+```{r}
+ptm <- proc.time()
+
+posterior_after_o1 <- grid_apprxoimation_with_observation(
+                          noisy_observation = o1, 
+                          track_epsilon = TRUE, 
+                          grid_theta = expensive_theta, 
+                          grid_epsilon = expsensive_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+
+
+faster_grid_apprxoimation_with_observation(
+  noisy_observation = os, # i doubt this is a good idea
+  last_update_posterior_df = posterior_after_o1, 
+  track_epsilon = TRUE, 
+  grid_theta = expensive_theta, 
+                          grid_epsilon = expsensive_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+  
+)
+
+proc.time() - ptm
+
+```
+
+ughhhh awkward 
+hypothesis: maybe it is because i'm not doing enough number of updates? maybe the benefit would show up in the long term? 
+
+```{r}
+o100 <- noisy_observation_creature(
+                                stimuli_df = stimuli_sequence,
+                                trial_index  = 1, 
+                                n_sample = 100, 
+                                epsilon = noise_parameter
+                              )
+
+o100
+```
+
+tbd 
 
