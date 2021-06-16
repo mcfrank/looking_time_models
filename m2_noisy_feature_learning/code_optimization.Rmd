@@ -26,7 +26,7 @@ num_features_simple = 1
 trials_per_block = 8
 deviant_positions = 4
 dissimilarity_ratio = 0.2
-epsilon = 0.1
+noise_parameter = 0.1
 
 ## grid approximation related 
 grid_theta <- seq(0.1, 1, 0.2)
@@ -44,7 +44,7 @@ max_obs = 500
 subject_n = 10
 ```
 
-```{r}
+```{r, include=FALSE}
 simple_stimuli <- generate_creature_sequence(
   block_length = trials_per_block, 
   deviant_positions = deviant_positions,  # takes a vector, 
@@ -52,9 +52,7 @@ simple_stimuli <- generate_creature_sequence(
   feature_theta = 0.8, 
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
-```
 
-```{r}
 profvis({
   simple_stimuli <- generate_creature_sequence(
   block_length = trials_per_block, 
@@ -93,7 +91,7 @@ main_simulation <- function(
 
   
   # set up the df that keep trakc of observation 
-  observations <-  stimuli_sequence %>% 
+  observations <-  simple_stimuli %>% 
     # create an empty dataframe with all the info needed to be tracked 
     filter(is.na(.)) %>% 
     mutate(t = NA_integer_) 
@@ -310,14 +308,19 @@ lp_z_given_theta_better <- function(z_bar,
 so i think the issue is the sequential updating rule is kinda annoying, what if we do it in the more reasonable way? let's first test if we can actually have the equivalent results 
 
 ```{r}
-observations <-  stimuli_sequence %>% 
+
+stimulus_idx <- 1
+current_stimulus <- simple_stimuli %>% 
+      filter(trial_number == stimulus_idx)
+  
+observations <-  simple_stimuli %>% 
     # create an empty dataframe with all the info needed to be tracked 
     filter(is.na(.)) %>% 
     mutate(t = NA_integer_) 
 
 
 o1 <- noisy_observation_creature(
-                                stimuli_df = stimuli_sequence,
+                                stimuli_df = simple_stimuli,
                                 trial_index  = 1, 
                                 n_sample = 1, 
                                 epsilon = noise_parameter
@@ -331,7 +334,7 @@ o1 <- bind_rows(observations,
                                 t = 1))
 
 o2 <- noisy_observation_creature(
-                                stimuli_df = stimuli_sequence,
+                                stimuli_df = simple_stimuli,
                                 trial_index  = 1, 
                                 n_sample = 1, 
                                 epsilon = noise_parameter
@@ -377,6 +380,7 @@ now let's see if we can get sth equivaleent of os using the more efficient way o
 source(here("helper/faster_noisy_update.R"))
 
 faster_grid_apprxoimation_with_observation(
+  timepoint = 1,
   noisy_observation = os, # i doubt this is a good idea
   last_update_posterior_df = posterior_after_o1, 
   track_epsilon = TRUE, 
@@ -435,6 +439,7 @@ posterior_after_o1 <- grid_apprxoimation_with_observation(
 
 
 faster_grid_apprxoimation_with_observation(
+  timepoint=1,
   noisy_observation = os, # i doubt this is a good idea
   last_update_posterior_df = posterior_after_o1, 
   track_epsilon = TRUE, 
@@ -456,7 +461,7 @@ hypothesis: maybe it is because i'm not doing enough number of updates? maybe th
 
 ```{r}
 o100 <- noisy_observation_creature(
-                                stimuli_df = stimuli_sequence,
+                                stimuli_df = simple_stimuli,
                                 trial_index  = 1, 
                                 n_sample = 100, 
                                 epsilon = noise_parameter
