@@ -181,7 +181,7 @@ main_simulation <- function(
 }
 
 
-profvis(
+#profvis(
 sims <- lapply(seq(1, 1, 1), 
          function(x){
            main_simulation(subject = x,
@@ -199,7 +199,7 @@ sims <- lapply(seq(1, 1, 1),
   ) %>% 
     bind_rows()
 
-)
+#)
 ```
 
 
