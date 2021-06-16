@@ -35,7 +35,7 @@ noisy_observation_creature <- function(
   
   rename_column <- function(x){paste0("V", x)}
   tidy_column_names <- lapply(1:ncol(creature), rename_column)
-  colnames(observations) <- tidy_column_names
+  names(observations) <- tidy_column_names
   
   observations <- observations %>% as_tibble()  %>% unnest(cols = starts_with("V"))
   
