@@ -32,7 +32,6 @@ faster_update_grid_with_theta_and_epsilon <- function(
   last_update_posterior_df, 
   grid_theta, 
   grid_epsilon, 
-  observations, 
   alpha_theta, beta_theta, 
   alpha_epsilon, beta_epsilon
 ){
@@ -58,11 +57,11 @@ faster_update_grid_with_theta_and_epsilon <- function(
       update_lp_theta_given_z_after_observation(new_observation = observation[feature_i], 
                                                 theta = x, 
                                                 epsilon = y, 
-                                                updated_posterior = last_update_posterior_df, 
+                                                updated_posterior = last_update_posterior_df %>% filter(feature_index == feature_i), 
                                                 alpha_epsilon = alpha_epsilon, 
                                                 beta_epsilon = beta_epsilon), 
-      samps$theta, 
-      samps$epsilon)
+          samps$theta, 
+          samps$epsilon)
     
     
     
