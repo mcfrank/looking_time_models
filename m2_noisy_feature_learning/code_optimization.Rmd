@@ -389,26 +389,12 @@ epsilons <- seq(0.1, .5, .2)
 
 now let's see if we can get sth equivaleent of os using the more efficient way of calculation 
 ```{r}
-source(here("helper/faster_noisy_update.R"))
+source(here("helper/faster_noisy_update_old.R"))
 
-first_update <- faster_grid_apprxoimation_with_observation(
-  timepoint = 1,
-  noisy_observation = filter(os, t == 1), # i doubt this is a good idea
-  last_update_posterior_df = NULL, 
-  track_epsilon = TRUE, 
-  grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-  
-)
 
-second_update <- faster_grid_apprxoimation_with_observation(
-  timepoint = 2,
+second_update <- faster_grid_apprxoimation_with_observation_old(
   noisy_observation = filter(os, t == 2), # i doubt this is a good idea
-  last_update_posterior_df = first_update, 
+  last_update_posterior_df = old_posterior_after_one_udpate, 
   track_epsilon = TRUE, 
   grid_theta = thetas, 
                           grid_epsilon = epsilons, 
