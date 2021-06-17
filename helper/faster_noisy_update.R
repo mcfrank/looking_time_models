@@ -2,7 +2,7 @@ update_lp_theta <- function(theta_value, epsilon_value, updated_posterior){
   updated_posterior %>% 
     filter(theta == theta_value) %>% 
     filter(epsilon == epsilon_value) %>% 
-    select(posterior) %>% 
+    select(log_posterior) %>% 
     pull()
 }
 
