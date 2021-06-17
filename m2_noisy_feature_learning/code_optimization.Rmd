@@ -398,8 +398,8 @@ faster_grid_apprxoimation_with_observation(
 yeah equivalent! maybe we should time them now! let's make them relatively expensive 
 
 ```{r}
-expensive_theta <- seq(0.01, .99, .01)
-expensive_epsilon <- seq(0.01, .99, .01)
+thetas <- seq(0.1, .9, .2)
+epsilons <- seq(0.1, .9, .2)
 ```
 
 
@@ -408,10 +408,10 @@ expensive_epsilon <- seq(0.01, .99, .01)
 ptm <- proc.time()
 
  posterior_after_os <- grid_apprxoimation_with_observation(
-                          noisy_observation = os, 
+                          noisy_observation = os[1,], 
                           track_epsilon = TRUE, 
-                          grid_theta = expensive_theta, 
-                          grid_epsilon = expensive_epsilon, 
+                          grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
@@ -419,6 +419,9 @@ ptm <- proc.time()
                         )
  
  proc.time() - ptm
+ 
+ posterior_after_os # old
+ new_posterior # new
 
 ```
 
@@ -426,25 +429,29 @@ ptm <- proc.time()
 ```{r}
 ptm <- proc.time()
 
-posterior_after_o1 <- grid_apprxoimation_with_observation(
-                          noisy_observation = o1, 
-                          track_epsilon = TRUE, 
-                          grid_theta = expensive_theta, 
-                          grid_epsilon = expensive_epsilon, 
+
+
+new_posterior <- faster_grid_apprxoimation_with_observation(
+  timepoint=1,
+  noisy_observation = os %>% filter(t==1),
+  last_update_posterior_df = NULL, 
+  track_epsilon = TRUE, 
+  grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
                           beta_epsilon = beta_epsilon
-                        )
+)
 
 
-faster_grid_apprxoimation_with_observation(
-  timepoint=1,
-  noisy_observation = os, # i doubt this is a good idea
-  last_update_posterior_df = posterior_after_o1, 
+posterior_after_o2 <- faster_grid_apprxoimation_with_observation(
+  timepoint=2,
+  noisy_observation = os %>% filter(t==2),
+  last_update_posterior_df = new_posterior, 
   track_epsilon = TRUE, 
-  grid_theta = expensive_theta, 
-                          grid_epsilon = expensive_epsilon, 
+  grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
@@ -461,7 +468,7 @@ hypothesis: maybe it is because i'm not doing enough number of updates? maybe th
 
 ```{r}
 o100 <- noisy_observation_creature(
-                                stimuli_df = simple_stimuli,
+                                stimuli_df = stimuli_sequence,
                                 trial_index  = 1, 
                                 n_sample = 100, 
                                 epsilon = noise_parameter
