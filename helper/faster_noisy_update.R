@@ -54,7 +54,7 @@ faster_update_grid_with_theta_and_epsilon <- function(
   }else{
     
     samps$unnormalized_log_posterior <- mapply(function(x, y) 
-      update_lp_theta_given_z_after_observation(new_observation = observation[feature_i], 
+      update_lp_theta_given_z_after_observation(new_observation = observation, 
                                                 theta = x, 
                                                 epsilon = y, 
                                                 updated_posterior = last_update_posterior_df %>% filter(feature_index == feature_i), 
@@ -101,7 +101,7 @@ faster_grid_apprxoimation_with_observation <- function(
                            faster_update_grid_with_theta_and_epsilon(
                              feature_i = x, 
                              timepoint = timepoint, 
-                             observation = noisy_observation, #just passing one observation this time 
+                             observation = noisy_observation[,x], 
                              last_update_posterior_df = last_update_posterior_df, 
                              grid_theta = grid_theta, 
                              grid_epsilon = grid_epsilon, 

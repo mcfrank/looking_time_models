@@ -21,7 +21,7 @@ source(here("helper/get_kl_eig.R"))
 ```
 
 ```{r}
-num_features = 3
+num_features = 1
 num_features_simple = 1
 trials_per_block = 8
 deviant_positions = 4
@@ -348,44 +348,56 @@ os <- bind_rows(o1,
     
     # calculate posterior at t 
     # optimization possible!
-  posterior_after_os <- grid_apprxoimation_with_observation(
+
+```
+
+```{r}
+
+thetas <- seq(0.1, 0.5, .2)
+epsilons <- seq(0.1, .5, .2)
+
+
+
+ old_posterior_after_one_udpate <- grid_apprxoimation_with_observation(
+                          noisy_observation = filter(os, t == 1), 
+                          track_epsilon = TRUE, 
+                          grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+
+
+ old_posterior_after_os <- grid_apprxoimation_with_observation(
                           noisy_observation = os, 
                           track_epsilon = TRUE, 
-                          grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
+                          grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
                           beta_epsilon = beta_epsilon
                         )
-  
-   posterior_after_o1 <- grid_apprxoimation_with_observation(
-                          noisy_observation = o1, 
-                          track_epsilon = TRUE, 
-                          grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-                        )
-  
-   posterior_after_os
-   posterior_after_o1
+
 ```
+
+
+
 
 
 now let's see if we can get sth equivaleent of os using the more efficient way of calculation 
 ```{r}
 source(here("helper/faster_noisy_update.R"))
 
-faster_grid_apprxoimation_with_observation(
+first_update <- faster_grid_apprxoimation_with_observation(
   timepoint = 1,
-  noisy_observation = os, # i doubt this is a good idea
-  last_update_posterior_df = posterior_after_o1, 
+  noisy_observation = filter(os, t == 1), # i doubt this is a good idea
+  last_update_posterior_df = NULL, 
   track_epsilon = TRUE, 
-  grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
+  grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
@@ -393,6 +405,26 @@ faster_grid_apprxoimation_with_observation(
   
 )
 
+second_update <- faster_grid_apprxoimation_with_observation(
+  timepoint = 2,
+  noisy_observation = filter(os, t == 2), # i doubt this is a good idea
+  last_update_posterior_df = first_update, 
+  track_epsilon = TRUE, 
+  grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+  
+)
+
+old_posterior_after_one_udpate
+first_update
+
+
+old_posterior_after_os
+second_update
 ```
 
 yeah equivalent! maybe we should time them now! let's make them relatively expensive 
