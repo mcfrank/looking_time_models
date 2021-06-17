@@ -107,6 +107,12 @@ lp_theta <- function(theta, alpha_theta, beta_theta){
   dbeta(x = theta, shape1 = alpha_theta, shape2 = beta_theta, log = TRUE)
 }
 
+
+p_theta <- function(theta, alpha_theta, beta_theta){
+  # actually i think i'm still a little unsure of what the relationship between theta and p(theta) is
+  dbeta(x = theta, shape1 = alpha_theta, shape2 = beta_theta, log = FALSE)
+}
+
 lp_epsilon <- function(theta, alpha_epsilon, beta_epsilon){
   dbeta(x = theta, shape1 = alpha_epsilon, shape2 = beta_epsilon, log = TRUE)
 }
