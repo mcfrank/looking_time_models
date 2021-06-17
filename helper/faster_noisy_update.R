@@ -19,6 +19,7 @@ update_lp_theta_given_z_after_observation <- function(new_observation,
   
   new_lp_theta <- update_lp_theta(theta, epsilon, updated_posterior)
   new_lp_epsilon <- lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)  
+  #new_lp_epsilon <- 0
   new_lp_z_given_theta <- lp_z_given_theta(new_observation, theta, epsilon)
   
   return (new_lp_theta + new_lp_epsilon + new_lp_z_given_theta)

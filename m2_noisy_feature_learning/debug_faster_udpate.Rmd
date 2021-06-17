@@ -1,0 +1,67 @@
+---
+title: "debug "
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(here)
+
+
+```
+
+```{r}
+theta <- 0.1
+epsilon <- 0.1
+z_bar <- os
+
+```
+
+
+we want to first test the original version 
+```{r}
+source(here("helper/noisy_update.R"))
+lp_theta_given_z(z_bar = z_bar, 
+                 theta = theta, 
+                 epsilon = epsilon, 
+                 alpha_theta = 1, 
+                 beta_theta = 1, 
+                 alpha_epsilon = 10,
+                 beta_epsilon = 1)
+```
+then test the newer version 
+the difference is that in the newer version we need to have the updated posterior from previous time point 
+
+```{r}
+
+
+thetas <- seq(0.1, 0.5, .2)
+epsilons <- seq(0.1, .5, .2)
+
+source(here("helper/faster_noisy_update.R"))
+# this is getting the posterior at timepoint 1 
+updated_posterior <- grid_apprxoimation_with_observation(
+                          noisy_observation = filter(os, t == 1), 
+                          track_epsilon = TRUE, 
+                          grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+
+# then compute the lpthetagivenz at timepoint 2 
+update_lp_theta_given_z_after_observation(new_observation = z_bar[2, ], 
+                                          theta = theta, 
+                                                      epsilon = epsilon, 
+                                                      updated_posterior = updated_posterior, 
+                                                      alpha_epsilon = 10, 
+                                                      beta_epsilon = 1)
+
+```
+
+
+
+
+
