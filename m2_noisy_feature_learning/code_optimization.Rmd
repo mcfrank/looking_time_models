@@ -142,18 +142,6 @@ simple_stimuli <- generate_creature_sequence(
   dissimilar_ratio = dissimilarity_ratio)
 
 
-complex_stimuli <- generate_creature_sequence(
-  block_length = trials_per_block, 
-  deviant_positions = deviant_positions,  # takes a vector, 
-  total_feature = num_features, 
-  feature_theta = feature_theta, 
-  feature_number = num_feature_complex, 
-  dissimilar_ratio = dissimilarity_ratio)
-
-stimuli_sequence <- bind_rows(simple_stimuli, 
-                              complex_stimuli) %>% 
-  mutate(trial_number = row_number())
-
 ```
 
 
@@ -163,10 +151,10 @@ ptm <- proc.time()
 
 sims <- lapply(seq(1, subject_n, 1), 
          function(x){
-           main_simulation_toggle(subject = x,
+           main_simulation(subject = x,
                                   observation_assumption = "independent",
                           stimuli_sequence = simple_stimuli, 
-                          noise_parameter = epsilon, 
+                          noise_parameter = noise_parameter, 
                           eig_from_world = env_eig,
                           max_observation = max_obs, # should this be per trial or in total? currently per trial 
                           grid_theta = grid_theta, 
@@ -182,6 +170,42 @@ sims <- lapply(seq(1, subject_n, 1),
 proc.time() - ptm
 
 ```
+
+```{r}
+saveRDS(sims, file = "sims_before_optimization.RDS")
+```
+
+
+
+```{r}
+library(microbenchmark)
+test_function <- function(){
+
+sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                                  observation_assumption = "independent",
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+         }
+  ) %>% 
+    bind_rows()
+}
+
+microbenchmark(test_function(), times = 10)
+
+
+```
+
+
 
 ```{r}
 ptm <- proc.time()

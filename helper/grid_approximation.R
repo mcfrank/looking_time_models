@@ -27,12 +27,14 @@ update_grid_with_theta_and_epsilon <- function(
   samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
   
   
-  theta_posterior <- samps %>%
-    mutate(posterior = exp(log_posterior)) %>% 
-    mutate(feature_index = feature_i)
+  # theta_posterior <- samps %>%
+  #   mutate(posterior = exp(log_posterior)) %>% 
+  #   mutate(feature_index = feature_i)
   
+  samps$posterior <- exp(samps$log_posterior)
+  samps$feature_index <- feature_i
   
-  return(theta_posterior)
+  return(samps)
   
 }
 
