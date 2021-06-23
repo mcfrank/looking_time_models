@@ -90,6 +90,93 @@ get_possible_kls <- function(
 }
 
 
+get_possible_kls_toggle <- function(
+  t, 
+  observations, 
+  all_possible_outcomes, 
+  observation_assumption,
+  posterior_at_t, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon){
+  
+  all_possible_outcomes <- all_possible_outcomes %>% 
+    mutate(index = row_number())
+  
+  possible_kls <- tibble(
+    "index" = all_possible_outcomes$index, 
+    "kl" = rep(NA, all_possible_outcomes$index %>% length())
+  )
+  for (i in 1: nrow(all_possible_outcomes)){
+    
+  
+    if (observation_assumption == "independence"){
+      
+      current_scenario <- observations %>% 
+        bind_rows(all_possible_outcomes %>% 
+                    filter(index == i))
+      
+      
+      posterior_for_current_scenario <- grid_apprxoimation_with_observation(
+        noisy_observation = current_scenario, 
+        track_epsilon = TRUE, 
+        grid_theta = grid_theta, 
+        grid_epsilon = grid_epsilon, 
+        alpha_prior = alpha_prior, 
+        beta_prior = beta_prior,
+        alpha_epsilon = alpha_epsilon, 
+        beta_epsilon = beta_epsilon
+      )
+      
+    }else{
+      
+    
+      current_scenario <- all_possible_outcomes %>% 
+                    filter(index == i)
+      
+      posterior_for_current_scenario <- faster_grid_apprxoimation_with_observation(
+        t, 
+        noisy_observation = current_scenario, 
+        last_update_posterior_df = posterior_at_t,
+        track_epsilon = TRUE, 
+        grid_theta = grid_theta, 
+        grid_epsilon = grid_epsilon, 
+        alpha_prior = alpha_prior, 
+        beta_prior = beta_prior,
+        alpha_epsilon = alpha_epsilon, 
+        beta_epsilon = beta_epsilon
+      )
+      
+    }
+    
+   
+    
+    
+    # now calculate kl feature by feature 
+    features <- posterior_for_current_scenario %>% 
+      distinct(feature_index) %>% 
+      pull()
+    
+    creature_kl <- get_kl(posterior_for_current_scenario$posterior, 
+                          posterior_at_t$posterior)
+    
+    
+    # bind creature kl with other kl 
+    
+    possible_kls$kl[i] <- creature_kl
+    
+    
+  }
+  
+  
+  # will return a df of possible kls 
+  return (possible_kls)  
+}
+
+
 #########noisy_post_pred for single creature#########
 
 noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
@@ -188,6 +275,49 @@ get_eig <- function(current_observation,
     beta_prior = beta_prior,
     alpha_epsilon = alpha_epsilon, 
     beta_epsilon = beta_epsilon)
+  
+  all_predictives <- get_all_possible_creature_pred(
+    all_possible_outcomes, 
+    posterior_at_t)
+  
+  return (all_possible_kls$kl %*% all_predictives)
+  
+  
+}
+
+
+
+
+get_eig_toggle <- function(
+                    t, 
+                    current_observation, 
+                    observations, 
+                    observation_assumption, 
+                    im, 
+                    posterior_at_t, 
+                    grid_theta = grid_theta, 
+                    grid_epsilon = grid_epsilon, 
+                    alpha_prior = alpha_prior, 
+                    beta_prior = beta_prior,
+                    alpha_epsilon = alpha_epsilon, 
+                    beta_epsilon = beta_epsilon){
+  
+  all_possible_outcomes <- get_possible_creatures(current_observation)
+  
+  if (im == "kl"){
+        all_possible_kls <- get_possible_kls_toggle(
+          t, 
+          observations, 
+          all_possible_outcomes,
+          observation_assumption,
+          posterior_at_t, 
+          grid_theta = grid_theta, 
+          grid_epsilon = grid_epsilon, 
+          alpha_prior = alpha_prior, 
+          beta_prior = beta_prior,
+          alpha_epsilon = alpha_epsilon, 
+          beta_epsilon = beta_epsilon)
+  }
   
   all_predictives <- get_all_possible_creature_pred(
     all_possible_outcomes, 

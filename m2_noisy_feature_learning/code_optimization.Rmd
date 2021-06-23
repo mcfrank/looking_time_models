@@ -21,10 +21,12 @@ source(here("helper/get_kl_eig.R"))
 ```
 
 ```{r}
-num_features = 1
-num_features_simple = 1
+num_features = 10
+num_features_simple = 3
+num_feature_complex = 6
 trials_per_block = 8
 deviant_positions = 4
+feature_theta = 0.9
 dissimilarity_ratio = 0.2
 noise_parameter = 0.1
 
@@ -49,141 +51,35 @@ simple_stimuli <- generate_creature_sequence(
   block_length = trials_per_block, 
   deviant_positions = deviant_positions,  # takes a vector, 
   total_feature = num_features, 
-  feature_theta = 0.8, 
+  feature_theta = feature_theta, 
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
 
-profvis({
-  simple_stimuli <- generate_creature_sequence(
+
+complex_stimuli <- generate_creature_sequence(
   block_length = trials_per_block, 
   deviant_positions = deviant_positions,  # takes a vector, 
   total_feature = num_features, 
-  feature_theta = 0.8, 
-  feature_number = num_features_simple, 
+  feature_theta = feature_theta, 
+  feature_number = num_feature_complex, 
   dissimilar_ratio = dissimilarity_ratio)
-  
-})
+
+stimuli_sequence <- bind_rows(simple_stimuli, 
+                              complex_stimuli) %>% 
+  mutate(trial_number = row_number())
+
 ```
 
 
-
 ```{r}
-main_simulation <- function(
-                          subject, 
-                          stimuli_sequence, 
-                          noise_parameter, 
-                          eig_from_world = .005,
-                          max_observation = 500, # should this be per trial or in total? currently in total 
-                          grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-                          ){
-  
-  # set up the df that tracks eig  
-  df <- tibble(t = rep(NA,max_observation),
-             stimulus_idx = rep(NA,max_observation), 
-             EIG = rep(NA,max_observation), 
-             p_look_away = rep(NA,max_observation), 
-             look_away = rep(NA,max_observation))
-
-  
-  # set up the df that keep trakc of observation 
-  observations <-  simple_stimuli %>% 
-    # create an empty dataframe with all the info needed to be tracked 
-    filter(is.na(.)) %>% 
-    mutate(t = NA_integer_) 
-  
-  
-  # the total number of stimuli 
-  total_trial_number = nrow(stimuli_sequence)
-  total_feature_number = stimuli_sequence %>% 
-    select(starts_with("V")) %>% 
-    ncol()
-  
+ptm <- proc.time()
 
 
-  # which stimulus are we looking at
-    stimulus_idx <- 1
-    t <- 1
-  
-  
-  while(stimulus_idx <= total_trial_number){
-    
-    current_stimulus <- stimuli_sequence %>% 
-      filter(trial_number == stimulus_idx)
-    
-    current_observation <- noisy_observation_creature(
-                                stimuli_df = stimuli_sequence,
-                                trial_index  = stimulus_idx, 
-                                n_sample = 1, 
-                                epsilon = noise_parameter
-                              )
-    
-    # add to current observation 
-    observations <- bind_rows(observations, 
-                              current_observation %>% mutate(
-                                trial_number = stimulus_idx, 
-                                trial_type = current_stimulus$trial_type,
-                                t = t))
-    
-    # calculate posterior at t 
-    # optimization possible!
-    posterior_at_t <- grid_apprxoimation_with_observation(
-                          noisy_observation = observations, 
-                          track_epsilon = TRUE, 
-                          grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-                        )
-    
-
-    
-    # maybe needs scaling?
-    
-    df$t[t] = t
-    df$stimulus_idx[t] = stimulus_idx
-    
-    df$EIG[t] = get_eig(current_observation, 
-                    observations, 
-                    posterior_at_t, 
-                    grid_theta = grid_theta, 
-                    grid_epsilon = grid_epsilon, 
-                    alpha_prior = alpha_prior, 
-                    beta_prior = beta_prior,
-                    alpha_epsilon = alpha_epsilon, 
-                    beta_epsilon = beta_epsilon)
-    
-    # flip a coin with p_keep_looking weight
-    df$p_look_away[t] = eig_from_world / (df$EIG[t] + eig_from_world)
-    df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
-
-    if (df$look_away[t]==TRUE) {
-      stimulus_idx <- stimulus_idx + 1
-    }
-    
-    t <- t + 1 
-      
-      
-  }
-    
-  df <- df %>% mutate(id = subject)
-  
-  
-  return(df)
-}
-
-
-#profvis(
-sims <- lapply(seq(1, 1, 1), 
+sims <- lapply(seq(1, subject_n, 1), 
          function(x){
-           main_simulation(subject = x,
-                          stimuli_sequence = simple_stimuli, 
+           main_simulation_toggle(subject = x,
+                                  observation_assumption = "independent",
+                          stimuli_sequence = stimuli_sequence, 
                           noise_parameter = epsilon, 
                           eig_from_world = env_eig,
                           max_observation = max_obs, # should this be per trial or in total? currently per trial 
@@ -197,37 +93,39 @@ sims <- lapply(seq(1, 1, 1),
   ) %>% 
     bind_rows()
 
-#)
+proc.time() - ptm
+
 ```
 
 
-# Most expensive function 
+
 
 ```{r}
-noisy_observation = noisy_observation_creature(
-                                stimuli_df = simple_stimuli,
-                                trial_index  = 1, 
-                                n_sample = 1, 
-                                epsilon = noise_parameter
-                              )
+id_lens <- independence_sims %>%
+  group_by(stimulus_idx, id) %>%
+  summarise(length = n()) %>%
+  filter(!is.na(stimulus_idx))
 
-
-profvis(
-posterior_df <- lapply(seq(1, num_features, 1), 
-         function(x){
-           update_grid_with_theta_and_epsilon(
-             feature_i = x, 
-             grid_theta = grid_theta, 
-             grid_epsilon = grid_epsilon, 
-             observations = noisy_observation[,x], 
-             alpha_theta = alpha_prior, 
-             beta_theta = beta_prior,
-             alpha_epsilon = alpha_epsilon, 
-             beta_epsilon = beta_epsilon
-           )
-         })
-)
+ggplot(id_lens, aes(x = stimulus_idx, y = length)) + 
+  geom_point() 
 ```
+
+```{r}
+sims %>% 
+  ggplot(aes(x = t, y = EIG, fill = stimulus_idx)) + 
+  geom_point()
+
+independence_sims %>% 
+  ggplot(aes(x = t, y = EIG)) + 
+  geom_point()
+```
+
+```{r}
+saveRDS(independence_sims, file = "old_calculation.RDS")
+saveRDS(sims, file = "new_calculation.RDS")
+
+```
+
 
 ok try to treat ya 
 ```{r}
@@ -351,68 +249,6 @@ os <- bind_rows(o1,
 
 ```
 
-```{r}
-
-thetas <- seq(0.1, 0.5, .2)
-epsilons <- seq(0.1, .5, .2)
-
-
-
- old_posterior_after_one_udpate <- grid_apprxoimation_with_observation(
-                          noisy_observation = filter(os, t == 1), 
-                          track_epsilon = TRUE, 
-                          grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-                        )
-
-
- old_posterior_after_os <- grid_apprxoimation_with_observation(
-                          noisy_observation = os, 
-                          track_epsilon = TRUE, 
-                          grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-                        )
-
-```
-
-
-
-
-
-now let's see if we can get sth equivaleent of os using the more efficient way of calculation 
-```{r}
-source(here("helper/faster_noisy_update.R"))
-
-
-second_update <- faster_grid_apprxoimation_with_observation(
-  timepoint = 2,
-  noisy_observation = filter(os, t == 2), # i doubt this is a good idea
-  last_update_posterior_df = old_posterior_after_one_udpate, 
-  track_epsilon = TRUE, 
-  grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-  
-)
-
-old_posterior_after_one_udpate
-first_update
-
-
-old_posterior_after_os
-second_update
-```
 
 yeah equivalent! maybe we should time them now! let's make them relatively expensive 
 
@@ -422,72 +258,12 @@ epsilons <- seq(0.1, .9, .2)
 ```
 
 
-## the old way 
-```{r}
-ptm <- proc.time()
-
- posterior_after_os <- grid_apprxoimation_with_observation(
-                          noisy_observation = os[1,], 
-                          track_epsilon = TRUE, 
-                          grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-                        )
- 
- proc.time() - ptm
- 
- posterior_after_os # old
- new_posterior # new
-
-```
-
-## the new way 
-```{r}
-ptm <- proc.time()
-
-
-
-new_posterior <- faster_grid_apprxoimation_with_observation(
-  timepoint=1,
-  noisy_observation = os %>% filter(t==1),
-  last_update_posterior_df = NULL, 
-  track_epsilon = TRUE, 
-  grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-)
-
-
-posterior_after_o2 <- faster_grid_apprxoimation_with_observation(
-  timepoint=2,
-  noisy_observation = os %>% filter(t==2),
-  last_update_posterior_df = new_posterior, 
-  track_epsilon = TRUE, 
-  grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-  
-)
-
-proc.time() - ptm
-
-```
-
 ughhhh awkward 
 hypothesis: maybe it is because i'm not doing enough number of updates? maybe the benefit would show up in the long term? 
 
 ```{r}
 o100 <- noisy_observation_creature(
-                                stimuli_df = stimuli_sequence,
+                                stimuli_df = simple_stimuli,
                                 trial_index  = 1, 
                                 n_sample = 100, 
                                 epsilon = noise_parameter
@@ -504,8 +280,8 @@ ptm <- proc.time()
  posterior_after_os <- grid_apprxoimation_with_observation(
                           noisy_observation = o100, 
                           track_epsilon = TRUE, 
-                          grid_theta = expensive_theta, 
-                          grid_epsilon = expensive_epsilon, 
+                          grid_theta = thetas, 
+                          grid_epsilon = epsilons, 
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
@@ -529,8 +305,8 @@ for (i in 1:100){
           noisy_observation = obs , 
           last_update_posterior_df = NULL, 
           track_epsilon = TRUE, 
-          grid_theta = seq(0.01, .99, .01), 
-          grid_epsilon = seq(0.01, .99, .01), 
+          grid_theta = thetas, 
+          grid_epsilon = epsilons, 
           alpha_prior = 1, 
           beta_prior = 1,
           alpha_epsilon = 10, 
@@ -542,8 +318,8 @@ for (i in 1:100){
           noisy_observation = obs , 
           last_update_posterior_df = pos_df, 
           track_epsilon = TRUE, 
-          grid_theta = seq(0.01, .99, .01), 
-          grid_epsilon = seq(0.01, .99, .01), 
+          grid_theta = thetas, 
+          grid_epsilon = epsilons, 
           alpha_prior = 1, 
           beta_prior = 1,
           alpha_epsilon = 10, 
@@ -556,5 +332,9 @@ for (i in 1:100){
  proc.time() - ptm
 
 
+```
+```{r}
+posterior_after_os
+pos_df
 ```
 
