@@ -1,0 +1,50 @@
+---
+title: "toy example"
+author: "anjie & gal "
+date: "6/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+criteria for toy example: 
+- keep track of both characters and numrics (so data type is important)
+- column based -> row based 
+
+currently: 
+  - we have three types of apply, lapply, sapply, mapply. 
+  
+# performance difference? 
+
+adapt this code: 
+https://www.analyticskhabar.com/apply-vs-lapply-vs-mapply-vs-tapply-vs-sapply/
+
+```{r}
+
+timingsPrev <- timings
+timings <-  vector("list", length(timeSeq))
+for(i in seq_len(length(timeSeq))) {
+  nRow <- timeSeq[[i]]
+  ti <- microbenchmark(
+    mkFrameDplyrBind(nRow,nCol),
+    mkFramePlyrLdply(nRow,nCol),
+    mkFrameMat(nRow,nCol),
+    mkFrameVector(nRow,nCol),
+    mkFrameDaccum(nRow,nCol),
+    mkFrameEnvDataTable(nRow,nCol),
+    mkFrameDataTableLapply(nRow,nCol),
+    times=10)
+  ti <- data.frame(ti,
+                   stringsAsFactors=FALSE)
+  ti$nRow <- nRow
+  ti$nCol <- nCol
+  timings[[i]] <- ti
+}
+timings <- data.table::rbindlist(timings)
+timings <- rbind(timings,timingsPrev)
+
+print(plotTimings(timings))
+```
+

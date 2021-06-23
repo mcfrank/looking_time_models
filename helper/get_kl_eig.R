@@ -113,7 +113,7 @@ get_possible_kls_toggle <- function(
   for (i in 1: nrow(all_possible_outcomes)){
     
   
-    if (observation_assumption == "independence"){
+    if (observation_assumption == "independent"){
       
       current_scenario <- observations %>% 
         bind_rows(all_possible_outcomes %>% 
