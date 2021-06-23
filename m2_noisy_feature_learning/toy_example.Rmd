@@ -7,6 +7,8 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(microbenchmark)
+library(tidyverse )
 ```
 
 criteria for toy example: 
@@ -23,28 +25,114 @@ https://www.analyticskhabar.com/apply-vs-lapply-vs-mapply-vs-tapply-vs-sapply/
 
 ```{r}
 
-timingsPrev <- timings
-timings <-  vector("list", length(timeSeq))
-for(i in seq_len(length(timeSeq))) {
-  nRow <- timeSeq[[i]]
-  ti <- microbenchmark(
-    mkFrameDplyrBind(nRow,nCol),
-    mkFramePlyrLdply(nRow,nCol),
-    mkFrameMat(nRow,nCol),
-    mkFrameVector(nRow,nCol),
-    mkFrameDaccum(nRow,nCol),
-    mkFrameEnvDataTable(nRow,nCol),
-    mkFrameDataTableLapply(nRow,nCol),
-    times=10)
-  ti <- data.frame(ti,
-                   stringsAsFactors=FALSE)
-  ti$nRow <- nRow
-  ti$nCol <- nCol
-  timings[[i]] <- ti
-}
-timings <- data.table::rbindlist(timings)
-timings <- rbind(timings,timingsPrev)
+create_df_tibble  <- function(nrow){
+  base_df <- tibble(
+  "one" = rep(1, nrow), 
+  "two" = rep(2, nrow))
 
-print(plotTimings(timings))
+}
+
+
+#expand_function <- function()
+  
+
+t <- create_df_tibble(1000) 
+```
+
+# avoid pull operation at all costs 
+
+maybe we want to revert all select back to base r syntax 
+=> select is bad, maybe
+```{r}
+microbenchmark( a <- t %>% select(-one),
+                a <- t %>% select(one, two),
+                a <-  t %>% select(one),
+                a <- t %>% pull(one),
+                a <- t['one'],
+                a <- t %>% mutate(three = two + 1),
+                a <- t %>% mutate(one = as.numeric(one)),
+                a <- t %>% mutate(one = as.character(one)),
+                a <- t %>% filter(one == 1), 
+                a <- t[t$one == 1,],
+                a <- t %>% group_by(one, two),
+                t$three <- t$two + 1,
+               a <- t$one,
+               ncol(t),
+              times = 10)
+
+```
+# operation on each feature 
+
+```{r}
+df_lapply_operation <- function(df){
+  
+  res <- lapply(seq(1, ncol(df), 1), 
+         
+         function(x){
+           y <- tibble((df[,x]) + 1)
+         }
+         ) %>% 
+      bind_rows()
+  
+  return(res)
+}
+
+
+df_sapply_operation <- function(df){
+  
+  res <- sapply(seq(1, ncol(df), 1), 
+         
+         function(x){
+           y <- tibble((df[,x]) + 1)
+         }
+         ) %>% 
+      bind_rows()
+  
+  return(res)
+}
+
+df_mapply_operation <- function(df){
+  
+  res <- mapply(
+         
+         function(x, y){
+           x+y
+         }, 
+        df$one, df$two         
+         ) 
+
+  return(res)
+}
+
+df_lapply_operation(t)
+
+microbenchmark(df_lapply_operation(t),
+               df_sapply_operation(t),
+               df_mapply_operation(t),
+              times = 100)
+
+```
+
+```{r}
+a <- seq(1, 99, 1)
+b <- seq(1, 99, 1)
+
+exp_g  <- function(m, n){
+  a <- seq(1, m, 1)
+  b <- seq(1, n, 1)
+  res <- tidyr::expand_grid(a = a, 
+                     b = b)
+  return (res)
+}
+
+allocate <- function(m, n){
+  df <- tibble("a" = seq(1))
+  
+}
+
+microbenchmark(
+  
+  exp_g(10, 10),
+              times = 100)
 ```
 
