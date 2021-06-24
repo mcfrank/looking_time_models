@@ -128,7 +128,8 @@ main_simulation <- function(
       alpha_prior = alpha_prior, 
       beta_prior = beta_prior,
       alpha_epsilon = alpha_epsilon, 
-      beta_epsilon = beta_epsilon)
+      beta_epsilon = beta_epsilon, 
+      optimize)
     
     # flip a coin with p_keep_looking weight
     df$p_look_away[t] = eig_from_world / (df$EIG[t] + eig_from_world)
