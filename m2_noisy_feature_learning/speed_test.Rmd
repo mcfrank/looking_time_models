@@ -28,8 +28,26 @@ create_df_tibble  <- function(nrow){
 
 #expand_function <- function()
   
+num <- 10000
+t <- create_df_tibble(num) 
+```
 
-t <- create_df_tibble(1000) 
+# add row to df
+```{r}
+
+l <- bind_rows(t, tibble_row())
+new <- t[1,]
+l[11,] <- new
+
+l
+
+add_new_row <- function(){
+  l[num+1, ] <- new
+}
+```
+
+
+```{r}
 ```
 
 # avoid pull operation at all costs 
@@ -37,7 +55,11 @@ t <- create_df_tibble(1000)
 maybe we want to revert all select back to base r syntax 
 => select is bad, maybe
 ```{r}
-microbenchmark( a <- t['one'],
+microbenchmark( add_new_row(),
+                bind_rows(t, tibble_row()),
+                rownames(t),
+                row_number(t),
+                a <- t['one'],
                 a <-  t %>% select(one),
                 a <- t$one,
                 a <- t %>% pull(one),
