@@ -179,7 +179,7 @@ saveRDS(sims, file = "sims_before_optimization.RDS")
 
 ```{r}
 library(microbenchmark)
-test_function <- function(){
+no_optimization <- function(){
 
 sims <- lapply(seq(1, subject_n, 1), 
          function(x){
@@ -194,13 +194,39 @@ sims <- lapply(seq(1, subject_n, 1),
                           alpha_prior = alpha_prior, 
                           beta_prior = beta_prior,
                           alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon)
+                          beta_epsilon = beta_epsilon, 
+                          optimize = FALSE)
          }
   ) %>% 
     bind_rows()
 }
 
-microbenchmark(test_function(), times = 10)
+with_optimization <- function(){
+  
+  sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                                  observation_assumption = "independent",
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          optimize = TRUE)
+         }
+  ) %>% 
+    bind_rows()
+  
+  
+}
+
+microbenchmark(no_optimization(), 
+               with_optimization(),times = 10)
 
 
 ```

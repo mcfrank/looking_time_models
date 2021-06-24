@@ -44,23 +44,64 @@ t <- create_df_tibble(1000)
 maybe we want to revert all select back to base r syntax 
 => select is bad, maybe
 ```{r}
-microbenchmark( a <- t %>% select(-one),
-                a <- t %>% select(one, two),
+microbenchmark( a <- t['one'],
                 a <-  t %>% select(one),
+                a <- t$one,
                 a <- t %>% pull(one),
-                a <- t['one'],
+                t$three <- t$two + 1,
                 a <- t %>% mutate(three = two + 1),
-                a <- t %>% mutate(one = as.numeric(one)),
-                a <- t %>% mutate(one = as.character(one)),
                 a <- t %>% filter(one == 1), 
                 a <- t[t$one == 1,],
-                a <- t %>% group_by(one, two),
-                t$three <- t$two + 1,
-               a <- t$one,
-               ncol(t),
               times = 10)
 
 ```
+
+# sum in r 
+```{r}
+l <- seq(1, 1000000000, 1)
+
+microbenchmark( sum(l),
+                matrixStats::sum2(l),
+              times = 10)
+
+```
+
+# pipeline 
+```{r}
+library(bench)
+library(magrittr)
+
+
+bm <- bench::mark(
+   x <- t[startsWith(names(t), "V")],
+   x <- t %>% select(starts_with("V"))
+)
+ggplot2::autoplot(bm)
+```
+
+```{r}
+df <- tibble("char" = c("a", "a", "b", "b"), 
+             "num" = c(1, 1, 1, 1))
+
+
+
+bm <- bench::mark(
+   x <- df %>% group_by(char) %>% summarise(sum = sum(num)),
+   
+)
+ggplot2::autoplot(bm)
+
+microbenchmark(
+   x <- df %>% group_by(char) %>% summarise(sum = sum(num)),
+   x <- aggregate(df$num,             # Sum by group
+          by = list(df$char),
+          FUN = sum),
+   times = 100
+)
+```
+
+
+
 # operation on each feature 
 
 ```{r}

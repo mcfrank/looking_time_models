@@ -55,9 +55,10 @@ update_posterior_distribution <- function(grid_theta,
 lp_theta_given_z <- function(z_bar, 
                              theta, epsilon, 
                              alpha_theta, beta_theta, 
-                             alpha_epsilon, beta_epsilon) {
+                             alpha_epsilon, beta_epsilon, 
+                             optimize = TRUE) {
  
-  lp_z_given_theta(z_bar, theta, epsilon) + 
+  lp_z_given_theta(z_bar, theta, epsilon, optimize) + 
     lp_theta(theta, alpha_theta, beta_theta) + 
     lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
 }
@@ -65,13 +66,24 @@ lp_theta_given_z <- function(z_bar,
 
 lp_z_given_theta <- function(z_bar, 
                              theta, 
-                             epsilon){
+                             epsilon, 
+                             optimize = TRUE){
   
-  z_bar = z_bar %>% pull()
-  sum(sapply(z_bar, 
-             function(x){lp_z_ij_given_theta(zij = x, 
-                                                    theta = theta, 
-                                                    epsilon = epsilon)}))
+  if(optimize){
+      
+    sum(sapply(z_bar[[1]], 
+               function(x){lp_z_ij_given_theta(zij = x, 
+                                               theta = theta, 
+                                               epsilon = epsilon)}))
+  }else{
+    
+    z_bar = z_bar %>% pull()
+    sum(sapply(z_bar, 
+               function(x){lp_z_ij_given_theta(zij = x, 
+                                               theta = theta, 
+                                               epsilon = epsilon)}))
+  
+    }
   
   
 }

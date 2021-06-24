@@ -10,7 +10,8 @@ main_simulation <- function(
   alpha_prior = alpha_prior, 
   beta_prior = beta_prior,
   alpha_epsilon = alpha_epsilon, 
-  beta_epsilon = beta_epsilon
+  beta_epsilon = beta_epsilon, 
+  optimize = TRUE 
 ){
   
   # set up the df that tracks eig  
@@ -73,7 +74,8 @@ main_simulation <- function(
         alpha_prior = alpha_prior, 
         beta_prior = beta_prior,
         alpha_epsilon = alpha_epsilon, 
-        beta_epsilon = beta_epsilon
+        beta_epsilon = beta_epsilon, 
+        optimize
       )
       
     }else{
