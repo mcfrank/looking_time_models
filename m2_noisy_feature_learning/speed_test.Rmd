@@ -11,13 +11,6 @@ library(microbenchmark)
 library(tidyverse )
 ```
 
-criteria for toy example: 
-- keep track of both characters and numrics (so data type is important)
-- column based -> row based 
-
-currently: 
-  - we have three types of apply, lapply, sapply, mapply. 
-  
 # performance difference? 
 
 adapt this code: 
@@ -98,6 +91,91 @@ microbenchmark(
           FUN = sum),
    times = 100
 )
+```
+
+## 
+```{r}
+pos_old <- function(posterior_df){
+  posterior_df %>% 
+          group_by(theta) %>%
+          summarise(log_posterior = matrixStats::logSumExp(log_posterior)) %>%
+          mutate(posterior = exp(log_posterior))
+}
+
+pos_new <- function(posterior_df, tibble = TRUE){
+  pos_new <- setNames(aggregate(posterior_df$log_posterior,             # Sum by group
+          by = list(posterior_df$theta),
+          FUN = matrixStats::logSumExp), 
+         c("theta", "log_posterior"))
+
+  pos_new$posterior <- exp(pos_new$log_posterior)
+  if(tibble){
+    return (as_tibble(pos_new))
+  }
+  return(pos_new)
+}
+
+bm <- bench::mark(
+   pos_old(posterior_df),
+   pos_new(posterior_df, TRUE), 
+   pos_new(posterior_df, FALSE),
+   check = FALSE#because df difference 
+)
+ggplot2::autoplot(bm)
+
+```
+
+## speed test for posterior df 
+```{r}
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = 5, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+observations <- noisy_observation_creature(simple_stimuli, 
+                                           1, 
+                                           n_sample = 10, 
+                                           epsilon = 0.8)
+
+
+
+old_grid <- function(){
+  posterior_at_t <- grid_apprxoimation_with_observation(
+        noisy_observation = observations, 
+        track_epsilon = TRUE, 
+        grid_theta = grid_theta, 
+        grid_epsilon = grid_epsilon, 
+        alpha_prior = alpha_prior, 
+        beta_prior = beta_prior,
+        alpha_epsilon = alpha_epsilon, 
+        beta_epsilon = beta_epsilon, 
+        optimize = FALSE
+      )
+  
+}
+new_grid <- function(){
+  posterior_at_t <- grid_apprxoimation_with_observation(
+        noisy_observation = observations, 
+        track_epsilon = TRUE, 
+        grid_theta = grid_theta, 
+        grid_epsilon = grid_epsilon, 
+        alpha_prior = alpha_prior, 
+        beta_prior = beta_prior,
+        alpha_epsilon = alpha_epsilon, 
+        beta_epsilon = beta_epsilon, 
+        optimize = TRUE
+      )
+  
+}
+
+bm <- bench::mark(
+  old_grid(), 
+  new_grid()
+)
+ggplot2::autoplot(bm)
 ```
 
 

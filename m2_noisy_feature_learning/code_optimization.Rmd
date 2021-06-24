@@ -179,9 +179,13 @@ saveRDS(sims, file = "sims_before_optimization.RDS")
 
 ```{r}
 library(microbenchmark)
+library(profvis)
+
+
+
 no_optimization <- function(){
 
-sims <- lapply(seq(1, subject_n, 1), 
+psims <- lapply(seq(1, subject_n, 1), 
          function(x){
            main_simulation(subject = x,
                                   observation_assumption = "independent",
@@ -224,6 +228,10 @@ with_optimization <- function(){
   
   
 }
+
+profvis(no_optimization())
+profvis(with_optimization())
+
 
 microbenchmark(no_optimization(), 
                with_optimization(),times = 10)

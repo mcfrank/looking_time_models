@@ -69,7 +69,7 @@ lp_z_given_theta <- function(z_bar,
                              epsilon, 
                              optimize = TRUE){
   
-  if(optimize){
+  if(optimize == TRUE){
       
     sum(sapply(z_bar[[1]], 
                function(x){lp_z_ij_given_theta(zij = x, 
