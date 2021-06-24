@@ -29,7 +29,7 @@ update_grid_with_theta_and_epsilon <- function(
   samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
   
   
-  if(optimize){
+  if(optimize == TRUE){
     samps$posterior <- exp(samps$log_posterior)
     samps$feature_index <- feature_i
     
@@ -77,7 +77,7 @@ grid_apprxoimation_with_observation <- function(
                                beta_theta = beta_prior,
                                alpha_epsilon = alpha_epsilon, 
                                beta_epsilon = beta_epsilon, 
-                               optimize 
+                               optimize = optimize
                              )
                            }
     ) %>% 
@@ -89,8 +89,7 @@ grid_apprxoimation_with_observation <- function(
     
     total_feature_number = ncol(noisy_observation %>% select(starts_with("V")))
     posterior_df <- lapply(seq(1, 
-                               ncol(noisy_observation[startsWith(names(noisy_observation), 
-                                                                 "V")]), 
+                               total_feature_number,  
                                1), 
                            function(x){
                              update_grid_with_theta_and_epsilon(
@@ -102,7 +101,7 @@ grid_apprxoimation_with_observation <- function(
                                beta_theta = beta_prior,
                                alpha_epsilon = alpha_epsilon, 
                                beta_epsilon = beta_epsilon, 
-                               optimize 
+                               optimize = optimize
                              )
                            }
     ) %>% 
@@ -119,8 +118,13 @@ grid_apprxoimation_with_observation <- function(
       
       if(optimize){
         
+        posterior_df <- setNames(aggregate(posterior_df$log_posterior,             # Sum by group
+                                      by = list(posterior_df$theta),
+                                      FUN = matrixStats::logSumExp), 
+                            c("theta", "log_posterior"))
         
-        
+        posterior_df$posterior <- exp(pos_new$log_posterior)
+        return(as_tibble(pos_new))
         
       }else{
         
