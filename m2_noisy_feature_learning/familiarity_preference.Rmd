@@ -117,5 +117,73 @@ eigs_sims %>%
 
 
 # Forced short exposure duration 
+trying out the eig = 0.001, forced short exposure = 5 samples, eyeballed from graph above 
+
+```{r}
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 6
+trials_per_block = 3
+deviant_positions = NULL
+feature_theta = 0.9
+dissimilarity_ratio = 0.2
+noise_parameter = 0.1
+
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+## eig related 
+env_eig = 0.001
+max_obs = 100
+
+## experiment related 
+subject_n = 400
+rep_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+rep_stimuli
+```
+
+
+```{r}
+fs_sims <- main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = rep_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short")
+
+
+```
+
+```{r}
+saveRDS(fs_sims, file = "fs_sims_400.Rds")
+
+fs_sims %>% 
+  group_by(stimulus_idx, id) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = n)) + 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line")
+```
+
 
 # Forced long exposure 

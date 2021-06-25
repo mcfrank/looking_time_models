@@ -11,6 +11,7 @@ main_simulations <- function(
   beta_prior = beta_prior,
   alpha_epsilon = alpha_epsilon, 
   beta_epsilon = beta_epsilon, 
+  exposure_type = "forced_short",
   optimize = TRUE 
 ){
   
@@ -27,7 +28,8 @@ main_simulations <- function(
                                    alpha_prior = alpha_prior, 
                                    beta_prior = beta_prior,
                                    alpha_epsilon = alpha_epsilon, 
-                                   beta_epsilon = beta_epsilon)
+                                   beta_epsilon = beta_epsilon,
+                                   exposure_type = "forced_short")
                  }
   ) %>% 
     bind_rows()
@@ -55,6 +57,7 @@ main_simulation <- function(
   beta_prior = beta_prior,
   alpha_epsilon = alpha_epsilon, 
   beta_epsilon = beta_epsilon, 
+  exposure_type = "forced_short", 
   optimize = TRUE 
 ){
   
@@ -178,7 +181,25 @@ main_simulation <- function(
     
     # flip a coin with p_keep_looking weight
     df$p_look_away[t] = eig_from_world / (df$EIG[t] + eig_from_world)
-    df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+    
+    # try to force short exposure at the first trial 
+    if(exposure_type == "forced_short"){
+      
+      # if this is the 5th timepoint, will change w/ EIG_env, current estimated using EIG_env 
+      
+      if (t > 5  && stimulus_idx == 1){
+        df$look_away[t] = TRUE
+      }else{
+        df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+      }
+      
+      
+    }else{
+      df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+      
+    }
+    
+   
     
     if (df$look_away[t]==TRUE) {
       stimulus_idx <- stimulus_idx + 1
