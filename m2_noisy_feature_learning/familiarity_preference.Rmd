@@ -98,13 +98,20 @@ eigs_sims %>%
   filter(n < 500) %>% 
   ggplot(aes(x = stimulus_idx, y = n, group = EIG_from_world, color = EIG_from_world)) + 
   stat_summary(fun.data = "mean_cl_boot") +  
-  stat_summary(fun.data = "mean_cl_boot", geom = "line") 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  facet_wrap(~EIG_from_world)
 
 
 eigs_sims %>% 
-  drop_na() %>% 
+  drop_na() %>%
+  group_by(stimulus_idx, id, EIG_from_world) %>% 
+  summarise(n = n()) %>% 
+    filter(n < 500) %>% 
+  mutate(stimulus_idx = as.factor(stimulus_idx)) %>% 
   ggplot(aes(x = EIG_from_world, y = n, color = stimulus_idx)) + 
-  geom_point(color = stimulus_idx) 
+  geom_point(position = "jitter") + 
+  geom_smooth(method = "lm")
+
 ```
 
 
