@@ -7,85 +7,7 @@ output: html_notebook
 http://winvector.github.io/Accumulation/Accum.html
 
 
-```{r}
-mkRow <- function(nCol) {
-  x <- as.list(rnorm(nCol))
-  # make row mixed types by changing first column to string
-  x[[1]] <- ifelse(x[[1]]>0,'pos','neg')
-  names(x) <- paste('x',seq_len(nCol),sep='.')
-  x
-}
 
-mkFrameForLoop <- function(nRow,nCol) {
-  d <- c()
-  for(i in seq_len(nRow)) {
-    ri <- mkRow(nCol)
-    di <- data.frame(ri,
-                     stringsAsFactors=FALSE)
-    d <- rbind(d,di)
-  }
-  d
-}
-
-mkFrameList <- function(nRow,nCol) {
-  d <- lapply(seq_len(nRow),function(i) {
-    ri <- mkRow(nCol)
-    data.frame(ri,
-               stringsAsFactors=FALSE)
-  })
-  do.call(rbind,d)
-}
-
-mkRow2 <- function(nCol, fileloc) {
-  x <- as.list(rnorm(nCol))
-  # make row mixed types by changing first column to string
-  x[[1]] <- ifelse(x[[1]]>0,'pos','neg')
-  writeLines(paste(x, collapse=" "), con = fileloc)
-}
-
-avoidAggregate <- function(nRow,nCol) {
-  some.file <- tempfile()
-  file.create(some.file)
-  cf <- file(some.file, open="a")
-  lapply(seq_len(nRow),function(i) {mkRow2(nCol, cf)})
-  close(cf)
-  numnumer <- rep("numeric", nCol - 1)
-  read.table(some.file, nrows=nRow,
-    colClasses= c("character", numnumer))
-}
-
-mkFrameInPlace <- function(nRow,nCol,classHack=FALSE) {
-  r1 <- mkRow(nCol)
-  d <- data.frame(r1,
-                    stringsAsFactors=FALSE)
-  if(nRow>1) {
-    d <- d[rep.int(1,nRow),]
-    if(classHack) {
-      # lose data.frame class for a while
-      # changes what S3 methods implement
-      # assignment.
-      d <- as.list(d) 
-    }
-    for(i in seq.int(2,nRow,1)) {
-      ri <- mkRow(nCol)
-      for(j in seq_len(nCol)) {
-        d[[j]][i] <- ri[[j]]
-      }
-    }
-  }
-  if(classHack) {
-     d <- data.frame(d,stringsAsFactors=FALSE)
-  }
-  d
-}
-
-
-#go <- Sys.time();a1 <- mkFrameForLoop(10000,10);print(Sys.time()-go)
-go <- Sys.time();a2 <- mkFrameList(10000,10);print(Sys.time()-go)
-go <- Sys.time();a3 <- avoidAggregate(10000,10);print(Sys.time()-go)
-go <- Sys.time();a4 <- mkFrameInPlace(10000,10);print(Sys.time()-go)
-
-```
 
 
 
@@ -110,10 +32,10 @@ source(here("helper/get_kl_eig.R"))
 num_features = 1
 num_features_simple = 1
 num_feature_complex = 6
-trials_per_block = 8
-deviant_positions = 4
+trials_per_block = 3
+deviant_positions = 2
 feature_theta = 0.9
-dissimilarity_ratio = 0.2
+dissimilarity_ratio = 0.9
 noise_parameter = 0.1
 
 ## grid approximation related 
@@ -140,7 +62,6 @@ simple_stimuli <- generate_creature_sequence(
   feature_theta = feature_theta, 
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
-
 
 ```
 
