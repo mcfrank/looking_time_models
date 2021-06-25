@@ -12,6 +12,7 @@ main_simulations <- function(
   alpha_epsilon = alpha_epsilon, 
   beta_epsilon = beta_epsilon, 
   exposure_type = "forced_short",
+  forced_sample = 5,
   optimize = TRUE 
 ){
   
@@ -29,7 +30,8 @@ main_simulations <- function(
                                    beta_prior = beta_prior,
                                    alpha_epsilon = alpha_epsilon, 
                                    beta_epsilon = beta_epsilon,
-                                   exposure_type = "forced_short")
+                                   exposure_type = "forced_short", 
+                                   forced_sample = forced_sample)
                  }
   ) %>% 
     bind_rows()
@@ -58,6 +60,7 @@ main_simulation <- function(
   alpha_epsilon = alpha_epsilon, 
   beta_epsilon = beta_epsilon, 
   exposure_type = "forced_short", 
+  forced_sample = 5,
   optimize = TRUE 
 ){
   
@@ -187,7 +190,7 @@ main_simulation <- function(
       
       # if this is the 5th timepoint, will change w/ EIG_env, current estimated using EIG_env 
       
-      if (t > 5  && stimulus_idx == 1){
+      if (t > forced_sample  && stimulus_idx == 1){
         df$look_away[t] = TRUE
       }else{
         df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
@@ -210,7 +213,9 @@ main_simulation <- function(
     
   }
   
-  df <- df %>% mutate(id = subject)
+  df <- df %>% mutate(
+    id = subject, 
+    forced_sample_n = forced_sample)
   
   
   return(df)
