@@ -1,3 +1,47 @@
+main_simulations <- function(
+  subject_n, 
+  observation_assumption, 
+  stimuli_sequence, 
+  noise_parameter, 
+  eig_from_world = .005,
+  max_observation = 500, # should this be per trial or in total? currently in total 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon, 
+  optimize = TRUE 
+){
+  
+  sims <- lapply(seq(1, subject_n, 1), 
+                 function(x){
+                   main_simulation(subject = x,
+                                   observation_assumption = "independent",
+                                   stimuli_sequence = simple_stimuli, 
+                                   noise_parameter = noise_parameter, 
+                                   eig_from_world = eig_from_world,
+                                   max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                                   grid_theta = grid_theta, 
+                                   grid_epsilon = grid_epsilon, 
+                                   alpha_prior = alpha_prior, 
+                                   beta_prior = beta_prior,
+                                   alpha_epsilon = alpha_epsilon, 
+                                   beta_epsilon = beta_epsilon)
+                 }
+  ) %>% 
+    bind_rows()
+  
+  
+}
+
+
+
+
+
+
+
+
 main_simulation <- function(
   subject, 
   observation_assumption, 
@@ -18,6 +62,7 @@ main_simulation <- function(
   df <- tibble(t = rep(NA,max_observation),
                stimulus_idx = rep(NA,max_observation), 
                EIG = rep(NA,max_observation), 
+               EIG_from_world = rep(eig_from_world,max_observation),
                p_look_away = rep(NA,max_observation), 
                look_away = rep(NA,max_observation))
   
@@ -42,7 +87,7 @@ main_simulation <- function(
   t <- 1
   posterior_at_t <- NULL
   
-  while(stimulus_idx <= total_trial_number){
+  while(stimulus_idx <= total_trial_number && t <= max_observation){
     
     current_stimulus <- stimuli_sequence %>% 
       filter(trial_number == stimulus_idx)

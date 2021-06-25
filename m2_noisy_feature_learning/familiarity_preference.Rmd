@@ -1,0 +1,114 @@
+---
+title: "fam preference"
+author: "anjie"
+date: "6/24/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(profvis)
+
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/grid_approximation.R"))
+source(here("helper/noisy_update.R"))
+source(here("helper/main_simulation.R"))
+source(here("helper/get_kl_eig.R"))
+```
+
+```{r parameter}
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 6
+trials_per_block = 3
+deviant_positions = 2
+feature_theta = 0.9
+dissimilarity_ratio = 0.2
+noise_parameter = 0.1
+
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+## eig related 
+env_eig = 0.005
+max_obs = 500
+
+## experiment related 
+subject_n = 10
+
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+simple_stimuli$V1 <- c(TRUE, FALSE, TRUE)
+simple_stimuli
+```
+
+# Relationships between EIG of environment and the looking time curves 
+```{r}
+env_eigs <- seq(0, 0.01, 0.001) 
+
+  
+  
+eigs_sims <- lapply(env_eigs, 
+       function(x){
+         main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = x,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+       }
+) %>% 
+  bind_rows()
+
+
+
+```
+
+```{r}
+saveRDS(eigs_sims, file = "varying_eigs.RDS")
+
+
+```
+
+```{r}
+eigs_sims %>% 
+  drop_na() %>% 
+  group_by(stimulus_idx, id, EIG_from_world) %>% 
+  summarise(n = n()) %>% 
+  filter(n < 500) %>% 
+  ggplot(aes(x = stimulus_idx, y = n, group = EIG_from_world, color = EIG_from_world)) + 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") 
+
+
+eigs_sims %>% 
+  drop_na() %>% 
+  ggplot(aes(x = EIG_from_world, y = n, color = stimulus_idx)) + 
+  geom_point(color = stimulus_idx) 
+```
+
+
+
+# Forced short exposure duration 
+
+# Forced long exposure 
