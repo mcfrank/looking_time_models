@@ -310,6 +310,132 @@ eig_fs_sims %>%
   
 ```
 
+## compare how different parameters influence deviant vs background at the second trial 
+```{r}
+
+subject_n = 10
+env_eigs <- seq(0.001, 0.005, 0.001)
+forced_samples <- seq(1, 8, 1)
+
+
+params <- expand_grid(env_eig = env_eigs, forced_sample = forced_samples)
+
+compare_similar_different <- function(eig_from_world, forced_sample){
+  fs_sim_same <- main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = rep_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short", 
+                          forced_sample = forced_sample) %>% 
+    #tidy_sims_df() %>% 
+    mutate(type = "second_background")
+
+
+fs_sim_diff <-  main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = diff_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short", 
+                          forced_sample = forced_sample) %>% 
+  #tidy_sims_df() %>% 
+    mutate(type = "second_deviant")
+
+bind_rows(fs_sim_diff, 
+          fs_sim_same)
+  
+}
+
+eig_fs_compare_sims <- map2_dfr(params$env_eig, 
+    params$forced_sample, 
+    function(x, y){
+      compare_similar_different(x, y)
+    })
+
+```
+
+```{r}
+saveRDS(eig_fs_compare_sims, "eig_fs_compare_sims.RDS")
+```
+
+
+
+
+
+```{r}
+eig_fs_compare_sims %>% 
+  drop_na() %>% 
+  group_by(type, stimulus_idx, EIG_from_world) %>% 
+  summarise(count = n())
+```
+
+
+
+
+
+```{r}
+
+#eig_fs_compare_sims <- readRDS("eig_fs_compare_sims.RDS")
+
+sum_sims <- eig_fs_compare_sims %>% 
+  drop_na() %>% 
+  group_by(stimulus_idx, id,forced_sample_n, EIG_from_world, type) %>% 
+  summarise(sample_n = n()) %>% 
+  mutate(params = paste0(forced_sample_n, EIG_from_world))
+
+
+sum_sims %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) +
+  geom_jitter(width = .1, alpha = .1) + 
+   stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") #+
+  #facet_wrap(~params)
+  
+  
+```
+
+hypothesis: the shorter the initial exposure, the more significant the familiarity preference is (aka the increase in looking time at the background vs the deviant). facet by the EIG of the environments 
+
+```{r}
+sum_sims %>% 
+   filter(stimulus_idx == 2 ) %>% 
+  pivot_wider(names_from = "type", values_from = sample_n) %>% 
+  mutate(familiarity_preference = second_background - second_deviant) %>% 
+  ggplot(aes(x = forced_sample_n, y = familiarity_preference))+ 
+  geom_smooth(method = "lm") + 
+  geom_point(alpha = .5) + 
+  facet_wrap(~EIG_from_world)
+```
+
+what about comparing the second look and the first trial. would we see the shorter the first trial's samples, the higher the recovery? 
+```{r}
+# some mishaps in the code, forced_sample is technically forced_sample + 1
+sum_sims %>% 
+   filter(stimulus_idx == 2 | stimulus_idx == 1) %>% 
+  group_by(id, EIG_from_world, forced_sample_n) %>% 
+  pivot_wider(names_from = "stimulus_idx", values_from = "sample_n") %>% 
+  mutate(recovery = `2` - `1`) %>% 
+  ggplot(aes(x = forced_sample_n, y = recovery, color = type)) + 
+  geom_point(alpha = .3) + 
+  geom_smooth(method = "lm")
+```
 
 
 # Forced long exposure 
