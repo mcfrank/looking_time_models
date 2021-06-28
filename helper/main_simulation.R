@@ -30,7 +30,7 @@ main_simulations <- function(
                                    beta_prior = beta_prior,
                                    alpha_epsilon = alpha_epsilon, 
                                    beta_epsilon = beta_epsilon,
-                                   exposure_type = "forced_short", 
+                                   exposure_type = exposure_type, 
                                    forced_sample = forced_sample)
                  }
   ) %>% 
@@ -197,6 +197,13 @@ main_simulation <- function(
       }
       
       
+    }else if(exposure_type == "forced_long"){
+     
+      if (t < forced_sample && stimulus_idx == 1){
+        df$look_away[t] = FALSE
+      }else{
+        df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+      }
     }else{
       df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
       
