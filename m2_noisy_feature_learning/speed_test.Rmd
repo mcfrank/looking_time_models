@@ -189,7 +189,7 @@ new_grid <- function(){
         alpha_epsilon = alpha_epsilon, 
         beta_epsilon = beta_epsilon, 
         optimize = TRUE
-      )
+      ) 
   
 }
 

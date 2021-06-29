@@ -94,7 +94,6 @@ get_possible_kls_toggle <- function(
   t, 
   observations, 
   all_possible_outcomes, 
-  observation_assumption,
   posterior_at_t, 
   grid_theta = grid_theta, 
   grid_epsilon = grid_epsilon, 
@@ -107,12 +106,6 @@ get_possible_kls_toggle <- function(
   
   if(optimize){
     
-    #create an empty row at the bottom to be modified
-    num_observation <- nrow(observations)
-    current_scenario <- bind_rows(observations[startsWith(names(observations), 
-                                                           "V")], tibble_row())
-    
-    
     
     possible_kls <- tibble(
       "index" = all_possible_outcomes$index, 
@@ -120,12 +113,16 @@ get_possible_kls_toggle <- function(
     )
     
     all_possible_outcomes <- all_possible_outcomes[startsWith(names(all_possible_outcomes), 
-                                                              "V")]
+                                                              "V"),]
+    
+    current_scenario <- observations
+    
+    
+      
     for (i in 1: nrow(all_possible_outcomes)){
       
       
-      if (observation_assumption == "independent"){
-        
+
         
         # this is currently a very expensive operation because it requires us to recreate an observation df 
         # every single times and that accumulate very fast 
@@ -145,27 +142,7 @@ get_possible_kls_toggle <- function(
           beta_epsilon = beta_epsilon
         )
         
-      }else{
-        
-        
-        current_scenario <- all_possible_outcomes[i, ]
-        
-        posterior_for_current_scenario <- faster_grid_apprxoimation_with_observation(
-          t, 
-          noisy_observation = current_scenario, 
-          last_update_posterior_df = posterior_at_t,
-          track_epsilon = TRUE, 
-          grid_theta = grid_theta, 
-          grid_epsilon = grid_epsilon, 
-          alpha_prior = alpha_prior, 
-          beta_prior = beta_prior,
-          alpha_epsilon = alpha_epsilon, 
-          beta_epsilon = beta_epsilon
-        )
-        
-        
-      }
-  
+      
       
       creature_kl <- get_kl(posterior_for_current_scenario$posterior, 
                             posterior_at_t$posterior)
@@ -190,7 +167,6 @@ get_possible_kls_toggle <- function(
     for (i in 1: nrow(all_possible_outcomes)){
       
       
-      if (observation_assumption == "independent"){
         
         current_scenario <- observations %>% 
           bind_rows(all_possible_outcomes %>% 
@@ -208,26 +184,7 @@ get_possible_kls_toggle <- function(
           beta_epsilon = beta_epsilon
         )
         
-      }else{
-        
-        
-        current_scenario <- all_possible_outcomes %>% 
-          filter(index == i)
-        
-        posterior_for_current_scenario <- faster_grid_apprxoimation_with_observation(
-          t, 
-          noisy_observation = current_scenario, 
-          last_update_posterior_df = posterior_at_t,
-          track_epsilon = TRUE, 
-          grid_theta = grid_theta, 
-          grid_epsilon = grid_epsilon, 
-          alpha_prior = alpha_prior, 
-          beta_prior = beta_prior,
-          alpha_epsilon = alpha_epsilon, 
-          beta_epsilon = beta_epsilon
-        )
-        
-      }
+     
       
       
       
@@ -374,7 +331,6 @@ get_eig_toggle <- function(
                     t, 
                     current_observation, 
                     observations, 
-                    observation_assumption, 
                     im, 
                     posterior_at_t, 
                     grid_theta = grid_theta, 
@@ -392,7 +348,6 @@ get_eig_toggle <- function(
           t, 
           observations, 
           all_possible_outcomes,
-          observation_assumption,
           posterior_at_t, 
           grid_theta = grid_theta, 
           grid_epsilon = grid_epsilon, 
@@ -400,7 +355,7 @@ get_eig_toggle <- function(
           beta_prior = beta_prior,
           alpha_epsilon = alpha_epsilon, 
           beta_epsilon = beta_epsilon, 
-          optimize)
+          optimize = optimize)
   }
   
   all_predictives <- get_all_possible_creature_pred(

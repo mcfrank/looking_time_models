@@ -23,7 +23,7 @@ source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
 source(here("helper/grid_approximation.R"))
 source(here("helper/noisy_update.R"))
-
+source(here("helper/main_simulation.R"))
 source(here("helper/get_kl_eig.R"))
 
 ```
@@ -66,36 +66,6 @@ simple_stimuli <- generate_creature_sequence(
 ```
 
 
-```{r}
-ptm <- proc.time()
-
-
-sims <- lapply(seq(1, subject_n, 1), 
-         function(x){
-           main_simulation(subject = x,
-                                  observation_assumption = "independent",
-                          stimuli_sequence = simple_stimuli, 
-                          noise_parameter = noise_parameter, 
-                          eig_from_world = env_eig,
-                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
-                          grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon)
-         }
-  ) %>% 
-    bind_rows()
-
-proc.time() - ptm
-
-```
-
-```{r}
-saveRDS(sims, file = "sims_before_optimization.RDS")
-```
-
 
 
 ```{r}
@@ -109,7 +79,6 @@ no_optimization <- function(){
 sims <- lapply(seq(1, subject_n, 1), 
          function(x){
            main_simulation(subject = x,
-                                  observation_assumption = "independent",
                           stimuli_sequence = simple_stimuli, 
                           noise_parameter = noise_parameter, 
                           eig_from_world = env_eig,
@@ -131,7 +100,6 @@ with_optimization <- function(){
   sims <- lapply(seq(1, subject_n, 1), 
          function(x){
            main_simulation(subject = x,
-                                  observation_assumption = "independent",
                           stimuli_sequence = simple_stimuli, 
                           noise_parameter = noise_parameter, 
                           eig_from_world = env_eig,
