@@ -48,7 +48,6 @@ main_simulations <- function(
 
 main_simulation <- function(
   subject, 
-  observation_assumption, 
   stimuli_sequence, 
   noise_parameter, 
   eig_from_world = .005,
@@ -73,10 +72,17 @@ main_simulation <- function(
                look_away = rep(NA,max_observation))
   
   # set up the df that keep trakc of observation 
-  observations <- tibble(t = 1:max_observation) %>%
-    mutate(trial_number = NA, 
-           trial_type = "") %>%
-    bind_cols(simple_stimuli %>% select(starts_with("V")) %>% slice(1)) 
+  
+  observations <- data.frame(matrix(ncol = ncol(simple_stimuli), 
+                                    nrow = max_observation)) %>% 
+    tibble()  
+  
+  colnames(observations) <- colnames(simple_stimuli)
+  
+  observations$t <- seq(1, max_observation, 1)
+  
+  
+  
   
   # the total number of stimuli 
   total_trial_number = nrow(stimuli_sequence)
@@ -91,8 +97,7 @@ main_simulation <- function(
   
   while(stimulus_idx <= total_trial_number && t <= max_observation){
     
-    current_stimulus <- stimuli_sequence %>% 
-      filter(trial_number == stimulus_idx)
+    current_stimulus <- stimuli_sequence[stimulus_idx,]
     
     current_observation <- noisy_observation_creature(
       stimuli_df = stimuli_sequence,
@@ -121,15 +126,68 @@ main_simulation <- function(
       beta_prior = beta_prior,
       alpha_epsilon = alpha_epsilon, 
       beta_epsilon = beta_epsilon, 
-      optimize
+      optimize = optimize
     )
+    
+    df$t[t] = t
+    df$stimulus_idx[t] = stimulus_idx
+    
+    
+    df$EIG[t] = get_eig_toggle(
+      t, 
+      current_observation,
+      observations, 
+      im = "kl", 
+      posterior_at_t, 
+      grid_theta = grid_theta, 
+      grid_epsilon = grid_epsilon, 
+      alpha_prior = alpha_prior, 
+      beta_prior = beta_prior,
+      alpha_epsilon = alpha_epsilon, 
+      beta_epsilon = beta_epsilon, 
+      optimize = optimize)
+    
+    # flip a coin with p_keep_looking weight
+    df$p_look_away[t] = eig_from_world / (df$EIG[t] + eig_from_world)
+    
+    # try to force short exposure at the first trial 
+    if(exposure_type == "forced_short"){
+      
+      # if this is the 5th timepoint, will change w/ EIG_env, current estimated using EIG_env 
+      
+      if (t > forced_sample  && stimulus_idx == 1){
+        df$look_away[t] = TRUE
+      }else{
+        df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+      }
+      
+      
+    }else if(exposure_type == "forced_long"){
+      
+      if (t < forced_sample && stimulus_idx == 1){
+        df$look_away[t] = FALSE
+      }else{
+        df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+      }
+    }else{
+      df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+      
+    }
+    
+    
+    if (df$look_away[t]==TRUE) {
+      stimulus_idx <- stimulus_idx + 1
+    }
+    
+    t <- t + 1 
+    
+    
     
   }
   
   # maybe needs scaling?
   
-  df$t[t] = t
-  df$stimulus_idx[t] = stimulus_idx
+  
   
   # df$EIG[t] = get_eig(current_observation, 
   #                observations, 
@@ -141,57 +199,8 @@ main_simulation <- function(
   #                alpha_epsilon = alpha_epsilon, 
   #                beta_epsilon = beta_epsilon)
   
-  df$EIG[t] = get_eig_toggle(
-    t, 
-    current_observation,
-    observations, 
-    observation_assumption,
-    im = "kl", 
-    posterior_at_t, 
-    grid_theta = grid_theta, 
-    grid_epsilon = grid_epsilon, 
-    alpha_prior = alpha_prior, 
-    beta_prior = beta_prior,
-    alpha_epsilon = alpha_epsilon, 
-    beta_epsilon = beta_epsilon, 
-    optimize)
-  
-  # flip a coin with p_keep_looking weight
-  df$p_look_away[t] = eig_from_world / (df$EIG[t] + eig_from_world)
-  
-  # try to force short exposure at the first trial 
-  if(exposure_type == "forced_short"){
-    
-    # if this is the 5th timepoint, will change w/ EIG_env, current estimated using EIG_env 
-    
-    if (t > forced_sample  && stimulus_idx == 1){
-      df$look_away[t] = TRUE
-    }else{
-      df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
-    }
-    
-    
-  }else if(exposure_type == "forced_long"){
-    
-    if (t < forced_sample && stimulus_idx == 1){
-      df$look_away[t] = FALSE
-    }else{
-      df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
-    }
-  }else{
-    df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
-    
-  }
   
   
-  if (df$look_away[t]==TRUE) {
-    stimulus_idx <- stimulus_idx + 1
-  }
-  
-  t <- t + 1 
-  
-  
-}
 
 df <- df %>% mutate(
   id = subject, 
