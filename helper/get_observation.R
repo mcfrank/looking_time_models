@@ -10,20 +10,25 @@ noisy_observation_feature <- function(
   
 }
 
+# noisy_observation_creature takes a stimulus dataframe
+# take stimulus dataframe and change the particular columns of the 
+# selected row according to epsilon
+# returns tibble with Vn columns 
 
 noisy_observation_creature <- function(
   stimuli_df,
   trial_index, 
   n_sample = 1, 
   epsilon
-){
+) {
   
-  creature <- stimuli_df %>% 
-    filter(trial_number == trial_index) %>% 
-    select_at(vars(starts_with("V"))) 
+  creature <- simple_stimuli[simple_stimuli$trial_number == trial_index, 
+                             str_detect(names(simple_stimuli), "V")]  
+  # creature <- stimuli_df %>% 
+  #   filter(trial_number == trial_index) %>% 
+  #   select_at(vars(starts_with("V"))) 
     
-    
-  observations <- sapply(creature, function(y){noisy_observation_feature(
+  observations <- sapply(creature, function(y) {noisy_observation_feature(
     feature = y, 
     n_sample = n_sample, 
     epsilon = epsilon
@@ -31,7 +36,6 @@ noisy_observation_creature <- function(
     as_tibble_row(.name_repair =  make.names)
     
     }) 
-  
   
   rename_column <- function(x){paste0("V", x)}
   tidy_column_names <- lapply(1:ncol(creature), rename_column)
