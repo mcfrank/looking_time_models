@@ -150,12 +150,12 @@ with_optimization <- function(){
   
 }
 
-profvis(no_optimization())
+# profvis(no_optimization())
 profvis(with_optimization())
 
 
-microbenchmark(no_optimization(), 
-               with_optimization(),times = 10)
+# microbenchmark(no_optimization(), 
+               # with_optimization(),times = 10)
 
 
 ```
