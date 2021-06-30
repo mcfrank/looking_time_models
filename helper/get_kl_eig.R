@@ -113,21 +113,22 @@ get_possible_kls_toggle <- function(
     )
     
     all_possible_outcomes <- all_possible_outcomes[startsWith(names(all_possible_outcomes), 
-                                                              "V"),]
+                                                              "V")]
     
-    current_scenario <- observations
-    
-    
+    current_scenario <- observations[startsWith(names(observations), 
+                                                "V")]
+  
       
     for (i in 1: nrow(all_possible_outcomes)){
       
       
 
-        
+      
+       
         # this is currently a very expensive operation because it requires us to recreate an observation df 
         # every single times and that accumulate very fast 
         # maybe the better way to do it is to create a dataframe upfront and update the last row every single times
-        current_scenario[num_observation+1, ] <- all_possible_outcomes[i, ]
+      current_scenario[length(na.omit(current_scenario[1]))+1, ] <- all_possible_outcomes[i, ]
           
           
         
@@ -234,26 +235,23 @@ creature_noisy_post_pred <- function(
   all_possible_outcomes, 
   posterior_at_t){
   
-  observation_at_t_plus_one <- all_possible_outcomes %>% 
-    filter(index == outcome_index)
-  
-  feature_n <- observation_at_t_plus_one %>% 
-    select(starts_with("V")) %>% 
-    ncol()
+  # pre-optimization: 1260
+  # post-optimization: 
   
   
   
   # calculate post predctive for each feature
-  feature_predictive <- lapply(seq(1, feature_n, 1), 
+  feature_predictive <- lapply(seq(1, 
+                                   ncol(all_possible_outcomes[startsWith(names(all_possible_outcomes), 
+                                                                     "V")]), 
+                                   1), 
                                function(x,
-                                        observation = observation_at_t_plus_one,
+                                        observation = all_possible_outcomes[all_possible_outcomes$index == outcome_index,],
                                         posterior = posterior_at_t){
                                  
-                                 f_posterior <- posterior %>% 
-                                   filter(feature_index == x)
+                                 f_posterior <- posterior[posterior$feature_index == x, ]
                                  
-                                 f_observation <- observation[x] %>% 
-                                   pull()
+                                 f_observation <- observation[x] 
                                  
                                  noisy_post_pred(f_posterior$theta, 
                                                  f_posterior$epsilon, 
