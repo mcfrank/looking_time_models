@@ -15,7 +15,7 @@ update_grid_with_theta_and_epsilon <- function(
   
   
   samps$unnormalized_log_posterior <- mapply(function(x, y) 
-    lp_theta_given_z(z_bar = observations, 
+    lp_theta_given_z(z_bar = na.omit(observations), 
                      theta = x, 
                      epsilon = y, 
                      alpha_theta = alpha_theta, 
