@@ -19,7 +19,7 @@ update_posterior_distribution <- function(grid_theta,
   
   updates <- nrow(all_observation)
   
-  datalist <- list()
+  datalist <- vector(mode = "list", length = updates)
   
   # walk sequntially through updating on each
   for (i in seq(1, updates, 1)) {
@@ -71,6 +71,10 @@ lp_z_given_theta <- function(z_bar,
   
   if(optimize == TRUE){
       
+    # what if instead of calling lp_ij on each observation every time 
+    # create a look up function and just look up the value for previous one and add them up together 
+    
+    
     sum(sapply(z_bar[[1]], 
                function(x){lp_z_ij_given_theta(zij = x, 
                                                theta = theta, 
