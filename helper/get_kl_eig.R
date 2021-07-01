@@ -327,7 +327,7 @@ get_eig <- function(current_observation,
 
 get_eig_toggle <- function(
                     t, 
-                    current_observation, 
+                    all_possible_outcomes, 
                     observations, 
                     im, 
                     posterior_at_t, 
@@ -339,7 +339,7 @@ get_eig_toggle <- function(
                     beta_epsilon = beta_epsilon, 
                     optimize = TRUE){
   
-  all_possible_outcomes <- get_possible_creatures(current_observation)
+  
   
   if (im == "kl"){
         all_possible_kls <- get_possible_kls_toggle(

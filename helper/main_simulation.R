@@ -136,9 +136,11 @@ main_simulation <- function(
     df$stimulus_idx[t] = stimulus_idx
     
     
+    all_possible_outcomes <- get_possible_creatures(current_observation)
+    
     df$EIG[t] = get_eig_toggle(
       t, 
-      current_observation,
+      all_possible_outcomes,
       observations, 
       im = "kl", 
       posterior_at_t, 

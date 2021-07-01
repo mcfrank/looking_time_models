@@ -133,6 +133,20 @@ profvis(with_optimization())
 ```
 
 
+# lp theta given z 
+```{r}
+z_bar <- tibble("V1" = rep(FALSE, 1000))
+
+
+
+no_optimization_lptheta <- function(){
+  lp_theta_given_z(z_bar, theta = 0.3, epsilon = 0.99, alpha_theta = 1, beta_theta = 1, alpha_epsilon = 10, beta_epsilon = 1)
+}
+
+
+```
+
+
 
 ```{r}
 ptm <- proc.time()
@@ -273,34 +287,7 @@ so it turns out you are a huge problem, let's test you for a bit
 
 
 
-```{r}
 
-observations = noisy_observation[,1]
-
-lp_theta_given_z <- function(z_bar, 
-                             theta, epsilon, 
-                             alpha_theta, beta_theta, 
-                             alpha_epsilon, beta_epsilon) {
- 
-  lp_z_given_theta(z_bar, theta, epsilon) + 
-    lp_theta(theta, alpha_theta, beta_theta) + 
-    lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
-}
-
-
-lp_z_given_theta_better <- function(z_bar, 
-                             theta, 
-                             epsilon){
-  
-  z_bar = z_bar %>% pull()
-  sum(sapply(z_bar, 
-             function(x){lp_z_ij_given_theta(zij = x, 
-                                                    theta = theta, 
-                                                    epsilon = epsilon)}))
-  
-  
-}
-```
 
 
 so i think the issue is the sequential updating rule is kinda annoying, what if we do it in the more reasonable way? let's first test if we can actually have the equivalent results 
