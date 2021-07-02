@@ -9,6 +9,11 @@ update_grid_with_theta_and_epsilon <- function(
   optimize = TRUE
 ){
   
+  if(optimize == TRUE){
+    
+    
+  }
+  
   
   samps <- expand_grid(theta = grid_theta,
                        epsilon = grid_epsilon) 
@@ -16,6 +21,7 @@ update_grid_with_theta_and_epsilon <- function(
   
   samps$unnormalized_log_posterior <- mapply(function(x, y) 
     lp_theta_given_z(z_bar = na.omit(observations), 
+                     #mysterious_df, 
                      theta = x, 
                      epsilon = y, 
                      alpha_theta = alpha_theta, 
@@ -48,7 +54,7 @@ update_grid_with_theta_and_epsilon <- function(
 }
 
 
-grid_apprxoimation_with_observation <- function(
+ grid_apprxoimation_with_observation <- function(
   noisy_observation, 
   track_epsilon = TRUE, 
   grid_theta = seq(0.01, .99, .01), 
@@ -63,33 +69,30 @@ grid_apprxoimation_with_observation <- function(
   
   if(optimize){
     
-    posterior_df <- lapply(seq(1, 
-                               ncol(noisy_observation[startsWith(names(noisy_observation), 
-                                                                 "V")]), 
-                               1), 
-                           function(x){
-                             update_grid_with_theta_and_epsilon(
-                               feature_i = x, 
-                               grid_theta = grid_theta, 
-                               grid_epsilon = grid_epsilon, 
-                               observations = noisy_observation[,x], 
-                               alpha_theta = alpha_prior, 
-                               beta_theta = beta_prior,
-                               alpha_epsilon = alpha_epsilon, 
-                               beta_epsilon = beta_epsilon, 
-                               optimize = optimize
-                             )
-                           }
-    ) %>% 
-      bind_rows()
+    # creating a df up front and keep track of the number 
+    # probably don't want this to live in the fucntion though b/c it's technically going to be the same 
+    # will be expensive if we keep creating the df, we can just updating the numbers in it 
     
+    posterior_df <- tibble("")
+    
+    posterior_df <- expand_grid(theta = grid_theta,
+                epsilon = grid_epsilon,
+                feature_index = seq(1, 
+                                    ncol(noisy_observation[startsWith(names(noisy_observation), 
+                                                                      "V")]))) 
+
+   # not sure when do we really need the non-log one, save some $$$    
+    posterior_df$log_posterior <- NA_real_
+
+    
+     
     
     
   }else{
     
-    total_feature_number = ncol(noisy_observation %>% select(starts_with("V")))
     posterior_df <- lapply(seq(1, 
-                               total_feature_number,  
+                               ncol(noisy_observation[startsWith(names(noisy_observation), 
+                                                                 "V")]), 
                                1), 
                            function(x){
                              update_grid_with_theta_and_epsilon(

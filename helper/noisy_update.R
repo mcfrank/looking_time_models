@@ -53,10 +53,22 @@ update_posterior_distribution <- function(grid_theta,
 
 
 lp_theta_given_z <- function(z_bar, 
+                             #mysterious_df, 
                              theta, epsilon, 
                              alpha_theta, beta_theta, 
                              alpha_epsilon, beta_epsilon, 
                              optimize = TRUE) {
+  
+  if(optmize == TRUE){
+    #prev_result <- mysterious_df[same_theta, same_epsilon, same, feature, get_results]
+    curr_lp_z_given_theta <- prev_result + lp_z_ij_given_theta(z_bar[length(z_bar),], 
+                                                          theta = theta, 
+                                                          epsilon = epsilon)
+    
+    curr_lp_z_given_theta + lp_theta(theta, alpha_theta, beta_theta) + 
+      lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
+    
+  }
  
   lp_z_given_theta(z_bar, theta, epsilon, optimize) + 
     lp_theta(theta, alpha_theta, beta_theta) + 

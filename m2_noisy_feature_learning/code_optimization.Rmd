@@ -18,6 +18,7 @@ library(tidyverse)
 library(here)
 library(matrixStats)
 library(profvis)
+library(microbenchmark)
 
 source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
@@ -131,6 +132,14 @@ profvis(with_optimization())
 
 
 ```
+```{r}
+vect <- seq(1,10,1)
+
+microbenchmark( lapply(p, function(x){z_bar}), 
+                p[[1]] <- z_bar
+                times = 1000)
+```
+
 
 
 # lp theta given z 
