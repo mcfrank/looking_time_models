@@ -81,27 +81,11 @@ lp_z_given_theta <- function(z_bar,
                              epsilon, 
                              optimize = TRUE){
   
-  if(optimize == TRUE){
-      
-    # what if instead of calling lp_ij on each observation every time 
-    # create a look up function and just look up the value for previous one and add them up together 
-    
-    
     sum(sapply(z_bar[[1]], 
                function(x){lp_z_ij_given_theta(zij = x, 
                                                theta = theta, 
                                                epsilon = epsilon)}))
-  }else{
-    
-    z_bar = z_bar %>% pull()
-    sum(sapply(z_bar, 
-               function(x){lp_z_ij_given_theta(zij = x, 
-                                               theta = theta, 
-                                               epsilon = epsilon)}))
-  
-    }
-  
-  
+
 }
 
 

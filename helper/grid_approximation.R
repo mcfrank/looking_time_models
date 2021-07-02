@@ -1,4 +1,44 @@
 source(here("helper/noisy_update.R"))
+
+init_lp_theta_given_z <- function(observation, 
+                             theta, epsilon, 
+                             alpha_theta, beta_theta, 
+                             alpha_epsilon, beta_epsilon) {
+  
+  lp_z_given_theta(z_bar, theta, epsilon, optimize) + 
+    lp_theta(theta, alpha_theta, beta_theta) + 
+    lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
+}
+
+
+
+init_update <- function(
+  posterior_df,
+  observation, 
+  alpha_theta, beta_theta, 
+  alpha_epsilon, beta_epsilon, 
+){
+  
+  profvis(
+  unnormalized_log_posterior <-  mapply(function(x, y) 
+    init_lp_theta_given_z(observation = observation, 
+                     theta = x, 
+                     epsilon = y, 
+                     alpha_theta = alpha_theta, 
+                     beta_theta = beta_theta,
+                     alpha_epsilon = alpha_epsilon, 
+                     beta_epsilon = beta_epsilon), 
+    posterior_df$theta, 
+    posterior_df$epsilon)
+  )
+  posterior_df$log_posterior <- unnormalized_log_posterior - matrixStats::logSumExp(unnormalized_log_posterior)
+  
+  return(posterior_df)
+  
+}
+
+
+
 update_grid_with_theta_and_epsilon <- function(
   feature_i, 
   grid_theta, 
