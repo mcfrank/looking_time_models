@@ -197,114 +197,14 @@ bm<- bench::mark(
 bm
 autoplot(bm)
 ```
-
-```
-
-
-
 ```{r}
-ptm <- proc.time()
-
-
-sims_lapply <- lapply(seq(1, subject_n, 1), 
-         function(x){
-           main_simulation_toggle(subject = x,
-                                  observation_assumption = "independent",
-                          stimuli_sequence = simple_stimuli, 
-                          noise_parameter = epsilon, 
-                          eig_from_world = env_eig,
-                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
-                          grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon)
-         }
-  )
-
-data.table::rbindlist(sims_lapply)
-proc.time() - ptm
-
-```
-
-```{r}
-
-temp_file <- tempfile()
-file.create(temp_file)
-cf <- file(temp_file, open = "a")
-
-ptm <- proc.time()
-
-sims_lapply <- lapply(seq(1, subject_n, 1), 
-         function(x){
-           main_simulation_toggle(subject = x,
-                                  observation_assumption = "independent",
-                          stimuli_sequence = simple_stimuli, 
-                          noise_parameter = epsilon, 
-                          eig_from_world = env_eig,
-                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
-                          grid_theta = grid_theta, 
-                          grid_epsilon = grid_epsilon, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon)
-         }
-  )
-proc.time() - ptm
-
-
-close(cf)
-read.table(temp_file, 
-           header = TRUE, 
-           stringsAsFactors = FALSE)
-
-```
-
-
-
-
-
-
-
-```{r}
-id_lens <- independence_sims %>%
-  group_by(stimulus_idx, id) %>%
-  summarise(length = n()) %>%
-  filter(!is.na(stimulus_idx))
-
-ggplot(id_lens, aes(x = stimulus_idx, y = length)) + 
-  geom_point() 
-```
-
-```{r}
-sims %>% 
-  ggplot(aes(x = t, y = EIG, fill = stimulus_idx)) + 
-  geom_point()
-
-independence_sims %>% 
-  ggplot(aes(x = t, y = EIG)) + 
-  geom_point()
-```
-
-```{r}
-saveRDS(independence_sims, file = "old_calculation.RDS")
-saveRDS(sims, file = "new_calculation.RDS")
-
-```
-
-
-ok try to treat ya 
-```{r}
-update_grid_with_theta_and_epsilon_better <- function(
+update_grid_with_theta_and_epsilon <- function(
   feature_i, 
   grid_theta, 
   grid_epsilon, 
   observations, 
   alpha_theta, beta_theta, 
-  alpha_epsilon, beta_epsilon
-){
+  alpha_epsilon, beta_epsilon){
   
   
   samps <- expand_grid(theta = grid_theta,
@@ -312,7 +212,7 @@ update_grid_with_theta_and_epsilon_better <- function(
   
   
   samps$unnormalized_log_posterior <- mapply(function(x, y) 
-    lp_theta_given_z(z_bar = observations, 
+    lp_theta_given_z(z_bar = na.omit(observations), 
                      theta = x, 
                      epsilon = y, 
                      alpha_theta = alpha_theta, 
@@ -324,158 +224,140 @@ update_grid_with_theta_and_epsilon_better <- function(
   
   samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
   
-  # integrate out epsilon by summing p(theta | z) over all the different possible values of epsilon
-  # that's the log-sum-exp line
-  theta_posterior <- samps %>%
-    group_by(theta) %>%
-    summarise(log_posterior = matrixStats::logSumExp(log_posterior)) %>%
-    mutate(posterior = exp(log_posterior)) %>% 
-    mutate(feature_index = feature_i)
   
-  return(theta_posterior)
+    samps$posterior <- exp(samps$log_posterior)
+    samps$feature_index <- feature_i
+   
   
+  
+  
+  
+  return(samps)
+  
+}
+
+
+grid_apprxoimation_with_observation <- function(
+  noisy_observation, 
+  grid_theta = seq(0.01, .99, .01), 
+  grid_epsilon = seq(0.01, .99, .01), 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+){
+  
+    posterior_df <- lapply(seq(1, 
+                               ncol(noisy_observation[startsWith(names(noisy_observation), 
+                                                                 "V")]), 
+                               1), 
+                           function(x){
+                             update_grid_with_theta_and_epsilon(
+                               feature_i = x, 
+                               grid_theta = grid_theta, 
+                               grid_epsilon = grid_epsilon, 
+                               observations = noisy_observation[,x], 
+                               alpha_theta = alpha_prior, 
+                               beta_theta = beta_prior,
+                               alpha_epsilon = alpha_epsilon, 
+                               beta_epsilon = beta_epsilon
+                             )
+                           }
+    ) %>% 
+      bind_rows()
+    
+    
+  
+  
+  
+    return (posterior_df)
+  
+
+
 }
 ```
 
-so it turns out you are a huge problem, let's test you for a bit 
 
-
-
-
-
-
-so i think the issue is the sequential updating rule is kinda annoying, what if we do it in the more reasonable way? let's first test if we can actually have the equivalent results 
-
+# compare two ways of doing grid approximation 
 ```{r}
+iteration = 10
+obs_s <- noisy_observation_creature(
+      stimuli_df = stimuli_sequence,
+      trial_index  = stimulus_idx, 
+      n_sample = iteration, 
+      epsilon = noise_parameter
+    )
 
-stimulus_idx <- 1
-current_stimulus <- simple_stimuli %>% 
-      filter(trial_number == stimulus_idx)
+new_grid_approximation <- function(obs_s, iteration){
   
-observations <-  simple_stimuli %>% 
-    # create an empty dataframe with all the info needed to be tracked 
-    filter(is.na(.)) %>% 
-    mutate(t = NA_integer_) 
+
+  df_posterior <- expand_grid(theta = grid_theta,
+                              epsilon = grid_epsilon,
+                              feature_index = seq(1, feature_number))
+  # not sure when do we really need the non-log one, save some $$$  
+  df_posterior$unnormalized_log_posterior <- NA_real_
+  df_posterior$log_posterior <- NA_real_
 
 
-o1 <- noisy_observation_creature(
-                                stimuli_df = simple_stimuli,
-                                trial_index  = 1, 
-                                n_sample = 1, 
-                                epsilon = noise_parameter
-                              )
+  list_df_posterior <- lapply(seq(1, iteration, 1), 
+                              function(x){df_posterior})
+  
+  
+  t = 1
+  while(t <= iteration){
     
-    # add to current observation 
-o1 <- bind_rows(observations, 
-                              o1 %>% mutate(
-                                trial_number = stimulus_idx, 
-                                trial_type = current_stimulus$trial_type,
-                                t = 1))
-
-o2 <- noisy_observation_creature(
-                                stimuli_df = simple_stimuli,
-                                trial_index  = 1, 
-                                n_sample = 1, 
-                                epsilon = noise_parameter
-                              )
-
-os <- bind_rows(o1, 
-                              o2 %>% mutate(
-                                trial_number = stimulus_idx, 
-                                trial_type = current_stimulus$trial_type,
-                                t = 2))
+    if(t == 1){
+      # do some fresh calculation
+      
+      list_df_posterior[[t]] <- init_update( list_df_posterior[[t]], 
+                                             df_lp_theta_epsilon, 
+                                             current_observation,
+                                             grid_theta, grid_epsilon,
+                                             alpha_theta, beta_theta, 
+                                             alpha_epsilon, beta_epsilon)
+    }else{
+      list_df_posterior[[t]] <- cheaper_update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
+                                                         current_posterior_df =  list_df_posterior[[t]], 
+                                                         current_observation, 
+                                                         grid_theta, grid_epsilon)
+    }
     
-    # calculate posterior at t 
-    # optimization possible!
+    t = t + 1
+  
+  
+  }
+  
+  new_pos <- list_df_posterior[[iteration]]
 
-```
-
-
-yeah equivalent! maybe we should time them now! let's make them relatively expensive 
-
-```{r}
-thetas <- seq(0.1, .9, .2)
-epsilons <- seq(0.1, .9, .2)
-```
-
-
-ughhhh awkward 
-hypothesis: maybe it is because i'm not doing enough number of updates? maybe the benefit would show up in the long term? 
-
-```{r}
-o100 <- noisy_observation_creature(
-                                stimuli_df = simple_stimuli,
-                                trial_index  = 1, 
-                                n_sample = 100, 
-                                epsilon = noise_parameter
-                              )
-
-o100
-```
-
-let's try it out 
-## 100 obs with the old way: 
-```{r}
-ptm <- proc.time()
-
- posterior_after_os <- grid_apprxoimation_with_observation(
-                          noisy_observation = o100, 
-                          track_epsilon = TRUE, 
-                          grid_theta = thetas, 
-                          grid_epsilon = epsilons, 
-                          alpha_prior = alpha_prior, 
-                          beta_prior = beta_prior,
-                          alpha_epsilon = alpha_epsilon, 
-                          beta_epsilon = beta_epsilon
-                        )
- 
- proc.time() - ptm
-```
-
-## 100 obs with the new way 
-```{r}
-ptm <- proc.time()
-
-
-for (i in 1:100){
-
-  obs <- o100[i, ]
-  if (i == 1){
-   pos_df <- faster_grid_apprxoimation_with_observation(
-          timepoint = i, 
-          noisy_observation = obs , 
-          last_update_posterior_df = NULL, 
-          track_epsilon = TRUE, 
-          grid_theta = thetas, 
-          grid_epsilon = epsilons, 
-          alpha_prior = 1, 
-          beta_prior = 1,
-          alpha_epsilon = 10, 
-          beta_epsilon = 1
-   )
-   }else {
-      pos_df <- faster_grid_apprxoimation_with_observation(
-          timepoint = i, 
-          noisy_observation = obs , 
-          last_update_posterior_df = pos_df, 
-          track_epsilon = TRUE, 
-          grid_theta = thetas, 
-          grid_epsilon = epsilons, 
-          alpha_prior = 1, 
-          beta_prior = 1,
-          alpha_epsilon = 10, 
-          beta_epsilon = 1
-   )
-
-   }
+  
 }
 
- proc.time() - ptm
-
+old_grid_approximation <- function(obs_s, iteration){
+  
+  old_pos <- grid_apprxoimation_with_observation(
+  obs_s, 
+  grid_theta,
+  grid_epsilon,  
+  alpha_theta, 
+  beta_theta,
+  alpha_epsilon, 
+  beta_epsilon)
+  
+}
 
 ```
-```{r}
-posterior_after_os
-pos_df
-```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

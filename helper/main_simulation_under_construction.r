@@ -38,15 +38,24 @@ main_simulation_uc <- function(subject = x,
   # actually may consider keeping track of everything in matrix for multi-feature version 
   # this way we can always look up the posterior from previous observation 
   
+  # material for calculating df_posterior 
+  df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
+                                                 alpha_theta, beta_theta, 
+                                                 alpha_epsilon, beta_epsilon)
   # df for keep track of posterior distribution 
   df_posterior <- expand_grid(theta = grid_theta,
                               epsilon = grid_epsilon,
                               feature_index = seq(1, feature_number))
   # not sure when do we really need the non-log one, save some $$$  
+  df_posterior$unnormalized_log_posterior <- NA_real_
   df_posterior$log_posterior <- NA_real_
+
 
   list_df_posterior <- lapply(seq(1, max_observation, 1), 
                               function(x){df_posterior})
+  
+  
+  
   
   # stimulus_idx <- 1
   t <- 1
@@ -75,9 +84,18 @@ main_simulation_uc <- function(subject = x,
     #update posterior df 
     if(t == 1){
       # do some fresh calculation
-      init_update()
+      
+      list_df_posterior[[t]] <- init_update( list_df_posterior[[t]], 
+                                             df_lp_theta_epsilon, 
+                                             current_observation,
+                                             grid_theta, grid_epsilon,
+                                             alpha_theta, beta_theta, 
+                                             alpha_epsilon, beta_epsilon)
     }else{
-      prev_posterior_df <- list_df_posterior[[t-1]]
+      list_df_posterior[[t]] <- cheaper_update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
+                                                         current_posterior_df =  list_df_posterior[[t]], 
+                                                         current_observation, 
+                                                         grid_theta, grid_epsilon)
     }
     
     # accessing through dict_df_posterior 

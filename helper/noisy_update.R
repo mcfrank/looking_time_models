@@ -53,24 +53,12 @@ update_posterior_distribution <- function(grid_theta,
 
 
 lp_theta_given_z <- function(z_bar, 
-                             #mysterious_df, 
                              theta, epsilon, 
                              alpha_theta, beta_theta, 
-                             alpha_epsilon, beta_epsilon, 
-                             optimize = TRUE) {
-  
-  if(optmize == TRUE){
-    #prev_result <- mysterious_df[same_theta, same_epsilon, same, feature, get_results]
-    curr_lp_z_given_theta <- prev_result + lp_z_ij_given_theta(z_bar[length(z_bar),], 
-                                                          theta = theta, 
-                                                          epsilon = epsilon)
-    
-    curr_lp_z_given_theta + lp_theta(theta, alpha_theta, beta_theta) + 
-      lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
-    
-  }
+                             alpha_epsilon, beta_epsilon ) {
+
  
-  lp_z_given_theta(z_bar, theta, epsilon, optimize) + 
+  lp_z_given_theta(z_bar, theta, epsilon) + 
     lp_theta(theta, alpha_theta, beta_theta) + 
     lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
 }
@@ -78,8 +66,7 @@ lp_theta_given_z <- function(z_bar,
 
 lp_z_given_theta <- function(z_bar, 
                              theta, 
-                             epsilon, 
-                             optimize = TRUE){
+                             epsilon){
   
     sum(sapply(z_bar[[1]], 
                function(x){lp_z_ij_given_theta(zij = x, 
@@ -95,11 +82,6 @@ lp_z_ij_given_theta <- function(zij, theta, epsilon){
   logSumExp(
     c(lp_z_ij_given_y(zij = zij, yi = 1, epsilon = epsilon) + lp_yi_given_theta(yi = 1, theta = theta ), 
       lp_z_ij_given_y(zij = zij, yi = 0, epsilon = epsilon) + lp_yi_given_theta(yi = 0, theta = theta))
-  )
-  
-  logSumExp(
-    c(lp_z_ij_given_y(zij = observation[[1]], yi = 1, epsilon = grid_epsilon) + lp_yi_given_theta(yi = 1, theta = grid_theta ), 
-      lp_z_ij_given_y(zij = observation[[1]], yi = 0, epsilon = grid_epsilon) + lp_yi_given_theta(yi = 0, theta = grid_theta))
   )
   
 }
