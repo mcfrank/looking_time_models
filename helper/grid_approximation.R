@@ -1,36 +1,60 @@
 source(here("helper/noisy_update.R"))
 
+
+
 init_lp_theta_given_z <- function(observation, 
-                             theta, epsilon, 
-                             alpha_theta, beta_theta, 
-                             alpha_epsilon, beta_epsilon) {
+                                     grid_theta, 
+                                     grid_epsilon,
+                                     posterior_df, 
+                                  alpha_theta, beta_theta, 
+                                  alpha_epsilon, beta_epsilon) {
   
-  lp_z_given_theta(z_bar, theta, epsilon, optimize) + 
-    lp_theta(theta, alpha_theta, beta_theta) + 
-    lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
+  
+  df_lp_thetas = tibble("theta" = grid_theta, 
+                     "lp_theta" = lp_theta(grid_theta, alpha_theta, beta_theta), 
+                     "lp_yi_given_theta_y_TRUE" = lp_yi_given_theta(yi = 1, theta = grid_theta), 
+                     "lp_yi_given_theta_y_FALSE" = lp_yi_given_theta(yi = 0, theta = grid_theta)
+                    )
+  df_lp_epsilons = tibble("epsilon" = grid_epsilon, 
+                      "lp_epsilon" = lp_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon), 
+                      "lp_zij_given_y_y_TRUE" = lp_z_ij_given_y(zij = observation[[1]], yi = 1, epsilon = grid_epsilon), 
+                      "lp_zij_given_y_y_FALSE" = lp_z_ij_given_y(zij = observation[[1]], yi = 0, epsilon = grid_epsilon))
+  
+  df_lp_all = expand_grid(df_lp_thetas, df_lp_epsilons)
+  
+  m_lpz_ij_given_thetas <- cbind(df_lp_all$lp_yi_given_theta_y_FALSE + df_lp_all$lp_zij_given_y_y_FALSE, 
+                                 df_lp_all$lp_yi_given_theta_y_TRUE +df_lp_all$lp_zij_given_y_y_TRUE)
+  
+  df_lp_all$logsum <- rowLogSumExps(m_lpz_ij_given_thetas)
+  
+  unnormalized_log_posterior <- df_lp_all$logsum + df_lp_all$lp_theta + df_lp_all$lp_epsilon
+
+  return(unnormalized_log_posterior)
 }
+
+
+
 
 
 
 init_update <- function(
   posterior_df,
-  observation, 
+  observation,
+  grid_theta, 
+  grid_epsilon,
   alpha_theta, beta_theta, 
   alpha_epsilon, beta_epsilon, 
 ){
   
-  profvis(
-  unnormalized_log_posterior <-  mapply(function(x, y) 
-    init_lp_theta_given_z(observation = observation, 
-                     theta = x, 
-                     epsilon = y, 
-                     alpha_theta = alpha_theta, 
-                     beta_theta = beta_theta,
-                     alpha_epsilon = alpha_epsilon, 
-                     beta_epsilon = beta_epsilon), 
-    posterior_df$theta, 
-    posterior_df$epsilon)
-  )
+  
+  
+  unnormalized_log_posterior <-  init_lp_theta_given_z(observation, 
+                                                                    grid_theta, 
+                                                                    grid_epsilon,
+                                                                    posterior_df, 
+                                                                    alpha_theta, beta_theta, 
+                                                                    alpha_epsilon, beta_epsilon)
+      
   posterior_df$log_posterior <- unnormalized_log_posterior - matrixStats::logSumExp(unnormalized_log_posterior)
   
   return(posterior_df)

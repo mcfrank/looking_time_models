@@ -97,6 +97,11 @@ lp_z_ij_given_theta <- function(zij, theta, epsilon){
       lp_z_ij_given_y(zij = zij, yi = 0, epsilon = epsilon) + lp_yi_given_theta(yi = 0, theta = theta))
   )
   
+  logSumExp(
+    c(lp_z_ij_given_y(zij = observation[[1]], yi = 1, epsilon = grid_epsilon) + lp_yi_given_theta(yi = 1, theta = grid_theta ), 
+      lp_z_ij_given_y(zij = observation[[1]], yi = 0, epsilon = grid_epsilon) + lp_yi_given_theta(yi = 0, theta = grid_theta))
+  )
+  
 }
 
 

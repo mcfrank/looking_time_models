@@ -75,6 +75,7 @@ main_simulation_uc <- function(subject = x,
     #update posterior df 
     if(t == 1){
       # do some fresh calculation
+      init_update()
     }else{
       prev_posterior_df <- list_df_posterior[[t-1]]
     }
@@ -94,6 +95,8 @@ main_simulation_uc <- function(subject = x,
     # using prev_posterior_df 
     # make different scenarios using all possible creatures 
     # calculate eig 
+    # technically even in the we only need to calculate two EIG: [z_bar + (znew = 1)], [z_bar + (z_new = 0)]
+    # then put this in the repsective slots (feature)
     
     ## update model behavior df 
     ## update t 
