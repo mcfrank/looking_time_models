@@ -31,8 +31,9 @@ main_simulation_uc <- function(subject = x,
   df_observation$trial_type <- rep(NA_character_, max_observation)
   df_observation$trial_number <- rep(NA_integer_, max_observation)
   
-  # df for all possible creatures 
-  #based on the stimuli vector length generate permuations
+  # df for all possible creatures
+  # eventually this function would be deprecated because so far we can't even enumerate 50 features instance
+  df_all_possible_creatures <- get_possible_creatures()
   
   # create a list of dfs to keep track of ALL posterior distribution 
   # actually may consider keeping track of everything in matrix for multi-feature version 
@@ -92,23 +93,17 @@ main_simulation_uc <- function(subject = x,
                                              alpha_theta, beta_theta, 
                                              alpha_epsilon, beta_epsilon)
     }else{
-      list_df_posterior[[t]] <- cheaper_update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
+      list_df_posterior[[t]] <- update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
                                                          current_posterior_df =  list_df_posterior[[t]], 
                                                          current_observation, 
                                                          grid_theta, grid_epsilon)
     }
     
-    # accessing through dict_df_posterior 
-      # if it is the first one, calculate lp_theta() and lp(epsilon)
-      # if not, just use the previous value 
-    #curr_posterior_df <- # udpate using prev_posterior_df and observation 
     
     
+    ##get EIG
     
-    #update dict_df_posterior 
-    #...
     
-    ##get EIG 
     # using all possible creatures df 
     # using prev_posterior_df 
     # make different scenarios using all possible creatures 

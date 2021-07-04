@@ -52,12 +52,13 @@ update_posterior_distribution <- function(grid_theta,
 
 
 
-lp_theta_given_z <- function(z_bar, 
+ lp_theta_given_z <- function(z_bar, 
                              theta, epsilon, 
                              alpha_theta, beta_theta, 
                              alpha_epsilon, beta_epsilon ) {
 
- 
+
+   
   lp_z_given_theta(z_bar, theta, epsilon) + 
     lp_theta(theta, alpha_theta, beta_theta) + 
     lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
