@@ -42,6 +42,9 @@ noise_parameter = 0.1
 ## grid approximation related 
 grid_theta <- seq(0.1, 1, 0.2)
 grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_theta = 1
+beta_theta = 1
+
 alpha_prior = 1
 beta_prior = 1
 alpha_epsilon = 10 
@@ -280,17 +283,22 @@ grid_apprxoimation_with_observation <- function(
 
 # compare two ways of doing grid approximation 
 ```{r}
-iteration = 10
+iteration = 500
+feature_number = 1
+grid_theta = seq(0.01, 0.99, 0.01)
+grid_epsilon = seq(0.01, 0.99, 0.01)
 obs_s <- noisy_observation_creature(
       stimuli_df = stimuli_sequence,
-      trial_index  = stimulus_idx, 
+      trial_index  = 1, 
       n_sample = iteration, 
       epsilon = noise_parameter
     )
 
 new_grid_approximation <- function(obs_s, iteration){
   
-
+  df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
+                                                 alpha_theta, beta_theta, 
+                                                 alpha_epsilon, beta_epsilon)
   df_posterior <- expand_grid(theta = grid_theta,
                               epsilon = grid_epsilon,
                               feature_index = seq(1, feature_number))
@@ -311,14 +319,14 @@ new_grid_approximation <- function(obs_s, iteration){
       
       list_df_posterior[[t]] <- init_update( list_df_posterior[[t]], 
                                              df_lp_theta_epsilon, 
-                                             current_observation,
+                                             obs_s[t, ],
                                              grid_theta, grid_epsilon,
                                              alpha_theta, beta_theta, 
                                              alpha_epsilon, beta_epsilon)
     }else{
       list_df_posterior[[t]] <- cheaper_update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
                                                          current_posterior_df =  list_df_posterior[[t]], 
-                                                         current_observation, 
+                                                         obs_s[t, ], 
                                                          grid_theta, grid_epsilon)
     }
     
@@ -329,7 +337,7 @@ new_grid_approximation <- function(obs_s, iteration){
   
   new_pos <- list_df_posterior[[iteration]]
 
-  
+  return(new_pos$unnormalized_log_posterior)
 }
 
 old_grid_approximation <- function(obs_s, iteration){
@@ -343,11 +351,55 @@ old_grid_approximation <- function(obs_s, iteration){
   alpha_epsilon, 
   beta_epsilon)
   
+  return(old_pos$unnormalized_log_posterior)
+  
 }
+
+
+
+bm_grid_approx <- bench::mark(
+  new_grid_approximation(obs_s, iteration), 
+  old_grid_approximation(obs_s, iteration)
+)
+
+bm_grid_approx
+bm_grid_approx %>% autoplot()
+
 
 ```
 
 
+## get all permuations of creatures 
+```{r}
+test_observation <- rep(TRUE, 5) %>% as_tibble_row(.name_repair = "unique")
+
+old_get_possible_creatures <- function(test_observation){
+  get_possible_creatures(test_observation)
+
+}
+
+
+
+cheaper_get_possible_creatures <- function(feature_n){
+  
+  
+    flip_observation <- as.logical(1 - (current_observation) %>% 
+                                   as.logical()) %>% 
+    as.vector() %>% 
+    as_tibble_row(.name_repair = ~ names(current_observation)) 
+  
+  combine_observations <- bind_rows(current_observation, flip_observation)
+  
+  all_possible_creatures <- combine_observations %>% 
+    cross_df() %>% 
+    mutate(index = row_number())
+  
+  
+  
+}
+
+
+```
 
 
 

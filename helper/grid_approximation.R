@@ -37,7 +37,7 @@ get_lp_z_given_theta <- function(observation,
   
 }
 
-cheaper_update_posterior <- function(previous_posterior_df,
+update_posterior <- function(previous_posterior_df,
                                      current_posterior_df, 
                                      current_observation, 
                                      grid_theta, grid_epsilon){
@@ -82,88 +82,3 @@ init_update <- function(
   
 }
 
-
-
-update_grid_with_theta_and_epsilon <- function(
-  feature_i, 
-  grid_theta, 
-  grid_epsilon, 
-  observations, 
-  alpha_theta, beta_theta, 
-  alpha_epsilon, beta_epsilon, 
-){
-  
- 
-  
-  samps <- expand_grid(theta = grid_theta,
-                       epsilon = grid_epsilon) 
-  
-  
-  samps$unnormalized_log_posterior <- mapply(function(x, y) 
-    lp_theta_given_z(z_bar = na.omit(observations), 
-                     #mysterious_df, 
-                     theta = x, 
-                     epsilon = y, 
-                     alpha_theta = alpha_theta, 
-                     beta_theta = beta_theta,
-                     alpha_epsilon = alpha_epsilon, 
-                     beta_epsilon = beta_epsilon, 
-                     optimize), 
-    samps$theta, 
-    samps$epsilon)
-  
-  samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
-  
-  
-    samps$posterior <- exp(samps$log_posterior)
-    samps$feature_index <- feature_i
-    
-
-  
-  
-  
-  
-  return(samps)
-  
-}
-
-
- grid_apprxoimation_with_observation <- function(
-  noisy_observation, 
-  grid_theta = seq(0.01, .99, .01), 
-  grid_epsilon = seq(0.01, .99, .01), 
-  alpha_prior = 1, 
-  beta_prior = 1,
-  alpha_epsilon = 10, 
-  beta_epsilon = 1
-  
-){
-  
- 
-    
-    # creating a df up front and keep track of the number 
-    # probably don't want this to live in the fucntion though b/c it's technically going to be the same 
-    # will be expensive if we keep creating the df, we can just updating the numbers in it 
-    
-    posterior_df <- tibble("")
-    
-    posterior_df <- expand_grid(theta = grid_theta,
-                epsilon = grid_epsilon,
-                feature_index = seq(1, 
-                                    ncol(noisy_observation[startsWith(names(noisy_observation), 
-                                                                      "V")]))) 
-
-   # not sure when do we really need the non-log one, save some $$$    
-    posterior_df$log_posterior <- NA_real_
-
-    
-     
-  
-  
-  
-  
-    return (posterior_df)
-  
-
-
-}
