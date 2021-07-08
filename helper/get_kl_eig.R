@@ -58,7 +58,6 @@ get_possible_kls <- function(
     
     posterior_for_current_scenario <- grid_apprxoimation_with_observation(
       noisy_observation = current_scenario, 
-      track_epsilon = TRUE, 
       grid_theta = grid_theta, 
       grid_epsilon = grid_epsilon, 
       alpha_prior = alpha_prior, 
@@ -84,9 +83,10 @@ get_possible_kls <- function(
     
   }
   
-  
+  all_possible_outcomes$kl <- possible_kls$kl
+  return(all_possible_outcomes)
   # will return a df of possible kls 
-  return (possible_kls)  
+  #return (possible_kls)  
 }
 
 

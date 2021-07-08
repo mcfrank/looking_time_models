@@ -67,6 +67,12 @@ simple_stimuli <- generate_creature_sequence(
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
 
+multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = 10, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
 ```
 
 
@@ -200,7 +206,7 @@ bm<- bench::mark(
 bm
 autoplot(bm)
 ```
-```{r}
+```{r FUNCTION}
 update_grid_with_theta_and_epsilon <- function(
   feature_i, 
   grid_theta, 
@@ -371,7 +377,457 @@ bm_grid_approx %>% autoplot()
 
 ## get all permuations of creatures 
 ```{r}
+multifeature_observation <- multifeature_stimuli[1, ][startsWith(names(multifeature_stimuli), 
+                                                           "V")]
+
+posterior_at_t <- grid_apprxoimation_with_observation(
+  multifeature_observation, 
+  grid_theta,
+  grid_epsilon,  
+  alpha_theta, 
+  beta_theta,
+  alpha_epsilon, 
+  beta_epsilon)   
+
+all_possible_creatures <- get_possible_creatures(multifeature_observation)
+
+```
+
+```{r}
+all_possible_creatures %>% 
+  mutate(
+    num_true = V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10
+  ) %>% 
+  group_by(num_true) %>% 
+  ggplot(aes(x = num_true)) + 
+  geom_histogram()
+#%>% 
+  #summarise(num = count(num_true))
+```
+
+
+```{r}
+kls <- get_possible_kls(
+  multifeature_observation, 
+  all_possible_creatures, 
+  posterior_at_t, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon) %>% 
+  arrange(-kl) %>% 
+  mutate(
+    num_true =  V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10
+  ) 
+
+kls %>% 
+  ggplot(aes(x = num_true, y = kl)) + 
+  geom_point() + 
+  scale_x_continuous(breaks = seq(0, 10, 1))
+#5, 6 * 2? 
+#10 -> 22
+
+
+kls %>% 
+  ggplot(aes(x = kl)) + 
+  geom_histogram() + 
+  scale_x_continuous()
+
+# maybe it's not the number of unique true value that matters but the unique combination of original + new?  
+
+
+```
+
+```{r}
+df_count_LARGE <- tibble(
+  index = all_possible_creatures$index, 
+  "TF" = rep(0,  length(all_possible_creatures$index)), 
+  "TT" = rep(0,  length(all_possible_creatures$index)), 
+  "FT" = rep(0,  length(all_possible_creatures$index)), 
+  "FF" = rep(0,  length(all_possible_creatures$index))
+)
+
+df_count_LARGE
+
+for (i in seq(1, length(all_possible_creatures$index))){
+  
+  current_creature <- all_possible_creatures[i, ]
+  
+  for (q in seq(1, ncol(multifeature_observation))){
+    
+    if (multifeature_observation[[q]] == TRUE){
+      if(current_creature[[q]] == TRUE){
+        #TT
+        df_count_LARGE[i, "TT"] = df_count_LARGE[i, "TT"] + 1
+        
+      }else{
+        #TF
+        df_count_LARGE[i, "TF"] = df_count_LARGE[i, "TF"] + 1
+      }
+      
+    }else{
+      if(current_creature[[q]] == TRUE){
+        #FT
+        df_count_LARGE[i, "FT"] = df_count_LARGE[i, "FT"] + 1
+        
+      }else{
+        #FF
+        df_count_LARGE[i, "FF"] = df_count_LARGE[i, "FF"] + 1
+      }
+      
+    }
+    
+    
+    
+  }
+  
+
+  
+}
+# still doesn't match wtf 
+
+df_count_LARGE %>% 
+  mutate(comb_type = paste("TF", TF, "TT", TT, "FT", FT, "FF", FF, sep = "_")) %>% 
+  mutate(TF_FT = TF + FT) %>% 
+  group_by(TF_FT, index, comb_type) %>% 
+  summarise(count_n = n()) %>% 
+  left_join(kls, by = "index") %>% 
+  ggplot(aes(x = index, y = kl)) + 
+  geom_point() + 
+  facet_wrap(~TF_FT)
+
+```
+
+but does it match on to the posterior predictives? 
+YES
+```{r}
+df_count_LARGE %>% 
+  mutate(comb_type = paste("TF", TF, "TT", TT, "FT", FT, "FF", FF, sep = "_")) %>% 
+  mutate(TT_FF = TT + FF) %>%
+    left_join(kls, by = "index") %>% 
+  mutate(predictives = get_all_possible_creature_pred(
+                               all_possible_creatures,
+                               posterior_at_t)) %>% 
+  ggplot(aes(x = index, y = predictives, color = comb_type)) + 
+  geom_point() + 
+  facet_wrap(~TT_FF)
+  
+
+```
+## does this pattern hold with more than one observation? 
+
+```{r}
+
+o_at_t2<- bind_rows(multifeature_stimuli[1, ][startsWith(names(multifeature_stimuli), 
+                                                           "V")], 
+                    multifeature_stimuli[1, ][startsWith(names(multifeature_stimuli), 
+                                                           "V")]
+                    )
+o_at_t2$V2[2] <- FALSE 
+o_at_t2$V8[2] <- FALSE
+
+posterior_at_t2 <- grid_apprxoimation_with_observation(
+  o_at_t2, 
+  grid_theta,
+  grid_epsilon,  
+  alpha_theta, 
+  beta_theta,
+  alpha_epsilon, 
+  beta_epsilon)   
+
+kls_at_t2 <- get_possible_kls(
+  o_at_t2, 
+  all_possible_creatures, 
+  posterior_at_t2, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon) %>% 
+  arrange(-kl) %>% 
+  mutate(
+    num_true =  V1 + V2 + V3 + V4 + V5 + V6 + V7 + V8 + V9 + V10
+  ) 
+```
+
+```{r}
+
+test_kl <- function(all_possible_creatures, observations, kls, plot = TRUE){
+  
+
+  exisitng_observations_count <- lapply(observations, function(x){as.vector(x)})
+  sequence_df <- tibble(stimuli = exisitng_observations_count, 
+                        feature =seq(1, length(exisitng_observations_count))) %>% 
+     pivot_wider(names_from = stimuli, values_from = feature) %>% 
+     pivot_longer(cols = all_of(names(.)), 
+                  names_to = "past_observations", 
+                  values_to = "feature_position")
+  
+  
+  
+  
+  unique_combination <- unique(observations %>% as.list())
+  all_possible_combinations <- expand_grid(
+    past_observations = as.character(unique_combination), 
+    hypothetical_observation = c(TRUE, FALSE)
+  ) 
+  
+  all_possible_combinations$count <- rep(0, nrow(all_possible_combinations))
+  
+  all_possible_combinations <- all_possible_combinations %>% 
+    left_join(sequence_df, by = "past_observations")
+
+  list_all_possible_combination <- lapply(seq(1, nrow(all_possible_creatures), 1), 
+                                          function(x){all_possible_combinations})
+  
+  
+for (i in 1:length(all_possible_creatures$index)){
+  
+  current_counter_df <- list_all_possible_combination[[i]]
+  current_creature <- all_possible_creatures[i, ][startsWith(names(all_possible_creatures), 
+                                                           "V")]
+  
+  current_scenarios <- mapply(function(x, y){c(x, y)}, 
+                              exisitng_observations_count, 
+                              current_creature) %>% 
+    as.data.frame() %>% 
+    as.list()
+  
+  for (j in 1:length(current_scenarios)){
+    
+    # figure out which two rows are relevant 
+     feature_pos <- lapply(current_counter_df$feature_position, function(x){j %in% x})
+     # figure out hypothetical observation 
+     hypothetical_obs_pos <-  lapply(current_counter_df$hypothetical_observation,
+                                     function(x){current_creature[[j]] == x})
+     
+     
+     current_counter_df$count = current_counter_df$count + 
+       (unlist(feature_pos) & unlist(hypothetical_obs_pos))
+    
+    
+  }
+  
+  list_all_possible_combination[[i]] <- current_counter_df
+  
+ 
+  
+  
+}
+  all_possible_creatures$combo <- lapply(all_possible_creatures$index,
+                                         function(x){
+                                        as.vector(list_all_possible_combination[[x]]$count)
+                                         }
+                                         )
+   
+  
+  if(plot){
+ all_possible_creatures%>% 
+   mutate(combo = as.character(combo)) %>% 
+  left_join(kls, by = "index") %>% 
+   mutate(kl =  round(kl, 8)) %>% 
+  ggplot(aes(x = index, y = kl, color = combo)) + 
+  geom_point() + 
+  facet_wrap(~combo)
+ 
+ 
+ all_possible_creatures%>% 
+   mutate(combo = as.character(combo)) %>% 
+  left_join(kls, by = "index") %>% 
+   mutate(kl =  round(kl, 8)) %>% 
+  ggplot(aes(x = combo, y = kl, color = combo)) + 
+   geom_point() + 
+   scale_x_discrete(expand=c(.02, .02)) + 
+   theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust =2.5)) + 
+   coord_flip()
+  }else{
+    all_possible_creatures%>% 
+   mutate(combo = as.character(combo)) %>% 
+  left_join(kls, by = "index") %>% 
+   mutate(kl =  round(kl, 8))
+  }
+
+}
+
+
+three_feature_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = 3, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+o_at_t3 <- bind_rows(three_feature_stimuli[1, ][startsWith(names(three_feature_stimuli), 
+                                                           "V")], 
+                    three_feature_stimuli[1, ][startsWith(names(three_feature_stimuli), 
+                                                           "V")],
+                     three_feature_stimuli[1, ][startsWith(names(three_feature_stimuli), 
+                                                           "V")]
+                    )
+
+posterior_at_t3 <- grid_apprxoimation_with_observation(
+  o_at_t3, 
+  grid_theta,
+  grid_epsilon,  
+  alpha_theta, 
+  beta_theta,
+  alpha_epsilon, 
+  beta_epsilon)   
+
+all_possible_creatures_three_features <- get_possible_creatures(three_feature_stimuli[1, ][startsWith(names(three_feature_stimuli), 
+                                                           "V")])
+kls_at_t3 <- get_possible_kls(
+  o_at_t3, 
+  all_possible_creatures_three_features, 
+  posterior_at_t3, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon) %>% 
+  arrange(-kl) %>% 
+  mutate(
+    num_true =  V1 + V2 + V3
+  ) 
+
+
+test_kl(all_possible_creatures_three_features, o_at_t3, kls_at_t3)
+test_kl(all_possible_creatures_three_features, o_at_t3, kls_at_t3, FALSE)
+o_at_t3
+#test_kl(all_possible_creatures, o_at_t2, kls_at_t2)
+#test_kl(all_possible_creatures, multifeature_observation, kls)
+
+```
+
+
+values_to_calculate: 
+- two ends of possible kls (sum of TF + FT)
+- do interval, lay out all values 
+- two ends of possible predictives 
+- do interval, la out all values 
+- calculate n combination in that value, (FEATURE choose SUM)
+- get EIG 
+
+```{r}
+new_get_kl <- function(observations, 
+                       all_possible_outcomes,
+                        posterior_at_t,
+                        grid_theta = grid_theta, 
+                        grid_epsilon = grid_epsilon, 
+                        alpha_prior = alpha_prior, 
+                        beta_prior = beta_prior,
+                        alpha_epsilon = alpha_epsilon, 
+                        beta_epsilon = beta_epsilon){
+  
+  lowest_kl <- get_lowest_kl(observations, 
+                       all_possible_outcomes,
+                        posterior_at_t)  
+  
+  highest_kl <- get_highest_kl(observations, 
+                       all_possible_outcomes,
+                        posterior_at_t)
+  
+  
+  
+  
+
+  
+}
+```
+
+
+```{r}
+new_get_eig <- function(observations, 
+                        all_possible_outcomes, 
+                        posterior_at_t, 
+                        grid_theta = grid_theta, 
+                        grid_epsilon = grid_epsilon, 
+                        alpha_prior = alpha_prior, 
+                        beta_prior = beta_prior,
+                        alpha_epsilon = alpha_epsilon, 
+                        beta_epsilon = beta_epsilon
+){
+  feature_n = ncol(observation)
+  eig_df <- tibble(
+    "index" = seq(0, feature_n), # sum of TF + FT combination 
+    "n_condition" = choose(feature_n, seq(0, feature_n)), 
+    "kl" = rep(NA_real_, feature_n + 1), 
+    "post_pred" = rep(NA_real_, feature_n + 1)
+  )
+  
+  # get kl 
+  eig_df$kl <- new_get_kl(observations,
+                          feature_n,
+                        posterior_at_t,
+                        grid_theta = grid_theta, 
+                        grid_epsilon = grid_epsilon, 
+                        alpha_prior = alpha_prior, 
+                        beta_prior = beta_prior,
+                        alpha_epsilon = alpha_epsilon, 
+                        beta_epsilon = beta_epsilon)
+  
+  # get post_pred 
+  
+  # sum(kl* post_pred * n_condition)
+  
+  
+  
+                        }
+```
+
+
+
+```{r}
+small_kls <- get_possible_kls(
+  small_multi_observation, 
+  small_possible_creatures, 
+  small_posterior_at_t, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon) %>% 
+  arrange(-kl) %>% 
+  mutate(
+    num_true =  V1 + V2 + V3 + V4 + V5 
+  ) 
+
+small_kls %>% 
+  ggplot(aes(x = num_true, y = kl)) + 
+  geom_point() + 
+  scale_x_continuous(breaks = seq(0, 10, 1))
+
+small_kls %>% 
+  ggplot(aes(x = kl)) + 
+  geom_histogram() 
+```
+
+```{r}
+small_multi_observation
+small_kls
+```
+
+
+
+
+
+```{r}
 test_observation <- rep(TRUE, 5) %>% as_tibble_row(.name_repair = "unique")
+test_posterior_at_t <- grid_apprxoimation_with_observation(
+  test_observation, 
+  grid_theta = seq(0.01, .99, .01), 
+  grid_epsilon = seq(0.01, .99, .01), 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
 
 old_get_possible_creatures <- function(test_observation){
   get_possible_creatures(test_observation)
