@@ -45,7 +45,7 @@ grid_epsilon <- seq(0.1, 1, 0.2)
 alpha_theta = 1
 beta_theta = 1
 
-alpha_prior = 1
+alpha_prior = 5
 beta_prior = 1
 alpha_epsilon = 10 
 beta_epsilon = 1
@@ -384,8 +384,8 @@ posterior_at_t <- grid_apprxoimation_with_observation(
   multifeature_observation, 
   grid_theta,
   grid_epsilon,  
-  alpha_theta, 
-  beta_theta,
+  10, 
+  1,
   alpha_epsilon, 
   beta_epsilon)   
 
@@ -413,8 +413,8 @@ kls <- get_possible_kls(
   posterior_at_t, 
   grid_theta = grid_theta, 
   grid_epsilon = grid_epsilon, 
-  alpha_prior = alpha_prior, 
-  beta_prior = beta_prior,
+  alpha_prior = 10, 
+  beta_prior = 1,
   alpha_epsilon = alpha_epsilon, 
   beta_epsilon = beta_epsilon) %>% 
   arrange(-kl) %>% 
@@ -554,6 +554,20 @@ kls_at_t2 <- get_possible_kls(
 ```
 
 ```{r}
+library(partitions)
+library(iterpc)
+
+library(partitions)
+
+# Get 8 elements that sum up to 10
+x <- compositions(n = 2, m = 2, include.zero = F)
+
+C = t(restrictedparts(10,8))
+do.call(rbind, lapply(1:nrow(C),function(i) getall(iterpc(table(C[i,]), order=T))))
+```
+
+
+```{r}
 
 test_kl <- function(all_possible_creatures, observations, kls, plot = TRUE){
   
@@ -568,20 +582,63 @@ test_kl <- function(all_possible_creatures, observations, kls, plot = TRUE){
   
   
   
-  
+  n_unique_combination = length(unique_combination)
+  n_feature = ncol(observations)
   unique_combination <- unique(observations %>% as.list())
+  unique_combination_df <- tibble(
+    unique_combination = unique_combination, 
+    occurence = rep(0, n_unique_combination)
+  )
+  
+  for (i in 1:n_unique_combination){
+    current_combination = unique_combination_df[[i, 1]][[1]]
+    for (f in 1:n_feature){
+      
+      if (identical(observations[,f][1] %>% pull, current_combination)){
+        unique_combination_df[i, 2] <- unique_combination_df[i, 2] + 1
+      }
+      
+    }
+    
+  }
+  
   all_possible_combinations <- expand_grid(
-    past_observations = as.character(unique_combination), 
+    unique_combination_df, 
     hypothetical_observation = c(TRUE, FALSE)
   ) 
+  
+  # calculate kl for specific feature 
+  #all_possible_combination_df <- 
+  
+  
+  
+  
+  
+  number_of_unique_combinations = prod(sapply( unique_combination_df$occurence, 
+                                          function(x){choose(x+1, 1)}))
+  
+  
+ # figure out all the possible combinations 
+  list_all_possible_combination <- lapply(seq(1,  number_of_unique_combinations , 1), 
+                                          function(x){all_possible_combinations})
+  
+  # use compositions: 
+   #compositions(7, 2, include.zero = TRUE)
+  
+
+  
+  possible_options <- mapply(function(x, y){c(x, y)}, 
+                             all_possible_combinations$past_observations,
+                             all_possible_combinations$hypothetical_observation) %>% 
+                             as.data.frame() %>% 
+                             as.list()
   
   all_possible_combinations$count <- rep(0, nrow(all_possible_combinations))
   
   all_possible_combinations <- all_possible_combinations %>% 
     left_join(sequence_df, by = "past_observations")
 
-  list_all_possible_combination <- lapply(seq(1, nrow(all_possible_creatures), 1), 
-                                          function(x){all_possible_combinations})
+  
   
   
 for (i in 1:length(all_possible_creatures$index)){
