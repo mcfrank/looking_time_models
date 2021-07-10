@@ -50,6 +50,7 @@ update_posterior <- function(previous_posterior_df,
 
   current_posterior_df$unnormalized_log_posterior <- previous_unnormalized_log_posterior + current_lp_z_given_theta
   current_posterior_df$log_posterior <- current_posterior_df$unnormalized_log_posterior - matrixStats::logSumExp(current_posterior_df$unnormalized_log_posterior)
+  current_posterior_df$posterior <- exp(current_posterior_df$log_posterior)
   return(current_posterior_df)
 }
 
