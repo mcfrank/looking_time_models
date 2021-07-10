@@ -236,7 +236,7 @@ update_grid_with_theta_and_epsilon <- function(
   
   
     samps$posterior <- exp(samps$log_posterior)
-    samps$obs_index <- feature_i
+    samps$feature_index <- feature_i
    
   
   
@@ -462,8 +462,7 @@ test_eig <- function(observations){
                       beta_epsilon) 
            })
     
-    # make concatenated observation 
-    
+
     # pass to post posterior 
     # each option has two possibilities 
     # initialize the thing 
@@ -494,10 +493,13 @@ test_eig <- function(observations){
         all_possible_combinations$kl[s] <- get_kl(post_posterior_list[[s]]$posterior, 
                                                   prev_posterior_list[[ceiling(s/2)]]$posterior)
         
+        #creature_noisy_post_pred(1, all_possible_outcomes, posterior)
+        #noisy_post_pred(prev_posterior_list[[ceiling(s/2)]]$theta, prev_posterior_list[[ceiling(s/2)]]$epsilon, prev_posterior_list[[ceiling(s/2)]]$posterior, TRUE)
         
-        all_possible_combinations$post_predictives[s] <- noisy_post_pred(post_posterior_list[[s]]$theta, 
-                                                                         post_posterior_list[[s]]$epsilon, 
-                                                                         post_posterior_list[[s]]$posterior, 
+        # redundancy here 
+        all_possible_combinations$post_predictives[s] <- noisy_post_pred(prev_posterior_list[[ceiling(s/2)]]$theta, 
+                                                                         prev_posterior_list[[ceiling(s/2)]]$epsilon, 
+                                                                         prev_posterior_list[[ceiling(s/2)]]$posterior, 
                                                                          all_possible_combinations$hypothetical_observation[s]) 
 
         
@@ -564,11 +566,13 @@ test_eig <- function(observations){
   eig_list <- lapply(list_all_possible_combination, 
           function(df){
             
-            sum(df$n * all_possible_combination_df$kl * all_possible_combination_df$post_predictives)
+            creature_kl <- sum(df$n * all_possible_combination_df$kl) 
+            creature_post_pred <- prod(all_possible_combination_df$post_predictives ^ df$n)
+            creature_kl * creature_post_pred
+            #c(creature_kl, creature_post_pred)
           })
   
-  sum(unlist(eig_list))
-  
+
   return (sum(unlist(eig_list)))
 
 }
@@ -581,8 +585,11 @@ multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_blo
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
 
-observations = multifeature_stimuli[startsWith(names(multifeature_stimuli), 
-                                                                 "V")]
+#observations = multifeature_stimuli[startsWith(names(multifeature_stimuli), 
+  #                                                               "V")]
+
+# CURRENTLY BUGGGY : 3 FEATURES
+observations = multifeature_stimuli %>% select(V1, V2)
 
 current_observation = observations[1, ]
 
@@ -598,10 +605,15 @@ posterior <- grid_apprxoimation_with_observation(
 all_possible_creatures <- get_possible_creatures(observations[1, ])
 
 
+old_post_pred <- get_all_possible_creature_pred(
+    all_possible_creatures, 
+    posterior)
+
+
 old_get_eig <- function(observations){
   
 
-get_eig(current_observation, 
+eig <- get_eig(current_observation, 
         observations, 
                     posterior, 
                     grid_theta = grid_theta, 
@@ -611,7 +623,7 @@ get_eig(current_observation,
                     alpha_epsilon = alpha_epsilon, 
                     beta_epsilon = beta_epsilon)
   
-  return(eig)
+  return(eig[[1]])
 
 }
 
@@ -619,13 +631,13 @@ new_get_eig <- function(observations){
   test_eig(observations)
 }
 
-old_res <- old_get_kl(observations)
-new_res <- new_get_kl(observations)
+old_res <- old_get_eig(observations)
+new_res <- new_get_eig(observations)
 
-bm_kl <- bench::mark(old_get_kl(observations), 
-            new_get_kl(observations))
+bm_kl <- bench::mark(old_get_eig(observations), 
+            new_get_eig(observations))
 
-bm_kl %>% autoplot() + labs(title = "5 features")
+bm_kl %>% autoplot() + labs(title = "1 feature")
 
 
 ```
