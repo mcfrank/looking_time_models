@@ -238,6 +238,7 @@ creature_noisy_post_pred <- function(
   # pre-optimization: 1260
   # post-optimization: 
   
+ # creature_noisy_post_pred(1, all_possible_creatures, posterior)
   
   
   # calculate post predctive for each feature
