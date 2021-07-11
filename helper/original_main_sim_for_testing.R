@@ -32,13 +32,6 @@ main_simulation <- function(
                                     nrow = max_observation)) %>% 
     tibble()  
   
-  colnames(observations) <- colnames(stimuli_sequence)
-  
-  observations$t <- seq(1, max_observation, 1)
-  observations$trial_type <- rep(NA_character_, max_observation)
-  observations$trial_number <- rep(NA_integer_, max_observation)
-  
-  
   # the total number of stimuli 
   total_trial_number = nrow(stimuli_sequence)
   total_feature_number = stimuli_sequence %>% 

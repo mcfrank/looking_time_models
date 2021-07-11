@@ -69,11 +69,33 @@ simple_stimuli <- generate_creature_sequence(
 
 multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
   deviant_positions = deviant_positions,  # takes a vector, 
-  total_feature = 30, 
+  total_feature = 3, 
   feature_theta = feature_theta, 
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
 ```
+
+list vs df vs matrix: https://www.brodieg.com/2018/11/23/is-your-matrix-running-slow-try-lists/
+column referencing / subsetting is faster in DF than in M
+but when needs to select columns AND row dataframe is SLOWER, worse when duplicates columns 
+
+actually not necessarily: 
+Unit: microseconds
+                   expr    min     lq     mean  median     uq
+     df_model$t[[1000]]  1.128  1.522  3.82384  2.2325  4.159
+ m_model[, "t"][[1000]] 23.622 26.732 71.32065 41.3060 45.055
+     max neval
+  26.485   100
+ 774.485   100
+ 
+ but for row assignment yes: 
+ Unit: nanoseconds
+                                                                                                                          expr
+                                                                                                 m_observation[1, ] <- new_obs
+ df_observation[df_observation$t == t, str_detect(names(df_observation),      "V")] <- tibble(V1 = TRUE, V2 = TRUE, V3 = TRUE)
+    min       lq      mean   median       uq     max neval
+    531    637.5   1564.66    894.0   2232.5    6400   100
+ 596171 620196.0 677410.67 634726.5 688627.0 1099617   100
 
 ```{r}
 source(here("helper/main_simulation_under_construction.R"))
