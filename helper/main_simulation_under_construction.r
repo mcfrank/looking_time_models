@@ -1,8 +1,8 @@
 main_simulation_uc <- function(subject = x,
-                stimuli_sequence = simple_stimuli, 
+                stimuli_sequence, 
                 noise_parameter = noise_parameter, 
-                eig_from_world = env_eig,
-                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                eig_from_world = 0.001,
+                max_observation = 50, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
                 alpha_prior = alpha_prior, 
@@ -16,9 +16,15 @@ main_simulation_uc <- function(subject = x,
   
   feature_number <- ncol(stimuli_sequence[startsWith(names(stimuli_sequence), 
                                                      "V")])
+  total_trial_number = max(stimuli_sequence$trial_number)
   
   # df for keeping track of model behavior, 
-  #df_model <- 
+  df_model <-  tibble(t = rep(NA,max_observation),
+                      stimulus_idx = rep(NA,max_observation), 
+                      EIG = rep(NA,max_observation), 
+                      EIG_from_world = rep(eig_from_world,max_observation),
+                      p_look_away = rep(NA,max_observation), 
+                      look_away = rep(NA,max_observation)) 
   
   # df for keep track of actual observations 
   df_observation <- data.frame(matrix(ncol = ncol(stimuli_sequence), 
@@ -28,12 +34,11 @@ main_simulation_uc <- function(subject = x,
   colnames(df_observation) <- colnames(stimuli_sequence)
   
   df_observation$t <- seq(1, max_observation, 1)
-  df_observation$trial_type <- rep(NA_character_, max_observation)
   df_observation$trial_number <- rep(NA_integer_, max_observation)
   
   # df for all possible creatures
   # eventually this function would be deprecated because so far we can't even enumerate 50 features instance
-  df_all_possible_creatures <- get_possible_creatures()
+  #df_all_possible_creatures <- get_possible_creatures()
   
   # create a list of dfs to keep track of ALL posterior distribution 
   # actually may consider keeping track of everything in matrix for multi-feature version 
@@ -58,27 +63,31 @@ main_simulation_uc <- function(subject = x,
   
   
   
-  # stimulus_idx <- 1
+  stimulus_idx <- 1
   t <- 1
   posterior_at_t <- NULL
   
-  while(stimulus_idx <= total_trial_number && t <= max_observation){
+ # while(stimulus_idx <= total_trial_number && t <= max_observation){
+    
+  while(t <= max_observation){
+    df_model$t[[t]] = t
+    df_model$stimulus_idx[[t]] = stimulus_idx
     
     #get stimulus
     current_stimulus <- stimuli_sequence[stimulus_idx,]
     
     #get observation 
     current_observation <- noisy_observation_creature(
-      stimuli_df = stimuli_sequence,
-      trial_index  = stimulus_idx, 
+      creature = current_stimulus[,str_detect(names(current_stimulus), "V")], 
       n_sample = 1, 
       epsilon = noise_parameter
     )
     
+    current_observation <- TRUE
+    
     # add to current observation 
     df_observation[df_observation$t == t, str_detect(names(df_observation), "V")] <-
       current_observation
-    df_observation[df_observation$t == t, "trial_type"] <- current_stimulus$trial_type
     df_observation[df_observation$t == t, "trial_number"] <- stimulus_idx
     
    
@@ -102,28 +111,25 @@ main_simulation_uc <- function(subject = x,
     
     
     ##get EIG
+    # we will want to past list_df posterior so that we don't need to calculate posterior again
+    df_model$EIG[[t]] <- get_eig_faster(na.omit(df_observation[,str_detect(names(df_observation), "V")]),
+                                   grid_theta, grid_epsilon, 
+                                   alpha_theta, beta_theta, 
+                                   alpha_epsilon,beta_epsilon)
     
-    
-    # using all possible creatures df 
-    # using prev_posterior_df 
-    # make different scenarios using all possible creatures 
-    # calculate eig 
-    # technically even in the we only need to calculate two EIG: [z_bar + (znew = 1)], [z_bar + (z_new = 0)]
-    # then put this in the repsective slots (feature)
     
     ## update model behavior df 
     ## update t 
     ## maybe udpate stimulus idx 
     
-    
-  
+    t = t+1
+    #stimulus_idx = stimulus_idx + 1
   }
-  
+  return (df_model)  
+
 }
   
   
   
   
   
-  
-}

@@ -75,6 +75,76 @@ multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_blo
   dissimilar_ratio = dissimilarity_ratio)
 ```
 
+```{r}
+source(here("helper/main_simulation_under_construction.R"))
+source(here("helper/get_eig.R"))#new eig function under testing
+
+source(here("helper/original_main_sim_for_testing.R"))
+
+new_sim <- function(){
+new_sims <- main_simulation_uc(subject = 1,
+                simple_stimuli , 
+                noise_parameter = noise_parameter, 
+                eig_from_world = 0.001,
+                max_observation = 50, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = alpha_prior, 
+                beta_prior = beta_prior,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = TRUE,
+                forced_sample = 5,
+                optimize = FALSE)
+  
+}
+old_sim <- function(){
+old_sims <- main_simulation(
+  1, 
+  multifeature_stimuli , 
+  noise_parameter = noise_parameter, 
+  eig_from_world = 0.001,
+  max_observation = 50, # should this be per trial or in total? currently in total 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon, 
+  exposure_type = "forced_short", 
+  forced_exposure = TRUE,
+  forced_sample = 5,
+  optimize = TRUE 
+)
+return(old_sims)
+}
+
+sim_bm <- bench::mark(old_sim(), 
+             new_sim())
+sim_bm 
+
+new_sims 
+old_sims
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -208,111 +278,8 @@ autoplot(bm)
 ```
 
 ```{r FUNCTION}
-update_grid_with_theta_and_epsilon <- function(
-  feature_i, 
-  grid_theta, 
-  grid_epsilon, 
-  observations, 
-  alpha_theta, beta_theta, 
-  alpha_epsilon, beta_epsilon){
-  
-  
-  samps <- expand_grid(theta = grid_theta,
-                       epsilon = grid_epsilon) 
-  
-  
-  samps$unnormalized_log_posterior <- mapply(function(x, y) 
-    lp_theta_given_z(z_bar = na.omit(observations), 
-                     theta = x, 
-                     epsilon = y, 
-                     alpha_theta = alpha_theta, 
-                     beta_theta = beta_theta,
-                     alpha_epsilon = alpha_epsilon, 
-                     beta_epsilon = beta_epsilon), 
-    samps$theta, 
-    samps$epsilon)
-  
-  samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
-  
-  
-    samps$posterior <- exp(samps$log_posterior)
-    samps$feature_index <- feature_i
-   
-  
-  
-  
-  
-  return(samps)
-  
-}
 
 
-grid_apprxoimation_with_observation <- function(
-  noisy_observation, 
-  grid_theta = seq(0.01, .99, .01), 
-  grid_epsilon = seq(0.01, .99, .01), 
-  alpha_prior = 1, 
-  beta_prior = 1,
-  alpha_epsilon = 10, 
-  beta_epsilon = 1
-){
-  
-  #grid_apprxoimation_with_observation(observations, grid_theta, grid_epsilon, alpha_theta, beta_theta, alpha_epsilon, beta_epsilon)
-    posterior_df <- lapply(seq(1, 
-                               ncol(noisy_observation[startsWith(names(noisy_observation), 
-                                                                 "V")]), 
-                               1), 
-                           function(x){
-                             update_grid_with_theta_and_epsilon(
-                               feature_i = x, 
-                               grid_theta = grid_theta, 
-                               grid_epsilon = grid_epsilon, 
-                               observations = noisy_observation[,x], 
-                               alpha_theta = alpha_prior, 
-                               beta_theta = beta_prior,
-                               alpha_epsilon = alpha_epsilon, 
-                               beta_epsilon = beta_epsilon
-                             )
-                           }
-    ) %>% 
-      bind_rows()
-    
-    
-  
-  
-  
-    return (posterior_df)
-  
-
-
-}
-
-grid_apprxoimation_with_observation_kl <- function(
-  noisy_observation, 
-  grid_theta = seq(0.01, .99, .01), 
-  grid_epsilon = seq(0.01, .99, .01), 
-  alpha_prior = 1, 
-  beta_prior = 1,
-  alpha_epsilon = 10, 
-  beta_epsilon = 1
-){
-  
-   update_grid_with_theta_and_epsilon(
-                               feature_i = 1, 
-                               grid_theta = grid_theta, 
-                               grid_epsilon = grid_epsilon, 
-                               observations = noisy_observation, 
-                               alpha_theta = alpha_prior, 
-                               beta_theta = beta_prior,
-                               alpha_epsilon = alpha_epsilon, 
-                               beta_epsilon = beta_epsilon
-                             )
-    
-    
-  
-
-
-}
 ```
 
 
@@ -406,176 +373,7 @@ bm_grid_approx %>% autoplot()
 
 ```{r}
 
-test_eig <- function(observations){
-  
-  
-  
-  unique_combination <- unique(observations %>% as.list())
-  
-  n_unique_combination = length(unique_combination)
-  n_feature = ncol(observations)
- 
-  unique_combination_df <- tibble(
-    unique_combination = unique_combination, 
-    occurence = rep(0, n_unique_combination),
-     n = rep(NA, n_unique_combination)
-  )
-  
-  for (i in 1:n_unique_combination){
-    current_combination = unique_combination_df[[i, 1]][[1]]
-    for (f in 1:n_feature){
-      
-      if (identical(observations[,f][1] %>% pull, current_combination)){
-        unique_combination_df[i, 2] <- unique_combination_df[i, 2] + 1
-      }
-      
-    }
-    
-  }
-  
-  all_possible_combinations <- expand_grid(
-    unique_combination_df, 
-    hypothetical_observation = c(TRUE, FALSE)
-   
-  ) 
-  
-  # calculate kl for specific feature 
-  # temporary measurement for now, latter needs to be solved along with multi-feature storage part 
-  calculate_kl_for_feature <- function(all_possible_combinations){
-    
-    n_possible_combination <- nrow(all_possible_combinations)
-    
-    all_possible_combinations$kl <- rep(NA_real_, n_possible_combination)
-    all_possible_combinations$post_predictives <- rep(NA_real_, n_possible_combination)
-    
-    
-    # technically we should be able to find the last posterior
-    prev_posterior_list <- lapply(unique(all_possible_combinations$unique_combination), 
-           function(x){
-              grid_apprxoimation_with_observation_kl(
-                      tibble(x), 
-                      grid_theta,
-                      grid_epsilon,  
-                      alpha_prior, 
-                      beta_prior,
-                      alpha_epsilon, 
-                      beta_epsilon) 
-           })
-    
-
-    # pass to post posterior 
-    # each option has two possibilities 
-    # initialize the thing 
-     post_posterior_list <- lapply(seq(1, n_possible_combination),
-                                   function(x){
-                                     expand_grid(theta = grid_theta, 
-                                                 epsilon = grid_epsilon)
-                                   })
-   
-     for (i in 1:n_possible_combination){
-      
-      post_posterior_df = post_posterior_list[[i]]
-      prev_observation_posterior = prev_posterior_list[[ceiling(i/2)]]
-      post_posterior_list[[i]] <- update_posterior(previous_posterior_df =  prev_observation_posterior,
-                                                         current_posterior_df = post_posterior_list[[i]], 
-                                                         (i%%2 == 1), 
-                                                         grid_theta, grid_epsilon)
-       
-     }
-    
-   
-
-
-
-      
-      for (s in 1:n_possible_combination){
-        
-        all_possible_combinations$kl[s] <- get_kl(post_posterior_list[[s]]$posterior, 
-                                                  prev_posterior_list[[ceiling(s/2)]]$posterior)
-        
-        #creature_noisy_post_pred(1, all_possible_outcomes, posterior)
-        #noisy_post_pred(prev_posterior_list[[ceiling(s/2)]]$theta, prev_posterior_list[[ceiling(s/2)]]$epsilon, prev_posterior_list[[ceiling(s/2)]]$posterior, TRUE)
-        
-        # redundancy here 
-        all_possible_combinations$post_predictives[s] <- noisy_post_pred(prev_posterior_list[[ceiling(s/2)]]$theta, 
-                                                                         prev_posterior_list[[ceiling(s/2)]]$epsilon, 
-                                                                         prev_posterior_list[[ceiling(s/2)]]$posterior, 
-                                                                         all_possible_combinations$hypothetical_observation[s]) 
-
-        
-      }
-      
-      
-      return (all_possible_combinations)
-      
-  
-  
-      
-      }
-  
-  
-  
-  
-  
-  
-  
-  all_possible_combination_df <- calculate_kl_for_feature(all_possible_combinations)
-  
-  
-  
-  
-  
-  
-  
-  
-  # figure out number of different compositions of the feature possibility 
-  l_comb <- lapply(unique_combination_df$occurence, 
-         function(x){partitions::compositions(x, 2)}) 
-    
-  list_combination <- lapply(seq(1, length(l_comb)), 
-                             function(x){as.list(data.frame(as.matrix(l_comb[[x]])))}) %>% 
-    cross()
-  
-  matrix_combination <- sapply(list_combination, function(x){unlist(x)})
-  
-  
-  
-  number_of_unique_combinations = prod(sapply( unique_combination_df$occurence, 
-                                          function(x){choose(x+1, 1)}))
-  
-  assertthat::are_equal(length(list_combination), number_of_unique_combinations)
-  
-  
- # figure out all the possible combinations 
-  list_all_possible_combination <- lapply(seq(1,  number_of_unique_combinations , 1), 
-                                          function(x){all_possible_combinations})
-  
-  for (i in 1:number_of_unique_combinations){
-    list_all_possible_combination[[i]]$n <- matrix_combination[, i]
-    
-  }
-  
-  # probably want to use some assert to make sure it make sense? 
-  
-  # kl_list <- lapply(list_all_possible_combination, 
-  #        function(df){
-  #          
-  #          sum(df$n * all_possible_combination_df$kl)
-  #        })
-  
-  eig_list <- lapply(list_all_possible_combination, 
-          function(df){
-            
-            creature_kl <- sum(df$n * all_possible_combination_df$kl) 
-            creature_post_pred <- prod(all_possible_combination_df$post_predictives ^ df$n)
-            creature_kl * creature_post_pred
-            #c(creature_kl, creature_post_pred)
-          })
-  
-
-  return (sum(unlist(eig_list)))
-
-}
+source(here("helper/get_eig.R"))
 
 
 multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
@@ -585,14 +383,8 @@ multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_blo
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
 
-#observations = multifeature_stimuli[startsWith(names(multifeature_stimuli), 
-  #                                                               "V")]
-
-# CURRENTLY BUGGGY : 3 FEATURES
-observations = multifeature_stimuli %>% select(V1, V2)
-
+observations = multifeature_stimuli%>% select(starts_with("V"))
 current_observation = observations[1, ]
-
 posterior <- grid_apprxoimation_with_observation(
   observations, 
   grid_theta,
@@ -605,12 +397,9 @@ posterior <- grid_apprxoimation_with_observation(
 all_possible_creatures <- get_possible_creatures(observations[1, ])
 
 
-old_post_pred <- get_all_possible_creature_pred(
-    all_possible_creatures, 
-    posterior)
-
 
 old_get_eig <- function(observations){
+  
   
 
 eig <- get_eig(current_observation, 
@@ -628,24 +417,28 @@ eig <- get_eig(current_observation,
 }
 
 new_get_eig <- function(observations){
-  test_eig(observations)
+  eig <- get_eig_faster(observations, 
+                           grid_theta, 
+                           grid_epsilon, 
+                           alpha_theta, 
+                           beta_theta, 
+                           alpha_epsilon, 
+                           beta_epsilon
+                           )
 }
 
 old_res <- old_get_eig(observations)
 new_res <- new_get_eig(observations)
-
-bm_kl <- bench::mark(old_get_eig(observations), 
-            new_get_eig(observations))
-
-bm_kl %>% autoplot() + labs(title = "1 feature")
-
-
 ```
 
 ```{r}
-unique(kls_df$kl)
-```
+bm_eig <- bench::mark(old_get_eig(observations), 
+            new_get_eig(observations))
 
+bm_eig %>% autoplot() + labs(title = "3 feature")
+
+
+```
 
 
 
