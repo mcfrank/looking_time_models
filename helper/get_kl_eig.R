@@ -14,6 +14,8 @@ get_kl <- function (x,y) {
 
 get_possible_creatures <- function(current_observation){
   
+  if(length(current_observation) == 1){current_observation = tibble("V1" = current_observation)}
+  
   flip_observation <- as.logical(1 - (current_observation) %>% 
                                    as.logical()) %>% 
     as.vector() %>% 
@@ -43,6 +45,7 @@ get_possible_kls <- function(
   alpha_epsilon = alpha_epsilon, 
   beta_epsilon = beta_epsilon){
   
+  observations <- na.omit(observations[,str_detect(names(observations), "V")])
   all_possible_outcomes <- all_possible_outcomes %>% 
     mutate(index = row_number())
   
@@ -54,7 +57,8 @@ get_possible_kls <- function(
     
     current_scenario <- observations %>% 
       bind_rows(all_possible_outcomes %>% 
-                  filter(index == i))
+                  filter(index == i)) %>% 
+      select(starts_with("V"))
     
     posterior_for_current_scenario <- grid_apprxoimation_with_observation(
       noisy_observation = current_scenario, 
