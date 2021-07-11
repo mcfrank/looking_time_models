@@ -2,7 +2,7 @@ main_simulation_uc <- function(subject = x,
                 stimuli_sequence, 
                 noise_parameter = noise_parameter, 
                 eig_from_world = 0.001,
-                max_observation = 50, # should this be per trial or in total? currently per trial 
+                max_observation = 5000, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
                 alpha_prior = alpha_prior, 
@@ -25,20 +25,14 @@ main_simulation_uc <- function(subject = x,
                       EIG_from_world = rep(eig_from_world,max_observation),
                       p_look_away = rep(NA,max_observation), 
                       look_away = rep(NA,max_observation)) 
+ 
   
-  # df for keep track of actual observations 
-  df_observation <- data.frame(matrix(ncol = ncol(stimuli_sequence), 
-                                      nrow = max_observation)) %>% 
-    tibble()  
+  # matrix for keep track of actual observations 
+  m_observation <- matrix(ncol = feature_number, 
+                          nrow = max_observation)
+  colnames(m_observation) <- grep("V",names(stimuli_sequence), value = TRUE)
+   
   
-  colnames(df_observation) <- colnames(stimuli_sequence)
-  
-  df_observation$t <- seq(1, max_observation, 1)
-  df_observation$trial_number <- rep(NA_integer_, max_observation)
-  
-  # df for all possible creatures
-  # eventually this function would be deprecated because so far we can't even enumerate 50 features instance
-  #df_all_possible_creatures <- get_possible_creatures()
   
   # create a list of dfs to keep track of ALL posterior distribution 
   # actually may consider keeping track of everything in matrix for multi-feature version 
@@ -56,9 +50,13 @@ main_simulation_uc <- function(subject = x,
   df_posterior$unnormalized_log_posterior <- NA_real_
   df_posterior$log_posterior <- NA_real_
 
-
-  list_df_posterior <- lapply(seq(1, max_observation, 1), 
-                              function(x){df_posterior})
+  ll_df_posterior <- lapply(seq(1, max_observation, 1), 
+                              function(x){
+                                lapply(seq(1, feature_number, 1), 
+                                       function(y){
+                                         df_posterior
+                                       })
+                                })
   
   
   
@@ -82,25 +80,24 @@ main_simulation_uc <- function(subject = x,
       n_sample = 1, 
       epsilon = noise_parameter
     )
-    
-    current_observation <- TRUE
-    
+  
     # add to current observation 
-    df_observation[df_observation$t == t, str_detect(names(df_observation), "V")] <-
-      current_observation
-    df_observation[df_observation$t == t, "trial_number"] <- stimulus_idx
-    
+    m_observation[t, ] <- current_observation
    
     #update posterior df 
     if(t == 1){
-      # do some fresh calculation
-      
-      list_df_posterior[[t]] <- init_update( list_df_posterior[[t]], 
-                                             df_lp_theta_epsilon, 
-                                             current_observation,
-                                             grid_theta, grid_epsilon,
-                                             alpha_theta, beta_theta, 
-                                             alpha_epsilon, beta_epsilon)
+  # get rid of feature index 
+      ll_df_posterior[[t]] <- lapply(seq(1, feature_number, 1), 
+                                     function(feature_n){
+                                       init_update( ll_df_posterior[[t]][[feature_n]], 
+                                                    df_lp_theta_epsilon, 
+                                                    current_observation[feature_n],
+                                                    grid_theta, grid_epsilon,
+                                                    alpha_theta, beta_theta, 
+                                                    alpha_epsilon, beta_epsilon)
+                                     })
+                              
+                              
     }else{
       list_df_posterior[[t]] <- update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
                                                          current_posterior_df =  list_df_posterior[[t]], 
