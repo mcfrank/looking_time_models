@@ -10,8 +10,7 @@ main_simulation_uc <- function(subject = x,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
                 forced_exposure = TRUE,
-                forced_sample = 5,
-                optimize = FALSE){
+                forced_sample = 5){
   
   
   feature_number <- ncol(stimuli_sequence[startsWith(names(stimuli_sequence), 
@@ -68,7 +67,7 @@ main_simulation_uc <- function(subject = x,
 
  # while(stimulus_idx <= total_trial_number && t <= max_observation){
     
-  while(t <= max_observation){
+  while(stimulus_idx <= total_trial_number && t <= max_observation){
     df_model$t[[t]] = t
     df_model$stimulus_idx[[t]] = stimulus_idx
     
@@ -169,10 +168,29 @@ main_simulation_uc <- function(subject = x,
                                                     all_possible_combinations = all_possible_combinations,
                                                     n_feature = feature_number)
      
-    ## update model behavior df 
-    ## update t 
-    ## maybe udpate stimulus idx 
-    
+     df_model$p_look_away[t] = eig_from_world / (df_model$EIG[t] + eig_from_world)
+     
+     # try to force short exposure at the first trial 
+     if(forced_exposure){
+       if(stimulus_idx == 1 && t >= forced_sample){
+        
+         df_model$look_away[t] = TRUE
+       }else{
+         df_model$look_away[t] = rbinom(1, 1, prob = df_model$p_look_away[t]) == 1
+       }
+     }else{
+       
+       df_model$look_away[t] = rbinom(1, 1, prob = df_model$p_look_away[t]) == 1
+     }
+     
+     
+     if (df_model$look_away[t]==TRUE) {
+       stimulus_idx <- stimulus_idx + 1
+     }
+     
+     df_model$forced_sample = forced_sample
+     
+     
     t = t+1
     #stimulus_idx = stimulus_idx + 1
   }
