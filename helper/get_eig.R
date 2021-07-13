@@ -1,39 +1,55 @@
-update_grid_with_theta_and_epsilon <- function(
-  feature_i, 
-  grid_theta, 
-  grid_epsilon, 
-  observations, 
-  alpha_theta, beta_theta, 
-  alpha_epsilon, beta_epsilon){
+noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
+  p_1 <- sum(((1 - epsilon) * theta * posterior) + 
+               (epsilon * (1-theta) * posterior))
+  
+  ifelse(heads, p_1, 1 - p_1)
+  
+}
+
+#########noisy_post_pred for entire creature#########
+
+
+creature_noisy_post_pred <- function(
+  outcome_index, 
+  all_possible_outcomes, 
+  posterior_at_t){
+  
+  # pre-optimization: 1260
+  # post-optimization: 
+  
+  # creature_noisy_post_pred(1, all_possible_creatures, posterior)
   
   
-  samps <- expand_grid(theta = grid_theta,
-                       epsilon = grid_epsilon) 
+  # calculate post predctive for each feature
+  feature_predictive <- lapply(seq(1, 
+                                   ncol(all_possible_outcomes[startsWith(names(all_possible_outcomes), 
+                                                                         "V")]), 
+                                   1), 
+                               function(x,
+                                        observation = all_possible_outcomes[all_possible_outcomes$index == outcome_index,],
+                                        posterior = posterior_at_t){
+                                 
+                                 f_posterior <- posterior[posterior$feature_index == x, ]
+                                 
+                                 f_observation <- observation[x] 
+                                 
+                                 noisy_post_pred(f_posterior$theta, 
+                                                 f_posterior$epsilon, 
+                                                 f_posterior$posterior, 
+                                                 f_observation)
+                                 
+                               }) 
+  
+  return(feature_predictive %>% unlist() %>% prod())
   
   
-  samps$unnormalized_log_posterior <- mapply(function(x, y) 
-    lp_theta_given_z(z_bar = na.omit(observations), 
-                     theta = x, 
-                     epsilon = y, 
-                     alpha_theta = alpha_theta, 
-                     beta_theta = beta_theta,
-                     alpha_epsilon = alpha_epsilon, 
-                     beta_epsilon = beta_epsilon), 
-    samps$theta, 
-    samps$epsilon)
-  
-  samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
-  
-  
-  samps$posterior <- exp(samps$log_posterior)
-  samps$feature_index <- feature_i
-  
-  
-  
-  
-  
-  return(samps)
-  
+}
+
+
+
+
+get_kl <- function (x,y) {
+  sum(x * log(x / y)) 
 }
 
 calculate_kls <- function(all_possible_combinations, 
@@ -108,7 +124,7 @@ calculate_repetition_of_combination <- function(df, n_unique_combination){
 }
 
 
-get_eig_faster <- function(observations, 
+get_eig <- function(observations, 
                            grid_theta, 
                            grid_epsilon, 
                            alpha_theta, 

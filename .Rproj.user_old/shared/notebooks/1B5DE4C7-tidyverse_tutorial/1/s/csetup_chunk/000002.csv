@@ -1,0 +1,32 @@
+"0","library(tidyverse)"
+"2","Registered S3 methods overwritten by 'dbplyr':
+  method         from
+  print.tbl_lazy     
+  print.tbl_sql      
+"
+"2","[30m── [1mAttaching packages[22m ──────────────────────────────────────────────────────────────────────────────── tidyverse 1.3.0 ──[39m
+"
+"2","[30m[32m✓[30m [34mggplot2[30m 3.3.3     [32m✓[30m [34mpurrr  [30m 0.3.4
+[32m✓[30m [34mtibble [30m 3.1.0     [32m✓[30m [34mdplyr  [30m 1.0.5
+[32m✓[30m [34mtidyr  [30m 1.1.1     [32m✓[30m [34mstringr[30m 1.4.0
+[32m✓[30m [34mreadr  [30m 1.3.1     [32m✓[30m [34mforcats[30m 0.4.0[39m
+"
+"2","[30m── [1mConflicts[22m ─────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+[31mx[30m [34mdplyr[30m::[32mfilter()[30m masks [34mstats[30m::filter()
+[31mx[30m [34mdplyr[30m::[32mlag()[30m    masks [34mstats[30m::lag()[39m
+"
+"2","
+| That's not the answer I was looking for, but try again. Or, type info() for more options.
+"
+"2","
+| Type ls() to view all the objects in your local workspace.
+
+"
+"0","knitr::opts_chunk$set(echo = TRUE, cache=TRUE)"
+"2","
+| One more time. You can do it! Or, type info() for more options.
+"
+"2","
+| Type ls() to view all the objects in your local workspace.
+
+"

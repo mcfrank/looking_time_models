@@ -1,0 +1,20 @@
+"0","library(tidyverse)"
+"0","library(here)"
+"0","library(metafor)"
+"2","Loading required package: Matrix
+"
+"2","
+Attaching package: ‘Matrix’
+
+"
+"2","The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack
+
+"
+"2","Loading 'metafor' package (version 2.4-0). For an overview 
+and introduction to the package please type: help(metafor).
+"
+"0","d <- read_csv(here(""data/processed/syntactic_bootstrapping_tidy_data.csv""))"
+"2","Error: '/Users/caoanjie/Desktop/projects/looking_time_models/data/processed/syntactic_bootstrapping_tidy_data.csv' does not exist.
+"

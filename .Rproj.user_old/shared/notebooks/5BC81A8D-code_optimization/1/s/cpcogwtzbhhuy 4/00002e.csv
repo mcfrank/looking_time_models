@@ -1,0 +1,29 @@
+"0","sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                                  observation_assumption = ""independent"",
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          optimize = TRUE)
+         }
+  ) %>% 
+    bind_rows()
+"
+"1","Called from: "
+"1","eval(expr, p)
+"
+"0","n"
+"1","debug at ~/Desktop/projects/looking_time_models/helper/get_kl_eig.R#130: "
+"1","current_scenario[num_observation + 1, ] <- all_possible_outcomes[i, 
+"
+"1","    ]
+"
+"0","current_scenario"

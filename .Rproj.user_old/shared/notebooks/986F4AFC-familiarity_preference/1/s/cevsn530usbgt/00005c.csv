@@ -1,0 +1,12 @@
+"0","eigs_sims %>% "
+"0","  drop_na() %>%"
+"0","  group_by(stimulus_idx, id, EIG_from_world) %>% "
+"0","  summarise(n = n()) %>% "
+"0","    filter(n < 500) %>% "
+"0","  mutate(stimulus_idx = as.factor(stimulus_idx)) %>% "
+"0","  ggplot(aes(x = EIG_from_world, y = n, color = stimulus_idx)) + "
+"0","  geom_point(position = ""jitter"") + "
+"0","  geom_smooth(method = ""lm"") + "
+"0","  facet_wrap(~stimulus_idx)"
+"2","`summarise()` has grouped output by 'stimulus_idx', 'id'. You can override using the `.groups` argument.
+"

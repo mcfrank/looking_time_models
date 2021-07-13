@@ -1,0 +1,13 @@
+"0",""
+"0","sum_sims_forced_long <- eig_fs_compare_sims_forced_long %>% "
+"0","  drop_na() %>% "
+"0","  group_by(stimulus_idx, id,forced_sample_n, EIG_from_world, type) %>% "
+"0","  summarise(sample_n = n()) %>% "
+"0","  mutate(params = paste0(forced_sample_n, EIG_from_world))"
+"2","`summarise()` has grouped output by 'stimulus_idx', 'id', 'forced_sample_n', 'EIG_from_world'. You can override using the `.groups` argument.
+"
+"0","sum_sims_forced_long %>% "
+"0","  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) +"
+"0","  geom_jitter(width = .1, alpha = .1) + "
+"0","   stat_summary(fun.data = ""mean_cl_boot"") +  "
+"0","  stat_summary(fun.data = ""mean_cl_boot"", geom = ""line"") "

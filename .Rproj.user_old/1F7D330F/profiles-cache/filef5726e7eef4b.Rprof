@@ -1,0 +1,4 @@
+memory profiling: GC profiling: line profiling: sample.interval=10000
+#File 1: /Users/caoanjie/Desktop/projects/looking_time_models/helper/get_stimuli.R
+#File 2: <expr>
+:1767845:2474499:114929080:697:"is_function" "$.r6lite" "$" "method" "lines$push" "deparser" "sexp_deparse" "quo_deparse" "expr_deparse" "spec_fn" "spec" "lifecycle_message" "collapse_cnd_message" "signal" "deprecate_soft0" "deprecate_soft" "names<-.tbl_df" "names<-" "colnames<-" 1#40 "generate_creature_sequence" 2#2 "force" "doTryCatch" "tryCatchOne" "tryCatchList" "doTryCatch" "tryCatchOne" "tryCatchList" "tryCatch" "profvis" 

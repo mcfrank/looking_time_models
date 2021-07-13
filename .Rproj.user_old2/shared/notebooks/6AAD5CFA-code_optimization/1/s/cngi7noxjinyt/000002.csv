@@ -1,0 +1,21 @@
+"0","```r
+new_sims <- main_simulation_uc(subject = 1,
+                simple_stimuli , 
+                noise_parameter = noise_parameter, 
+                eig_from_world = 0.001,
+                max_observation = 50, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = alpha_prior, 
+                beta_prior = beta_prior,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = TRUE,
+                forced_sample = 5,
+                optimize = FALSE)
+
+```"
+"1","[1] 1
+[[1]]
+[[1]][[1]]
+"

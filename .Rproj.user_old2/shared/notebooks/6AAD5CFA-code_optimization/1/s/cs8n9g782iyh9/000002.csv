@@ -1,0 +1,9 @@
+"0","```r
+bm_eig <- bench::mark(old_get_eig(observations), 
+            new_get_eig(observations))
+```"
+"1","Warning: Some expressions had a GC in every iteration; so filtering is disabled.
+"
+"0","```r
+bm_eig %>% autoplot() + labs(title = \"10 feature\")
+```"
