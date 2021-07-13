@@ -1,0 +1,7 @@
+"0","eigs_sims %>% "
+"0","  drop_na() %>% "
+"0","  ggplot(aes(x = EIG_from_world, y = n)) + "
+"0","  geom_point(color = stimulus_idx) "
+"2","Error in layer(data = data, mapping = mapping, stat = stat, geom = GeomPoint,  : 
+  object 'stimulus_idx' not found
+"

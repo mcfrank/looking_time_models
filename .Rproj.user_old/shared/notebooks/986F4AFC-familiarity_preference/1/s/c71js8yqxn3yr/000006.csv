@@ -1,0 +1,6 @@
+"0","comparison_Df %>% "
+"0","  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) +"
+"0","  geom_jitter(width = .1, alpha = .1) + "
+"0","  stat_summary(fun.data = ""mean_cl_boot"") +  "
+"0","  stat_summary(fun.data = ""mean_cl_boot"", geom = ""line"") + "
+"0","  theme_classic()"

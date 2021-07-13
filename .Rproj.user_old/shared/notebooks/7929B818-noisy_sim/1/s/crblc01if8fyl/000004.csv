@@ -1,0 +1,8 @@
+"0","## source relevant files"
+"0","source(here(""helper/get_stimuli.R""))"
+"0","source(here(""helper/get_observation.R""))"
+"0","source(here(""helper/grid_approximation.R""))"
+"0","source(here(""helper/noisy_update.R""))"
+"0",""
+"0","source(here(""helper/get_kl_eig.R""))"
+"0",""

@@ -1,0 +1,203 @@
+update_grid_with_theta_and_epsilon <- function(
+  feature_i, 
+  grid_theta, 
+  grid_epsilon, 
+  observations, 
+  alpha_theta, beta_theta, 
+  alpha_epsilon, beta_epsilon){
+  
+  
+  samps <- expand_grid(theta = grid_theta,
+                       epsilon = grid_epsilon) 
+  
+  
+  samps$unnormalized_log_posterior <- mapply(function(x, y) 
+    lp_theta_given_z(z_bar = na.omit(observations), 
+                     theta = x, 
+                     epsilon = y, 
+                     alpha_theta = alpha_theta, 
+                     beta_theta = beta_theta,
+                     alpha_epsilon = alpha_epsilon, 
+                     beta_epsilon = beta_epsilon), 
+    samps$theta, 
+    samps$epsilon)
+  
+  samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
+  
+  
+  samps$posterior <- exp(samps$log_posterior)
+  samps$feature_index <- feature_i
+  
+  
+  
+  
+  
+  return(samps)
+  
+}
+
+calculate_kls <- function(all_possible_combinations, 
+                                     grid_theta, 
+                                     grid_epsilon, 
+                                     alpha_prior, 
+                                     beta_prior, 
+                                     alpha_epsilon, 
+                                     beta_epsilon
+                                     ){
+  
+  n_possible_combination <- nrow(all_possible_combinations)
+  
+  all_possible_combinations$kl <- rep(NA_real_, n_possible_combination)
+  all_possible_combinations$post_predictives <- rep(NA_real_, n_possible_combination)
+  
+  
+  # technically we should be able to find the last posterior, redundancy here, just temporary measurement 
+  prev_posterior_list <- lapply(unique(all_possible_combinations$unique_combination), 
+                                function(x){
+                                  update_grid_with_theta_and_epsilon(
+                                    feature_i = 1, 
+                                    grid_theta,
+                                    grid_epsilon,  
+                                    observations = tibble(x), 
+                                    alpha_prior, 
+                                    beta_prior,
+                                    alpha_epsilon, 
+                                    beta_epsilon) 
+                                })
+ 
+  post_posterior_list <- lapply(seq(1, n_possible_combination),
+                                function(x){
+                                  expand_grid(theta = grid_theta, 
+                                              epsilon = grid_epsilon)
+                                })
+  
+  for (i in 1:n_possible_combination){
+    post_posterior_df = post_posterior_list[[i]]
+    prev_observation_posterior = prev_posterior_list[[ceiling(i/2)]]
+    post_posterior_list[[i]] <- update_posterior(previous_posterior_df =  prev_observation_posterior,
+                                                 current_posterior_df = post_posterior_list[[i]], 
+                                                 (i%%2 == 1), 
+                                                 grid_theta, grid_epsilon)
+  }
+  
+  for (s in 1:n_possible_combination){
+    
+    all_possible_combinations$kl[s] <- get_kl(post_posterior_list[[s]]$posterior, 
+                                              prev_posterior_list[[ceiling(s/2)]]$posterior)
+    all_possible_combinations$post_predictives[s] <- noisy_post_pred(prev_posterior_list[[ceiling(s/2)]]$theta, 
+                                                                     prev_posterior_list[[ceiling(s/2)]]$epsilon, 
+                                                                     prev_posterior_list[[ceiling(s/2)]]$posterior, 
+                                                                     all_possible_combinations$hypothetical_observation[s]) 
+    
+  }
+  return (all_possible_combinations)
+}
+
+calculate_repetition_of_combination <- function(df, n_unique_combination){
+  
+  repetitions_for_all_combination <- vector(length = n_unique_combination)
+  for (i in 1:n_unique_combination){
+    true_occurence = df$n[[2*i-1]]
+    total_occurence = df$occurence[[2*i-1]]
+    repetitions_for_all_combination[i] <- choose(total_occurence, true_occurence)
+  }
+  
+  return (prod(repetitions_for_all_combination))
+  
+  
+}
+
+
+get_eig <- function(observations, 
+                           grid_theta, 
+                           grid_epsilon, 
+                           alpha_theta, 
+                           beta_theta, 
+                           alpha_epsilon, 
+                           beta_epsilon
+                           ){
+  
+
+  unique_combination <- unique(observations %>% as.list())
+  
+  n_unique_combination = length(unique_combination)
+  n_feature = ncol(observations)
+  
+  unique_combination_df <- tibble(
+    unique_combination = unique_combination, 
+    occurence = rep(0, n_unique_combination),
+    n = rep(NA, n_unique_combination)
+  )
+  
+  for (i in 1:n_unique_combination){
+    current_combination = unique_combination_df[[i, 1]][[1]]
+    for (f in 1:n_feature){
+      
+      if (identical(observations[,f][1] %>% pull, current_combination)){
+        unique_combination_df[i, 2] <- unique_combination_df[i, 2] + 1
+      }
+      
+    }
+    
+  }
+  
+  all_possible_combinations <- expand_grid(
+    unique_combination_df, 
+    hypothetical_observation = c(TRUE, FALSE)
+    
+  ) 
+  
+  all_possible_combination_df <- calculate_kls(all_possible_combinations, 
+                                                          grid_theta, 
+                                                          grid_epsilon, 
+                                                          alpha_prior, 
+                                                          beta_prior, 
+                                                          alpha_epsilon, 
+                                                          beta_epsilon)
+  
+  # figure out number of different compositions of the feature possibility 
+  l_comb <- lapply(unique_combination_df$occurence, 
+                   function(x){partitions::compositions(x, 2)}) 
+  
+  list_combination <- lapply(seq(1, length(l_comb)), 
+                             function(x){as.list(data.frame(as.matrix(l_comb[[x]])))}) %>% 
+    cross()
+  
+  matrix_combination <- sapply(list_combination, function(x){unlist(x)})
+  
+  
+  
+  number_of_unique_combinations = prod(sapply( unique_combination_df$occurence, 
+                                               function(x){choose(x+1, 1)}))
+  
+  assertthat::are_equal(length(list_combination), number_of_unique_combinations)
+  
+  
+  # figure out all the possible combinations 
+  list_all_possible_combination <- lapply(seq(1,  number_of_unique_combinations , 1), 
+                                          function(x){all_possible_combinations})
+  
+  for (i in 1:number_of_unique_combinations){
+    list_all_possible_combination[[i]]$n <- matrix_combination[, i]
+    
+  }
+  # calculate how many times the unique combination appears in the all possible scenarios
+  repetition_list <- sapply(list_all_possible_combination, 
+                            function(df){
+                              calculate_repetition_of_combination(df, n_unique_combination)
+                            })
+  assertthat::are_equal(sum((repetition_list)), 2^n_feature)
+  #unique(old_kls$kl)
+  eig_list <- sapply(list_all_possible_combination, 
+                     function(df){
+                       creature_kl <- sum(df$n * all_possible_combination_df$kl) 
+                       creature_post_pred <- prod(all_possible_combination_df$post_predictives ^ df$n)
+                       (creature_kl %*% creature_post_pred)[[1]]
+                     })
+  
+  total_eig <- sum(repetition_list * eig_list)
+  
+
+  return (total_eig)
+  
+}

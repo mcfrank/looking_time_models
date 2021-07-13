@@ -1,0 +1,3 @@
+"0","sim %>% "
+"0","  ggplot(aes(x = t, y = EIG)) + "
+"0","  geom_line()"

@@ -1,0 +1,40 @@
+"0","```r
+test_observation <- rep(TRUE, 5) %>% as_tibble_row(.name_repair = \"unique\")
+test_posterior_at_t <- grid_apprxoimation_with_observation(
+  test_observation, 
+  grid_theta = seq(0.01, .99, .01), 
+  grid_epsilon = seq(0.01, .99, .01), 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
+
+old_get_possible_creatures <- function(test_observation){
+  get_possible_creatures(test_observation)
+
+}
+
+
+
+cheaper_get_possible_creatures <- function(feature_n){
+  
+  
+    flip_observation <- as.logical(1 - (current_observation) %>% 
+                                   as.logical()) %>% 
+    as.vector() %>% 
+    as_tibble_row(.name_repair = ~ names(current_observation)) 
+  
+  combine_observations <- bind_rows(current_observation, flip_observation)
+  
+  all_possible_creatures <- combine_observations %>% 
+    cross_df() %>% 
+    mutate(index = row_number())
+  
+  
+  
+}
+
+
+```"

@@ -1,0 +1,25 @@
+{
+    "id": "7C95F3E4",
+    "path": "~/Desktop/projects/looking_time_models/helper/grid_approximation.R",
+    "project_path": "helper/grid_approximation.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1626125879381.0,
+    "source_on_save": false,
+    "relative_order": 12,
+    "properties": {
+        "cursorPosition": "39,29",
+        "scrollLine": "0",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1626123375,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1626123375,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,6 @@
+"0","eig_fs_compare_sims %>% "
+"0","  drop_na() %>% "
+"0","  group_by(type, stimulus_idx, EIG_from_world) %>% "
+"0","  summarise(count = n())"
+"2","`summarise()` has grouped output by 'type', 'stimulus_idx'. You can override using the `.groups` argument.
+"

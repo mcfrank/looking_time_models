@@ -1,0 +1,10 @@
+"0","eigs_sims %>% "
+"0","  drop_na() %>% "
+"0","  group_by(stimulus_idx, id, EIG_from_world) %>% "
+"0","  summarise(n = n()) %>% "
+"0","  filter(n < 500) %>% "
+"0","  ggplot(aes(x = stimulus_idx, y = n, group = EIG_from_world, color = EIG_from_world)) + "
+"0","  stat_summary(fun.data = ""mean_cl_boot"") +  "
+"0","  stat_summary(fun.data = ""mean_cl_boot"", geom = ""line"") "
+"2","`summarise()` has grouped output by 'stimulus_idx', 'id'. You can override using the `.groups` argument.
+"

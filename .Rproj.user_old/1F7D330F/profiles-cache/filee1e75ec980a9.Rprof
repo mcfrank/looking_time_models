@@ -1,0 +1,5 @@
+memory profiling: GC profiling: line profiling: sample.interval=10000
+#File 1: /Users/caoanjie/Desktop/projects/looking_time_models/helper/get_stimuli.R
+#File 2: <expr>
+:1351708:3277326:85475544:1198:"sub" "make_syntactic" "is_syntactic" "tick_if_needed" "paste0" "bullets" "describe_repair" ".External2" "vec_rbind" "bind_rows" 1#34 "generate_creature_sequence" 2#2 "force" "doTryCatch" "tryCatchOne" "tryCatchList" "doTryCatch" "tryCatchOne" "tryCatchList" "tryCatch" "profvis" 
+:1363378:3277326:87255168:1330:".Call" "<Anonymous>" "signalCondition" "doWithOneRestart" "withOneRestart" "withRestarts" "message" "describe_repair" ".External2" "vec_rbind" "bind_rows" 1#34 "generate_creature_sequence" 2#2 "force" "doTryCatch" "tryCatchOne" "tryCatchList" "doTryCatch" "tryCatchOne" "tryCatchList" "tryCatch" "profvis" 

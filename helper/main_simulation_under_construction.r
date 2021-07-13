@@ -42,13 +42,13 @@ main_simulation_uc <- function(subject = x,
   df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
                                                  alpha_theta, beta_theta, 
                                                  alpha_epsilon, beta_epsilon)
-  # df for keep track of posterior distribution 
+  # df for keep track of posterior distribution of each individual feature 
   df_posterior <- expand_grid(theta = grid_theta,
-                              epsilon = grid_epsilon,
-                              feature_index = seq(1, feature_number))
+                              epsilon = grid_epsilon)
   # not sure when do we really need the non-log one, save some $$$  
   df_posterior$unnormalized_log_posterior <- NA_real_
   df_posterior$log_posterior <- NA_real_
+  df_posterior$posterior <- NA_real_
 
   ll_df_posterior <- lapply(seq(1, max_observation, 1), 
                               function(x){
@@ -58,13 +58,14 @@ main_simulation_uc <- function(subject = x,
                                        })
                                 })
   
+
+  
   
   
   
   stimulus_idx <- 1
   t <- 1
-  posterior_at_t <- NULL
-  
+
  # while(stimulus_idx <= total_trial_number && t <= max_observation){
     
   while(t <= max_observation){
@@ -83,38 +84,91 @@ main_simulation_uc <- function(subject = x,
   
     # add to current observation 
     m_observation[t, ] <- current_observation
+  
+    
    
-    #update posterior df 
-    if(t == 1){
-  # get rid of feature index 
-      ll_df_posterior[[t]] <- lapply(seq(1, feature_number, 1), 
-                                     function(feature_n){
-                                       init_update( ll_df_posterior[[t]][[feature_n]], 
-                                                    df_lp_theta_epsilon, 
-                                                    current_observation[feature_n],
-                                                    grid_theta, grid_epsilon,
-                                                    alpha_theta, beta_theta, 
-                                                    alpha_epsilon, beta_epsilon)
-                                     })
-                              
-                              
-    }else{
-      list_df_posterior[[t]] <- update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
-                                                         current_posterior_df =  list_df_posterior[[t]], 
-                                                         current_observation, 
-                                                         grid_theta, grid_epsilon)
+     ## need to update posterior df here 
+    
+    current_unique_possible_combinations <- get_unique_combination(t, 
+                                                                m_observation, 
+                                                                feature_number)
+  
+    feature_pos <- current_unique_possible_combinations$feature_pos
+    
+    all_possible_combinations <- expand_grid(
+      current_unique_possible_combinations, 
+      hypothetical_observation = c(TRUE, FALSE)
+      
+    ) 
+    
+    n_possible_combination <- nrow(all_possible_combinations)
+    all_possible_combinations$kl <- rep(NA_real_, n_possible_combination)
+    all_possible_combinations$post_predictives <- rep(NA_real_, n_possible_combination)
+    
+    feature_occurence <- na.omit(as.vector(sapply(feature_pos, function(x){first(na.omit(x))})))
+    for (index in feature_occurence){
+      
+      if(t == 1){
+        ll_df_posterior[[t]][[index]] <-  init_update(ll_df_posterior[[t]][[index]], 
+                                                      df_lp_theta_epsilon, 
+                                                      current_observation[[index]],
+                                                      grid_theta, grid_epsilon,
+                                                      alpha_theta, beta_theta, 
+                                                      alpha_epsilon, beta_epsilon)
+      }else{
+        ll_df_posterior[[t]][[index]] <- update_posterior(previous_posterior_df = ll_df_posterior[[t-1]][[index]],
+                                                          current_posterior_df = ll_df_posterior[[t]][[index]], 
+                                                          current_observation[[index]], 
+                                                          grid_theta, grid_epsilon)
+        
+        
+        
+      }
+    }
+    
+    for (i in 1:feature_number){
+      
+      # find corresponding calculated value 
+      calculated_value_index <- match(TRUE, sapply(feature_pos, function(x){i %in% x}))
+      calculated_value_index_in_ll <- feature_occurence[[calculated_value_index]]
+      ll_df_posterior[[t]][[i]] <- ll_df_posterior[[t]][[calculated_value_index_in_ll]]
+      
     }
     
     
+    prev_posterior_list <- ll_df_posterior[[t]][feature_occurence]
     
-    ##get EIG
-    # we will want to past list_df posterior so that we don't need to calculate posterior again
-    df_model$EIG[[t]] <- get_eig_faster(na.omit(df_observation[,str_detect(names(df_observation), "V")]),
-                                   grid_theta, grid_epsilon, 
-                                   alpha_theta, beta_theta, 
-                                   alpha_epsilon,beta_epsilon)
+    post_posterior_list <- lapply(seq(1, n_possible_combination),
+                                  function(x){
+                                    expand_grid(theta = grid_theta, 
+                                                epsilon = grid_epsilon)
+                                  })
+    
+    for (i in 1:n_possible_combination){
+      post_posterior_df = post_posterior_list[[i]]
+      prev_observation_posterior = prev_posterior_list[[ceiling(i/2)]]
+      post_posterior_list[[i]] <- update_posterior(previous_posterior_df =  prev_observation_posterior,
+                                                   current_posterior_df = post_posterior_list[[i]], 
+                                                   (i%%2 == 1), 
+                                                   grid_theta, grid_epsilon)
+    }
+    
+    for (s in 1:n_possible_combination){
+      
+      all_possible_combinations$kl[s] <- get_kl(post_posterior_list[[s]]$posterior, 
+                                                prev_posterior_list[[ceiling(s/2)]]$posterior)
+      all_possible_combinations$post_predictives[s] <- noisy_post_pred(prev_posterior_list[[ceiling(s/2)]]$theta, 
+                                                                       prev_posterior_list[[ceiling(s/2)]]$epsilon, 
+                                                                       prev_posterior_list[[ceiling(s/2)]]$posterior, 
+                                                                       all_possible_combinations$hypothetical_observation[s]) 
+      
+    }
     
     
+     df_model$EIG[[t]] <- get_eig_with_combinationa(unique_combination_df = current_unique_possible_combinations,
+                                                    all_possible_combinations = all_possible_combinations,
+                                                    n_feature = feature_number)
+     
     ## update model behavior df 
     ## update t 
     ## maybe udpate stimulus idx 

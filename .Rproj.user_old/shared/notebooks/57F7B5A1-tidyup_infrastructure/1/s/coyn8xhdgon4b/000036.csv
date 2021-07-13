@@ -1,0 +1,3 @@
+"0","sims %>% "
+"0","  ggplot(aes(x = t, y = EIG, group = id)) + "
+"0","  geom_line(alpha = .3)"

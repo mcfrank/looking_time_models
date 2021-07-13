@@ -1,0 +1,8 @@
+"0","num_features = 5"
+"0","num_features_simple = 3"
+"0","# num_features_complex = 8"
+"0","trials_per_block = 8"
+"0","deviant_positions = c(3, 5)"
+"0","dissimilarity_ratio = 0.2"
+"0","epsilon = 0.1"
+"0",""
