@@ -1,8 +1,61 @@
-main_simulation_uc <- function(subject = x,
+---
+title: "dependent observation"
+author: "anjie"
+date: "7/22/2021"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(profvis)
+
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 6
+trials_per_block = 3
+deviant_positions = 2
+feature_theta = 0.9
+dissimilarity_ratio = 0.2
+noise_parameter = 0.1
+
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+## eig related 
+env_eig = 0.005
+max_obs = 500
+
+## experiment related 
+subject_n = 10
+
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+```
+
+
+```{r}
+simple_stimuli
+```
+
+```{r}
+main_simulation_uc <- function(subject = 1,
                 stimuli_sequence, 
                 noise_parameter = noise_parameter, 
                 eig_from_world = 0.001,
-                max_observation = 5000, # should this be per trial or in total? currently per trial 
+                max_observation = 50, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
                 alpha_prior = alpha_prior, 
@@ -71,7 +124,6 @@ main_simulation_uc <- function(subject = x,
   while(stimulus_idx <= total_trial_number && t <= max_observation){
     df_model$t[[t]] = t
     df_model$stimulus_idx[[t]] = stimulus_idx
-    
     #get stimulus
     current_stimulus <- stimuli_sequence[stimulus_idx,]
     
@@ -86,7 +138,50 @@ main_simulation_uc <- function(subject = x,
     m_observation[t, ] <- current_observation
   
     
-   
+   # see if this is a new stimulus or an old stimulus 
+    # if starting a new stimulus 
+    # relying on short circuiting to handle the t=1 part 
+    if(t == 1 || df_model$stimulus_idx[[t]] == df_model$stimulus_idx[[t-1]]){
+      # maybe i can recycle this??
+      lp_y_ONE_given_theta =  lp_yi_given_theta(yi = 1, theta = grid_theta )
+      lp_y_ZERO_given_theta = lp_yi_given_theta(yi = 0, theta = grid_theta )
+      
+      # current only looking at single feature creature 
+      lp_z_given_y_ONE = lp_z_ij_given_y(zij = current_observation, yi = 1, epsilon = grid_epsilon)
+      lp_z_given_y_ZERO = lp_z_ij_given_y(zij = current_observation, yi = 0, epsilon = grid_epsilon)
+    
+      # these two will be used for non new stimulus calculation 
+      lp_z_y_ONE = lp_y_ONE_given_theta + lp_z_given_y_ONE
+      lp_z_y_ZERO = lp_y_ZERO_given_theta + lp_z_given_y_ZERO
+      
+      lp_z_given_theta = logSumExp(c(lp_z_y_ONE, lp_z_y_ZERO))
+      
+      
+    }else{
+      
+       lp_z_given_y_ONE = lp_z_ij_given_y(zij = current_observation, yi = 1, epsilon = grid_epsilon)
+       lp_z_given_y_ZERO = lp_z_ij_given_y(zij = current_observation, yi = 0, epsilon = grid_epsilon)
+    
+       lp_z_y_ONE= lp_z_y_ONE + lp_z_given_y_ONE
+       lp_z_y_ZERO = lp_z_y_ZERO + lp_z_given_y_ZERO
+       
+       lp_z_given_theta = logSumExp(c(lp_z_y_ONE, lp_z_y_ZERO))
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
      ## need to update posterior df here 
     
     current_unique_possible_combinations <- get_unique_combination(t, 
@@ -203,3 +298,6 @@ main_simulation_uc <- function(subject = x,
   
   
   
+
+```
+
