@@ -58,7 +58,18 @@ main_simulation_uc <- function(subject = x,
                                        })
                                 })
   
-
+  
+  
+  df_z_given_theta_full <- 
+  
+  
+  ll_df_z_given_theta_full <- lapply(seq(1, total_trial_number, 1), 
+                            function(x){
+                              lapply(seq(1, feature_number, 1), 
+                                     function(y){
+                                       df_z_given_theta_full
+                                     })
+                            })
   
   
   
@@ -108,6 +119,106 @@ main_simulation_uc <- function(subject = x,
     feature_occurence <- na.omit(as.vector(sapply(feature_pos, function(x){first(na.omit(x))})))
     for (index in feature_occurence){
       
+      # this needs to be changed! we need to take into account of whether sth is taken from a new stimulus or not
+      
+      
+      new_update_posterior <- function(t, 
+                                       ll_df_lp_z_given_theta_stimulus,
+                                       index, 
+                                       df_model, 
+                                       current_observation, 
+                                       grid_theta, grid_epsilon, 
+                                       alpha_theta, beta_theta, 
+                                       alpha_epsilon, beta_epsilon){
+        
+        # see if this is a new stimulus or an old stimulus 
+        # if starting a new stimulus 
+        # relying on short circuiting to handle the t=1 part 
+        if(t == 1 || df_model$stimulus_idx[[t]] != df_model$stimulus_idx[[t-1]]){
+          # maybe i can recycle this??
+          last_trial_num = df_model$stimulus_idx[[t-1]]
+          
+          df_lp_y_given_theta = tibble(
+            "theta" = grid_theta, 
+            "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta ), 
+            "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta )
+          )
+          
+          
+          # current only looking at single feature creature 
+          
+          df_lp_z_given_y = tibble(
+            "epsilon" = grid_epsilon, 
+            "lp_z_given_y_ONE" = lp_z_ij_given_y(zij = current_observation, yi = 1, epsilon = grid_epsilon),
+            "lp_z_given_y_ZERO" = lp_z_ij_given_y(zij = current_observation, yi = 0, epsilon = grid_epsilon)
+          )
+          
+          df_lp_z_y_raw <- expand_grid(df_lp_y_given_theta, df_lp_z_given_y)
+          
+          
+          df_lp_z_given_theta <- tibble(
+            "theta" = df_lp_z_y_raw$theta, 
+            "epsilon" = df_lp_z_y_raw$epsilon,
+            "lp_z_y_ONE" = df_lp_z_y_raw$lp_y_ONE_given_theta + df_lp_z_y_raw$lp_z_given_y_ONE, 
+            "lp_z_y_ZERO" = df_lp_z_y_raw$lp_y_ZERO_given_theta + df_lp_z_y_raw$lp_z_given_y_ZERO, 
+            "lp_z_given_theta" = if_else(t == 1, 
+                                         logSumExp(c(df_lp_z_y_raw$lp_z_y_ONE, df_lp_z_y_raw$lp_z_y_ZERO)), 
+                                         logSumExp(c(df_lp_z_y_raw$lp_z_y_ONE, df_lp_z_y_raw$lp_z_y_ZERO)) + 
+                                           ll_df_lp_z_given_theta_stimulus[[last_trial_num]][[index]])
+            
+            
+          )
+          
+          
+          
+          
+          
+        }else{
+          
+          
+          lp_z_given_theta_till_last_stimulus <- LOOKUPTHISVALUE 
+          
+          # GET THE N
+          lp_z_y_ONE_till_last_observation_from_this_stimulus = LOOKUPTHISVALUE
+          lp_z_y_ZERO_till_last_observation_from_this_stimulus = LOOKUPTHISVALUETOO
+          
+          #current observation
+          lp_z_given_y_ONE = lp_z_ij_given_y(zij = current_observation, yi = 1, epsilon = grid_epsilon)
+          lp_z_given_y_ZERO = lp_z_ij_given_y(zij = current_observation, yi = 0, epsilon = grid_epsilon)
+          
+          lp_z_y_ONE_for_this_stimulus = lp_z_y_ONE_till_last_observation_from_this_stimulus + lp_z_given_y_ONE
+          lp_z_y_ZERO_for_this_stimulus = lp_z_y_ZERO_till_last_observation_from_this_stimulus + lp_z_given_y_ZERO
+          lp_z_given_theta_for_this_stimulus <- logSumExp(c(lp_z_y_ONE_for_this_stimulus, 
+                                                            lp_z_y_ZERO_for_this_stimulus))
+          
+          
+          lp_z_given_theta <- lp_z_given_theta_till_last_stimulus + lp_z_given_theta_for_this_stimulus
+          
+          
+          
+        }
+        
+        
+        
+        
+        
+      }
+      
+      
+      
+      ll_df_posterior[[t]][[index]]  <- new_update_posterior(t, 
+                                                         df_model, # check if the current is from a new stimulus or not, 
+                                                         current_observation[[index]],
+                                                         grid_theta, grid_epsilon,
+                                                         alpha_theta, beta_theta, 
+                                                         alpha_epsilon, beta_epsilon
+                                                         )
+      
+      
+      
+      
+      
+      
       if(t == 1){
         ll_df_posterior[[t]][[index]] <-  init_update(ll_df_posterior[[t]][[index]], 
                                                       df_lp_theta_epsilon, 
@@ -116,6 +227,8 @@ main_simulation_uc <- function(subject = x,
                                                       alpha_theta, beta_theta, 
                                                       alpha_epsilon, beta_epsilon)
       }else{
+        
+        # this needs to be changed to take into account of the lack of dependencies 
         ll_df_posterior[[t]][[index]] <- update_posterior(previous_posterior_df = ll_df_posterior[[t-1]][[index]],
                                                           current_posterior_df = ll_df_posterior[[t]][[index]], 
                                                           current_observation[[index]], 
