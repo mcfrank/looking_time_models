@@ -143,16 +143,38 @@ main_simulation_uc <- function(subject = 1,
     # relying on short circuiting to handle the t=1 part 
     if(t == 1 || df_model$stimulus_idx[[t]] == df_model$stimulus_idx[[t-1]]){
       # maybe i can recycle this??
-      lp_y_ONE_given_theta =  lp_yi_given_theta(yi = 1, theta = grid_theta )
-      lp_y_ZERO_given_theta = lp_yi_given_theta(yi = 0, theta = grid_theta )
+      
+      df_lp_y_given_theta = tibble(
+        "theta" = grid_theta, 
+        "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta ), 
+        "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta )
+      )
+    
       
       # current only looking at single feature creature 
-      lp_z_given_y_ONE = lp_z_ij_given_y(zij = current_observation, yi = 1, epsilon = grid_epsilon)
-      lp_z_given_y_ZERO = lp_z_ij_given_y(zij = current_observation, yi = 0, epsilon = grid_epsilon)
+      
+      df_lp_z_given_y = tibble(
+        "epsilon" = grid_epsilon, 
+        "lp_z_given_y_ONE" = lp_z_ij_given_y(zij = current_observation, yi = 1, epsilon = grid_epsilon),
+       "lp_z_given_y_ZERO" = lp_z_ij_given_y(zij = current_observation, yi = 0, epsilon = grid_epsilon)
+      )
+      
+      df_lp_z_y_raw <- expand_grid(df_lp_y_given_theta, df_lp_z_given_y)
+      
     
+      df_lp_z_given_theta <- tibble(
+        "theta" = df_lp_z_y_raw$theta, 
+        "epsilon" = df_lp_z_y_raw$epsilon,
+        "lp_z_y_ONE" = df_lp_z_y_raw$lp_y_ONE_given_theta + df_lp_z_y_raw$lp_z_given_y_ONE, 
+        "lp_z_y_ZERO" = df_lp_z_y_raw$lp_y_ZERO_given_theta + df_lp_z_y_raw$lp_z_given_y_ZERO, 
+        "lp_z_given_theta" = if_else(t == 1, 
+                                     logSumExp(c(df_lp_z_y_raw$lp_z_y_ONE, df_lp_z_y_raw$lp_z_y_ZERO)), 
+                                     logSumExp(c(df_lp_z_y_raw$lp_z_y_ONE, df_lp_z_y_raw$lp_z_y_ZERO)) + 
+                                       ll_df_lp_z_given_theta_stimulus[[trial_num]][[]])
+      )
+      
       # these two will be used for non new stimulus calculation 
-      lp_z_y_ONE = lp_y_ONE_given_theta + lp_z_given_y_ONE
-      lp_z_y_ZERO = lp_y_ZERO_given_theta + lp_z_given_y_ZERO
+      
       
       lp_z_given_theta = logSumExp(c(lp_z_y_ONE, lp_z_y_ZERO))
       
