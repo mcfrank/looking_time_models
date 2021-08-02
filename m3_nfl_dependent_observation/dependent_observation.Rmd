@@ -10,13 +10,14 @@ library(here)
 library(matrixStats)
 library(profvis)
 
+source(here("helper/get_eig_faster.R"))
 source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
 num_features = 1
 num_features_simple = 1
 num_feature_complex = 6
-trials_per_block = 3
-deviant_positions = 2
+trials_per_block = 8
+deviant_positions = c(2, 5)
 feature_theta = 0.9
 dissimilarity_ratio = 0.2
 noise_parameter = 0.1
@@ -47,15 +48,17 @@ simple_stimuli <- generate_creature_sequence(
 
 
 ```{r}
-simple_stimuli
+second_trial_same <- simple_stimuli
+second_trial_diff <- second_trial_same
+second_trial_diff$V1[2] <- FALSE
 ```
 
 ```{r}
-main_simulation_uc(subject = 1,
-                stimuli_sequence, 
+same_sim <- main_simulations(subject_n = 50,
+                second_trial_same, 
                 noise_parameter = noise_parameter, 
                 eig_from_world = 0.001,
-                max_observation = 50, # should this be per trial or in total? currently per trial 
+                max_observation = 500, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
                 alpha_prior = alpha_prior, 
@@ -63,8 +66,36 @@ main_simulation_uc(subject = 1,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
                 forced_exposure = TRUE,
-                forced_sample = 5)
-  
+                forced_sample = 5) %>% 
+  mutate(type = "second_background")
+
+diff_sim <- main_simulations(subject_n = 50,
+                second_trial_diff, 
+                noise_parameter = noise_parameter, 
+                eig_from_world = 0.001,
+                max_observation = 500, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = alpha_prior, 
+                beta_prior = beta_prior,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = TRUE,
+                forced_sample = 5) %>% 
+  mutate(type = "second_different")
+
+
+```
+
+```{r}
+
+bind_rows(same_sim, diff_sim) %>% 
+  group_by(subject_id, stimulus_idx,  type) %>% 
+  drop_na() %>% 
+  summarise(sample_n = n()) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = 0.3)) 
 
 ```
 
