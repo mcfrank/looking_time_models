@@ -1,3 +1,6 @@
+source(here('helper/grid_approximation.r'))
+source(here("helper/d_update_posterior.r"))
+
 main_simulations <- function(subject_n, 
                              stimuli_sequence, 
                              noise_parameter = noise_parameter, 
@@ -84,7 +87,7 @@ main_simulation_uc <- function(subject = x,
   
   # material for calculating df_posterior 
   df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
-                                                 alpha_theta, beta_theta, 
+                                                 alpha_prior, beta_prior, 
                                                  alpha_epsilon, beta_epsilon)
   # df for keep track of posterior distribution of each individual feature 
   df_posterior <- expand_grid(theta = grid_theta,
@@ -125,8 +128,16 @@ main_simulation_uc <- function(subject = x,
   
   
   
+  
+  
   stimulus_idx <- 1
   t <- 1
+  
+  df_lp_y_given_theta = tibble(
+    "theta" = grid_theta, 
+    "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta ), 
+    "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta )
+  )
 
  # while(stimulus_idx <= total_trial_number && t <= max_observation){
     
@@ -134,9 +145,7 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
  
    df_model$t[[t]] = t
     df_model$stimulus_idx[[t]] = stimulus_idx
-    print("in for loop")
-    print(t)
-    print(stimulus_idx)
+  
     
     #get stimulus
     current_stimulus <- stimuli_sequence[stimulus_idx,]
@@ -178,6 +187,7 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
     
       
       ll_df_z_given_theta[[t]][[index]] <- get_df_lp_z_given_theta(t, 
+                                                                   df_lp_y_given_theta,
                                                                    ll_df_z_given_theta, 
                                                                    stimulus_idx,   # needs to be about each observation, not each stimulus  
                                                                    index, 
@@ -185,7 +195,7 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
                                                                    m_observation,
                                                                    current_observation, 
                                                                    grid_theta, grid_epsilon, 
-                                                                   alpha_theta, beta_theta, 
+                                                                   alpha_prior, beta_prior, 
                                                                    alpha_epsilon, beta_epsilon)
       
       
@@ -254,9 +264,10 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
      # try to force short exposure at the first trial 
      if(forced_exposure){
        if(stimulus_idx == 1 && t >= forced_sample){
-        
          df_model$look_away[t] = TRUE
-       }else{
+       }else if (stimulus_idx == 1 && t < forced_sample) {
+         df_model$look_away[t] = FALSE
+       }else {
          df_model$look_away[t] = rbinom(1, 1, prob = df_model$p_look_away[t]) == 1
        }
      }else{
