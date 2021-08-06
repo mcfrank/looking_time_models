@@ -13,11 +13,13 @@ library(profvis)
 source(here("helper/get_eig_faster.R"))
 source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
+source(here("helper/main_simulation_under_construction.r"))
+
 num_features = 1
 num_features_simple = 1
 num_feature_complex = 6
-trials_per_block = 8
-deviant_positions = c(2, 5)
+trials_per_block = 3
+deviant_positions = c(2)
 feature_theta = 0.9
 dissimilarity_ratio = 0.2
 noise_parameter = 0.1
@@ -57,7 +59,7 @@ second_trial_diff$V1[2] <- FALSE
 same_sim <- main_simulations(subject_n = 50,
                 second_trial_same, 
                 noise_parameter = noise_parameter, 
-                eig_from_world = 0.001,
+                eig_from_world = 0.005,
                 max_observation = 500, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
@@ -72,7 +74,7 @@ same_sim <- main_simulations(subject_n = 50,
 diff_sim <- main_simulations(subject_n = 50,
                 second_trial_diff, 
                 noise_parameter = noise_parameter, 
-                eig_from_world = 0.001,
+                eig_from_world = 0.005,
                 max_observation = 500, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
@@ -90,11 +92,13 @@ diff_sim <- main_simulations(subject_n = 50,
 ```{r}
 
 bind_rows(same_sim, diff_sim) %>% 
+#same_sim %>% 
   group_by(subject_id, stimulus_idx,  type) %>% 
   drop_na() %>% 
   summarise(sample_n = n()) %>% 
   ungroup() %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) + 
+  geom_jitter(alpha = .3)+
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = 0.3)) 
 
 ```
