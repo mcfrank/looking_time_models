@@ -1,0 +1,69 @@
+---
+title: "params_experiment"
+author: "anjie"
+date: "8/9/2021"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(profvis)
+
+source(here("helper/get_eig_faster.R"))
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/main_simulation_under_construction.r"))
+source(here("helper/params_helper_experiment.r"))
+```
+
+
+# Set up parameters here
+```{r}
+# DIY your own stimuli sequence 
+test_background <- generate_creature_sequence(
+  block_length = 2, 
+  deviant_positions = c(2),  # takes a vector, 
+  total_feature = 1, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+subject_n <- 20
+stimuli_sequence <- test_background # replace with whatever you want to try out
+noise_parameter <- seq(0.001, 0.01, 0.05)
+eig_from_world <- seq(0.001, 0.01, 0.05)
+max_observation <- 100
+
+alpha_prior <- seq(1, 5, 1)
+beta_prior <- seq(1, 5, 1)
+forced_sample = seq(1, 10, 2)
+
+params <- expand_grid(
+  subject_n,
+  stimuli_sequence = nest(stimuli_sequence), 
+  noise_parameter,
+  eig_from_world, 
+  max_observation,
+  alpha_prior, 
+  beta_prior, 
+  forced_sample
+) %>%
+  mutate(
+    sim_id = row_number() # crucial for linking
+  )
+
+
+
+```
+
+# just run this (feel free to load sim_res.rds in the folder to see what it looks like, warning: take pretty long)
+```{r}
+sim_res <- pmap_dfr(params, 
+     simulation_wrappter
+     )
+
+#saveRDS(sim_res, file = "sim_res.rds")
+```
+
+

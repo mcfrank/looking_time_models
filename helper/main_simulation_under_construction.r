@@ -1,9 +1,11 @@
 source(here('helper/grid_approximation.r'))
 source(here("helper/d_update_posterior.r"))
+source(here("helper/initialization.r"))
+
 
 main_simulations <- function(subject_n, 
                              stimuli_sequence, 
-                             noise_parameter = noise_parameter, 
+                             noise_parameter, 
                              eig_from_world = 0.001,
                              max_observation = 5000, # should this be per trial or in total? currently per trial 
                              grid_theta = grid_theta, 
@@ -39,12 +41,6 @@ main_simulations <- function(subject_n,
 
 
 
-
-
-
-
-
-
 main_simulation_uc <- function(subject = x,
                 stimuli_sequence, 
                 noise_parameter = noise_parameter, 
@@ -65,81 +61,26 @@ main_simulation_uc <- function(subject = x,
   total_trial_number = max(stimuli_sequence$trial_number)
   
   # df for keeping track of model behavior, 
-  df_model <-  tibble(subject_id = rep(subject, max_observation),
-                      t = rep(NA,max_observation),
-                      stimulus_idx = rep(NA,max_observation), 
-                      EIG = rep(NA,max_observation), 
-                      EIG_from_world = rep(eig_from_world,max_observation),
-                      p_look_away = rep(NA,max_observation), 
-                      look_away = rep(NA,max_observation)) 
- 
-  
-  # matrix for keep track of actual observations 
-  m_observation <- matrix(ncol = feature_number, 
-                          nrow = max_observation)
-  colnames(m_observation) <- grep("V",names(stimuli_sequence), value = TRUE)
-   
-  
-  
-  # create a list of dfs to keep track of ALL posterior distribution 
-  # actually may consider keeping track of everything in matrix for multi-feature version 
-  # this way we can always look up the posterior from previous observation 
+  df_model <-  initialize_model(subject, eig_from_world, max_observation)
+  m_observation <- initialize_m_observation(feature_number, max_observation, stimuli_sequence)
+  ll_df_posterior <- initialize_ll_df_posterior(grid_theta, grid_epsilon, max_observation, feature_number)
+  ll_df_z_given_theta <- initialize_ll_df_z_given_theta(grid_theta, grid_epsilon, max_observation, feature_number)
+
   
   # material for calculating df_posterior 
   df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
                                                  alpha_prior, beta_prior, 
                                                  alpha_epsilon, beta_epsilon)
-  # df for keep track of posterior distribution of each individual feature 
-  df_posterior <- expand_grid(theta = grid_theta,
-                              epsilon = grid_epsilon)
-  # not sure when do we really need the non-log one, save some $$$  
-  df_posterior$unnormalized_log_posterior <- NA_real_
-  df_posterior$log_posterior <- NA_real_
-  df_posterior$posterior <- NA_real_
-
-  ll_df_posterior <- lapply(seq(1, max_observation, 1), 
-                              function(x){
-                                lapply(seq(1, feature_number, 1), 
-                                       function(y){
-                                         df_posterior
-                                       })
-                                })
-  
-  
-  
-  df_z_given_theta <- tibble(
-    "theta" = df_posterior$theta, 
-    "epsilon" = df_posterior$epsilon,
-  )
-  
-  df_z_given_theta$lp_z_y_ONE <- NA_real_
-  df_z_given_theta$lp_z_y_ZERO <-  NA_real_
-  df_z_given_theta$lp_z_given_theta <- NA_real_
-  
-  
-  ll_df_z_given_theta <- lapply(seq(1, max_observation, 1), 
-                            function(x){
-                              lapply(seq(1, feature_number, 1), 
-                                     function(y){
-                                       df_z_given_theta
-                                     })
-                            })
-  
-  
-  
-  
-  
-  
-  stimulus_idx <- 1
-  t <- 1
-  
   df_lp_y_given_theta = tibble(
     "theta" = grid_theta, 
     "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta ), 
     "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta )
   )
 
- # while(stimulus_idx <= total_trial_number && t <= max_observation){
+  
+  stimulus_idx <- 1
+  t <- 1
+  
     
 while(stimulus_idx <= total_trial_number && t <= max_observation){
  
@@ -151,6 +92,8 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
     current_stimulus <- stimuli_sequence[stimulus_idx,]
     
     #get observation 
+    # SET RANDOM SEED TO SEE IF IT IS RIGHT
+
     current_observation <- noisy_observation_creature(
       creature = current_stimulus[,str_detect(names(current_stimulus), "V")], 
       n_sample = 1, 

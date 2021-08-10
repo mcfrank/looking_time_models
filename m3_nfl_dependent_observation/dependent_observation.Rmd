@@ -15,14 +15,14 @@ source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
 source(here("helper/main_simulation_under_construction.r"))
 
-num_features = 1
+num_features = 5
 num_features_simple = 1
-num_feature_complex = 6
-trials_per_block = 3
+num_feature_complex = 3
+trials_per_block = 6
 deviant_positions = c(2)
 feature_theta = 0.9
 dissimilarity_ratio = 0.2
-noise_parameter = 0.1
+noise_parameter = 0.01
 
 ## grid approximation related 
 grid_theta <- seq(0.1, 1, 0.2)
@@ -46,6 +46,14 @@ simple_stimuli <- generate_creature_sequence(
   feature_theta = feature_theta, 
   feature_number = num_features_simple, 
   dissimilar_ratio = dissimilarity_ratio)
+
+complex_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_feature_complex, 
+  dissimilar_ratio = dissimilarity_ratio)
 ```
 
 
@@ -56,50 +64,306 @@ second_trial_diff$V1[2] <- FALSE
 ```
 
 ```{r}
-same_sim <- main_simulations(subject_n = 50,
-                second_trial_same, 
+simple_sim <- main_simulations(subject_n = 2,
+                test_background, 
                 noise_parameter = noise_parameter, 
-                eig_from_world = 0.005,
-                max_observation = 500, # should this be per trial or in total? currently per trial 
+                eig_from_world = env_eig,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
-                alpha_prior = alpha_prior, 
+                alpha_prior = 5, 
                 beta_prior = beta_prior,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
                 forced_exposure = TRUE,
                 forced_sample = 5) %>% 
-  mutate(type = "second_background")
+  mutate(type = "simple_stimuli")
 
-diff_sim <- main_simulations(subject_n = 50,
-                second_trial_diff, 
+complex_sim <- main_simulations(subject_n = 300,
+                complex_stimuli, 
                 noise_parameter = noise_parameter, 
-                eig_from_world = 0.005,
-                max_observation = 500, # should this be per trial or in total? currently per trial 
+                eig_from_world = env_eig/10,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
-                alpha_prior = alpha_prior, 
+                alpha_prior = 5, 
                 beta_prior = beta_prior,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
                 forced_exposure = TRUE,
                 forced_sample = 5) %>% 
-  mutate(type = "second_different")
+  mutate(type = "complex_stimuli")
 
 
 ```
 
-```{r}
 
-bind_rows(same_sim, diff_sim) %>% 
-#same_sim %>% 
+
+
+```{r}
+simple_sim %>% 
+  group_by(subject_id, stimulus_idx,  type) %>% 
+  ggplot(aes(x = t, y = EIG)) +
+  geom_point()
+
+bind_rows(simple_sim, complex_sim) %>% 
+#simple_sim %>% 
   group_by(subject_id, stimulus_idx,  type) %>% 
   drop_na() %>% 
   summarise(sample_n = n()) %>% 
   ungroup() %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) + 
-  geom_jitter(alpha = .3)+
+  #geom_jitter(alpha = .1)+
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = 0.3)) 
 
 ```
+
+# familiarity preference
+here i'm goign to do a very sketchy thing: only construction a 1 feature two stimuli sequence: 
+
+true true 
+true false 
+```{r}
+test_background <- generate_creature_sequence(
+  block_length = 2, 
+  deviant_positions = c(2),  # takes a vector, 
+  total_feature = 1, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+test_background
+test_deviant <- test_background
+test_deviant$V1[2] <- FALSE
+test_deviant
+```
+
+
+i'm going to systematically vary: 
+
+- forced sample 
+- noise parameter 
+- eig_envrs 
+- alpha_prior 
+- beta_prior 
+
+```{r}
+
+
+subject_n <- 20
+stimuli_sequence <- test_background
+noise_parameter <- seq(0.001, 0.01, 0.05)
+eig_from_world <- seq(0.001, 0.01, 0.05)
+max_observation <- 100
+
+alpha_prior <- seq(1, 5, 1)
+beta_prior <- seq(1, 5, 1)
+forced_sample = seq(1, 10, 2)
+
+background_params <- expand_grid(
+  subject_n,
+  stimuli_sequence = nest(stimuli_sequence), 
+  noise_parameter,
+  eig_from_world, 
+  max_observation,
+  alpha_prior, 
+  beta_prior, 
+  forced_sample
+) %>%
+  mutate(
+    sim_id = row_number(),
+    type = "background"
+  )
+
+deviant_params <- expand_grid(
+  subject_n,
+  stimuli_sequence = nest(test_deviant), 
+  noise_parameter,
+  eig_from_world, 
+  max_observation,
+  alpha_prior, 
+  beta_prior, 
+  forced_sample
+) %>%
+  mutate(
+    sim_id = row_number(),
+    type = "deviant"
+  )
+  
+
+params <- bind_rows(background_params, deviant_params)
+params %>% data.frame() 
+  
+
+```
+
+
+with the same parameter i'm going to feed them the two stimuli
+the end table i wants (each row is a column)
+
+- forced_sample_n 
+- noise_parameter 
+- eig_envrs 
+- alpha_prior 
+- beta_prior 
+- mean_sample_n_background 
+- mean_sample_n_deviant
+- sd_sample_n_background 
+- sd_sample_n_deviant 
+
+
+
+
+```{r}
+
+simulation_wrappter <- function(subject_n, stimuli_sequence, noise_parameter, 
+                                eig_from_world, max_observation, alpha_prior, beta_prior, forced_sample, sim_id, 
+                                type){
+  
+  sim_df <- main_simulations(subject_n, 
+                             stimuli_sequence, 
+                             noise_parameter, 
+                             eig_from_world,
+                             max_observation, # should this be per trial or in total? currently per trial 
+                             grid_theta = grid_theta, 
+                             grid_epsilon = grid_epsilon, 
+                             alpha_prior, 
+                             beta_prior,
+                             alpha_epsilon = alpha_epsilon, 
+                             beta_epsilon = beta_epsilon, 
+                             forced_exposure = TRUE,
+                             forced_sample) %>% 
+    get_sim_res() %>% 
+    get_sim_eva()
+
+    sim_df$sim_id <- sim_id
+    sim_df$type <- type
+      
+    print(sim_id)
+    return(sim_df)  
+  }
+
+sim_res <- pmap_dfr(params, 
+     simulation_wrappter
+     )
+
+saveRDS(sim_res, file = "sim_res.rds")
+```
+
+```{r}
+sim_res
+```
+```{r}
+forced_exposure_df <- sim_res %>% 
+  filter(stimulus_idx == 1) %>% 
+  pivot_wider(names_from = stimulus_idx, 
+              values_from = mean_lt) %>% 
+  rename(forced_exposure_n = "1") %>% 
+  mutate(temp_id = paste0(sim_id, type)) %>% 
+  select(temp_id, forced_exposure_n)
+
+fam_df <- sim_res %>% 
+  filter(stimulus_idx == 2) %>% 
+  mutate(temp_id = paste0(sim_id, type)) %>% 
+  left_join(forced_exposure_df, by = "temp_id") %>% 
+  select(-temp_id) %>% 
+  mutate(ci.upper = mean_lt + (1.96 * sd_lt)/sqrt(n), 
+         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n))
+
+  
+fam_df %>% 
+  ggplot(aes(x = forced_exposure_n, y = mean_lt, color = type)) + 
+  geom_jitter(alpha = .5) + 
+  geom_smooth(method = "lm") + 
+  theme_classic()
+```
+
+```{r}
+
+params_df <- params %>% 
+  mutate(temp_id = paste0(sim_id, type)) %>% 
+  select(noise_parameter, 
+         eig_from_world, 
+         alpha_prior, 
+         beta_prior, 
+         temp_id) %>% 
+  left_join(fam_df %>%  mutate(temp_id = paste0(sim_id, type)), 
+            by = "temp_id") %>% 
+  select(-temp_id)
+```
+
+```{r}
+params_df
+```
+
+```{r}
+params_df %>% 
+  mutate(prior_print = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
+  ggplot(aes(x = forced_exposure_n, y = mean_lt, color = type)) + 
+  geom_jitter(alpha = .5) + 
+  geom_smooth(method = "lm") + 
+  theme_classic()+ 
+  facet_wrap(~prior_print)
+```
+
+
+```{r}
+bckgrd_df <- params_df %>% 
+  filter(type == "background") %>% 
+ pivot_wider(names_from = type, 
+             values_from = mean_lt) %>% 
+  select(sim_id, background, forced_exposure_n)
+  
+deviant_df <- params_df %>% 
+  filter(type == "deviant") %>% 
+ pivot_wider(names_from = type, 
+             values_from = mean_lt) %>% 
+  select(sim_id, deviant)
+
+
+bckgrd_df %>% 
+  left_join(deviant_df, by = "sim_id") %>%
+  mutate("bckgrd_minus_deviant" = background - deviant, 
+         forced_exposure_n = as.character(forced_exposure_n)) %>% 
+  ggplot(aes(x =bckgrd_minus_deviant, fill = forced_exposure_n)) + 
+  geom_density(alpha = .1)  + 
+  theme_classic()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
