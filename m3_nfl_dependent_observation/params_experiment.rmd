@@ -21,8 +21,9 @@ source(here("helper/params_helper_experiment.r"))
 # Set up parameters here
 ```{r}
 # DIY your own stimuli sequence 
-
-
+feature_theta = 0.2
+num_features_simple = 1
+dissimilarity_ratio = 0.8
 
 test_background <- generate_creature_sequence(
   block_length = 2, 
