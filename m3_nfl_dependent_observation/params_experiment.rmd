@@ -21,6 +21,9 @@ source(here("helper/params_helper_experiment.r"))
 # Set up parameters here
 ```{r}
 # DIY your own stimuli sequence 
+
+
+
 test_background <- generate_creature_sequence(
   block_length = 2, 
   deviant_positions = c(2),  # takes a vector, 
