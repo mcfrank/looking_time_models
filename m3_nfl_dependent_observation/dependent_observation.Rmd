@@ -15,14 +15,14 @@ source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
 source(here("helper/main_simulation_under_construction.r"))
 
-num_features = 5
+num_features = 1
 num_features_simple = 1
-num_feature_complex = 3
+num_feature_complex = 1
 trials_per_block = 6
-deviant_positions = c(2)
+deviant_positions = c()
 feature_theta = 0.9
 dissimilarity_ratio = 0.2
-noise_parameter = 0.01
+noise_parameter = 0.001
 
 ## grid approximation related 
 grid_theta <- seq(0.1, 1, 0.2)
@@ -33,7 +33,7 @@ alpha_epsilon = 10
 beta_epsilon = 1
 
 ## eig related 
-env_eig = 0.005
+env_eig = 0.008
 max_obs = 500
 
 ## experiment related 
@@ -64,37 +64,80 @@ second_trial_diff$V1[2] <- FALSE
 ```
 
 ```{r}
-simple_sim <- main_simulations(subject_n = 2,
-                test_background, 
+env_eig <- 0.001
+simple_sim <- main_simulations(subject_n = 50,
+                simple_stimuli, 
                 noise_parameter = noise_parameter, 
                 eig_from_world = env_eig,
                 max_observation = max_obs, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
-                alpha_prior = 5, 
-                beta_prior = beta_prior,
+                alpha_prior = 1, 
+                beta_prior = 1,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
-                forced_exposure = TRUE,
-                forced_sample = 5) %>% 
+                forced_exposure = FALSE,
+                forced_sample = NULL) %>% 
   mutate(type = "simple_stimuli")
 
-complex_sim <- main_simulations(subject_n = 300,
+complex_sim <- main_simulations(subject_n = 50,
                 complex_stimuli, 
                 noise_parameter = noise_parameter, 
-                eig_from_world = env_eig/10,
+                eig_from_world = env_eig,
                 max_observation = max_obs, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
-                alpha_prior = 5, 
-                beta_prior = beta_prior,
+                alpha_prior = 1, 
+                beta_prior = 12,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
-                forced_exposure = TRUE,
-                forced_sample = 5) %>% 
+                forced_exposure = FALSE,
+                forced_sample = NULL) %>% 
   mutate(type = "complex_stimuli")
 
 
+```
+
+```{r}
+simple_sim %>% get_sim_res() %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+  geom_jitter(alpha = .1)+ 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  ylim(0, 50)
+```
+
+
+```{r}
+cm_sim <- bind_rows(simple_sim %>% get_sim_res() %>% mutate(complexity = "complex"), complex_sim %>% get_sim_res() %>% mutate(complexity = "simple"))
+
+cm_eig <- bind_rows(simple_sim, complex_sim) %>% 
+  group_by(subject_id, type, stimulus_idx) %>% 
+  summarise(total_eig = sum(EIG))
+
+
+cm_sim %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  geom_jitter(alpha = .1) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  ylim(0, 50) 
+
+bind_rows(simple_sim, complex_sim) %>% 
+   ggplot(aes(x = t, y = p_look_away, color = type, alpha = .3))  + 
+  stat_summary(fun.data = "mean_cl_boot")  
+
+cm_sim %>% 
+  left_join(cm_eig, by = c("subject_id", "stimulus_idx")) %>% 
+  ggplot(aes(x = total_eig, y = sample_n, color = type)) + 
+  geom_point() + 
+  facet_wrap(~type) + 
+  ylim(0, 100)
+cm_eig
+
+
+bind_rows(simple_sim, complex_sim) %>% 
+  ggplot(aes(x = t, y = EIG, color = type, alpha = .3))  + 
+  stat_summary(fun.data = "mean_cl_boot") 
+ # facet_wrap(~type)
 ```
 
 
@@ -150,19 +193,19 @@ i'm going to systematically vary:
 ```{r}
 
 
-subject_n <- 20
+subject_n <- 40
 stimuli_sequence <- test_background
-noise_parameter <- seq(0.001, 0.01, 0.05)
-eig_from_world <- seq(0.001, 0.01, 0.05)
+noise_parameter <- 0.001
+eig_from_world <- seq(0.001, 0.02, 0.002)
 max_observation <- 100
 
-alpha_prior <- seq(1, 5, 1)
-beta_prior <- seq(1, 5, 1)
-forced_sample = seq(1, 10, 2)
+alpha_prior <- 5
+beta_prior <- 4
+forced_sample = seq(1, 30, 2)
 
 background_params <- expand_grid(
   subject_n,
-  stimuli_sequence = nest(stimuli_sequence), 
+  #stimuli_sequence = nest(test_background), 
   noise_parameter,
   eig_from_world, 
   max_observation,
@@ -177,7 +220,7 @@ background_params <- expand_grid(
 
 deviant_params <- expand_grid(
   subject_n,
-  stimuli_sequence = nest(test_deviant), 
+  #timuli_sequence = nest(test_deviant), 
   noise_parameter,
   eig_from_world, 
   max_observation,
@@ -191,10 +234,14 @@ deviant_params <- expand_grid(
   )
   
 
-params <- bind_rows(background_params, deviant_params)
+params <- bind_rows(background_params, deviant_params) 
+
+params
 params %>% data.frame() 
   
-
+test_background
+test_deviant
+params
 ```
 
 
@@ -216,12 +263,13 @@ the end table i wants (each row is a column)
 
 ```{r}
 
-simulation_wrappter <- function(subject_n, stimuli_sequence, noise_parameter, 
+
+simulation_wrappter <- function(subject_n, noise_parameter, 
                                 eig_from_world, max_observation, alpha_prior, beta_prior, forced_sample, sim_id, 
                                 type){
   
-  sim_df <- main_simulations(subject_n, 
-                             stimuli_sequence, 
+  b_sim_df <- main_simulations(subject_n, 
+                             test_background, 
                              noise_parameter, 
                              eig_from_world,
                              max_observation, # should this be per trial or in total? currently per trial 
@@ -234,42 +282,62 @@ simulation_wrappter <- function(subject_n, stimuli_sequence, noise_parameter,
                              forced_exposure = TRUE,
                              forced_sample) %>% 
     get_sim_res() %>% 
-    get_sim_eva()
+    get_sim_eva() 
 
-    sim_df$sim_id <- sim_id
-    sim_df$type <- type
+    b_sim_df$sim_id <- sim_id
+    b_sim_df$type <- "background"
+    
+     d_sim_df <- main_simulations(subject_n, 
+                             test_deviant, 
+                             noise_parameter, 
+                             eig_from_world,
+                             max_observation, # should this be per trial or in total? currently per trial 
+                             grid_theta = grid_theta, 
+                             grid_epsilon = grid_epsilon, 
+                             alpha_prior, 
+                             beta_prior,
+                             alpha_epsilon = alpha_epsilon, 
+                             beta_epsilon = beta_epsilon, 
+                             forced_exposure = TRUE,
+                             forced_sample) %>% 
+    get_sim_res() %>% 
+    get_sim_eva() 
+     
+    d_sim_df$sim_id <- sim_id
+    d_sim_df$type <- "deviant"
       
     print(sim_id)
-    return(sim_df)  
+    return(bind_rows(b_sim_df, d_sim_df))  
   }
 
-sim_res <- pmap_dfr(params, 
+
+noise_sim_res_redux <- pmap_dfr(params, 
      simulation_wrappter
      )
 
-saveRDS(sim_res, file = "sim_res.rds")
+saveRDS(noise_sim_res_redux, file = "noise_sim_res.rds")
+
+#saveRDS(sim_res, file = "sim_res.rds")
 ```
 
 ```{r}
-sim_res
+noise_sim_res
 ```
 ```{r}
-forced_exposure_df <- sim_res %>% 
+forced_exposure_df <- noise_sim_res_redux %>% 
   filter(stimulus_idx == 1) %>% 
+  distinct(n, sim_id, mean_lt, stimulus_idx) %>% 
   pivot_wider(names_from = stimulus_idx, 
-              values_from = mean_lt) %>% 
+              values_from = mean_lt) %>%
   rename(forced_exposure_n = "1") %>% 
-  mutate(temp_id = paste0(sim_id, type)) %>% 
-  select(temp_id, forced_exposure_n)
+  select(sim_id, forced_exposure_n)
+ 
 
-fam_df <- sim_res %>% 
+fam_df <- noise_sim_res_redux %>% 
   filter(stimulus_idx == 2) %>% 
-  mutate(temp_id = paste0(sim_id, type)) %>% 
-  left_join(forced_exposure_df, by = "temp_id") %>% 
-  select(-temp_id) %>% 
+  left_join(forced_exposure_df, by = "sim_id") %>% 
   mutate(ci.upper = mean_lt + (1.96 * sd_lt)/sqrt(n), 
-         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n))
-
+         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n)) 
   
 fam_df %>% 
   ggplot(aes(x = forced_exposure_n, y = mean_lt, color = type)) + 
@@ -282,19 +350,48 @@ fam_df %>%
 
 params_df <- params %>% 
   mutate(temp_id = paste0(sim_id, type)) %>% 
-  select(noise_parameter, 
+  select(forced_sample,
+      noise_parameter, 
          eig_from_world, 
          alpha_prior, 
          beta_prior, 
          temp_id) %>% 
-  left_join(fam_df %>%  mutate(temp_id = paste0(sim_id, type)), 
+  left_join(noise_sim_res_redux %>%  filter(stimulus_idx == 2) %>% mutate(temp_id = paste0(sim_id, type)), 
             by = "temp_id") %>% 
   select(-temp_id)
 ```
 
 ```{r}
-params_df
+params_df %>% 
+  ggplot(aes(x = mean_lt, fill = type)) + 
+  geom_density(alpha = .3) + 
+  facet_wrap(~forced_sample)
 ```
+
+
+
+```{r}
+params_df %>% 
+  mutate(ci.upper = mean_lt + (1.96 * sd_lt)/sqrt(n), 
+         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n)) %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = forced_sample, y = mean_lt, ymax = ci.upper, ymin = ci.lower, 
+                      color = type), position = position_jitter(width = .5)) + 
+  facet_wrap(~eig_from_world)
+
+
+params_df %>% 
+  mutate(ci.upper = mean_lt + (1.96 * sd_lt)/sqrt(n), 
+         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n)) %>% 
+  filter(eig_from_world == 0.001) %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = forced_sample, y = mean_lt, ymax = ci.upper, ymin = ci.lower, 
+                      color = type), position = position_jitter(width = .5)) + 
+  facet_wrap(~sim_id)
+  
+```
+
+
 
 ```{r}
 params_df %>% 
@@ -303,7 +400,7 @@ params_df %>%
   geom_jitter(alpha = .5) + 
   geom_smooth(method = "lm") + 
   theme_classic()+ 
-  facet_wrap(~prior_print)
+  facet_wrap(~forced_exposure_n)
 ```
 
 
@@ -321,13 +418,16 @@ deviant_df <- params_df %>%
   select(sim_id, deviant)
 
 
-bckgrd_df %>% 
-  left_join(deviant_df, by = "sim_id") %>%
-  mutate("bckgrd_minus_deviant" = background - deviant, 
-         forced_exposure_n = as.character(forced_exposure_n)) %>% 
+sim_res_df <- bckgrd_df %>% 
+  left_join(deviant_df, by = "sim_id") 
+
+
+sim_res_df %>% 
   ggplot(aes(x =bckgrd_minus_deviant, fill = forced_exposure_n)) + 
-  geom_density(alpha = .1)  + 
-  theme_classic()
+  geom_density(alpha = .1)  +
+  geom_vline(xintercept = 0) + 
+  theme_classic() + 
+  facet_wrap(~as.numeric(forced_exposure_n))
 
 ```
 
@@ -336,7 +436,9 @@ bckgrd_df %>%
 
 
 
-
+```{r}
+saveRDS(params_df, file = "noise_sim_res.rds")
+```
 
 
 
