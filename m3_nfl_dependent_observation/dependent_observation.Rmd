@@ -57,11 +57,81 @@ complex_stimuli <- generate_creature_sequence(
 ```
 
 
+
+
+
 ```{r}
-second_trial_same <- simple_stimuli
-second_trial_diff <- second_trial_same
-second_trial_diff$V1[2] <- FALSE
+simple_stimuli
 ```
+
+```{r}
+grid_theta <- seq(0.01, 1, 0.02)
+grid_epsilon <- seq(0.01, 1, 0.02)
+
+simple_sim_posterior_ll <- main_simulation_uc(subject = 1,
+                simple_stimuli, 
+                noise_parameter = noise_parameter, 
+                eig_from_world = env_eig *10000,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+for (t in seq(1: length(simple_sim_posterior_ll))){
+  for (f in seq(1:length(simple_sim_posterior_ll[[t]]))){
+    simple_sim_posterior_ll[[t]][[f]]$t <- t  
+  }
+}
+
+bind_rows(simple_sim_posterior_ll) %>% 
+  filter(!is.na(posterior)) %>% 
+  ggplot(aes(x  = theta, y = posterior)) + 
+  geom_point() + 
+  facet_wrap(~t)
+
+```
+
+```{r}
+all_false <- simple_stimuli %>% 
+  mutate(V1 = rep(FALSE, 6))
+
+
+mix_test_stim_posterior_ll <- main_simulation_uc(subject = 1,
+                all_false, 
+                noise_parameter = noise_parameter, 
+                eig_from_world = env_eig ,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+for (t in seq(1: length(mix_test_stim_posterior_ll))){
+  for (f in seq(1:length(mix_test_stim_posterior_ll[[t]]))){
+    mix_test_stim_posterior_ll[[t]][[f]]$t <- t  
+  }
+}
+
+bind_rows(mix_test_stim_posterior_ll) %>% 
+  filter(!is.na(posterior)) %>% 
+  #filter(t%%2 == 0) %>% 
+  ggplot(aes(x  = theta, y = posterior)) + 
+  geom_point() + 
+  facet_wrap(~t)
+```
+
+
 
 ```{r}
 env_eig <- 0.001
@@ -98,13 +168,6 @@ complex_sim <- main_simulations(subject_n = 50,
 
 ```
 
-```{r}
-simple_sim %>% get_sim_res() %>% 
-  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
-  geom_jitter(alpha = .1)+ 
-  stat_summary(fun.data = "mean_cl_boot") + 
-  ylim(0, 50)
-```
 
 
 ```{r}
@@ -143,43 +206,6 @@ bind_rows(simple_sim, complex_sim) %>%
 
 
 
-```{r}
-simple_sim %>% 
-  group_by(subject_id, stimulus_idx,  type) %>% 
-  ggplot(aes(x = t, y = EIG)) +
-  geom_point()
-
-bind_rows(simple_sim, complex_sim) %>% 
-#simple_sim %>% 
-  group_by(subject_id, stimulus_idx,  type) %>% 
-  drop_na() %>% 
-  summarise(sample_n = n()) %>% 
-  ungroup() %>% 
-  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) + 
-  #geom_jitter(alpha = .1)+
-  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = 0.3)) 
-
-```
-
-# familiarity preference
-here i'm goign to do a very sketchy thing: only construction a 1 feature two stimuli sequence: 
-
-true true 
-true false 
-```{r}
-test_background <- generate_creature_sequence(
-  block_length = 2, 
-  deviant_positions = c(2),  # takes a vector, 
-  total_feature = 1, 
-  feature_theta = feature_theta, 
-  feature_number = num_features_simple, 
-  dissimilar_ratio = dissimilarity_ratio)
-
-test_background
-test_deviant <- test_background
-test_deviant$V1[2] <- FALSE
-test_deviant
-```
 
 
 i'm going to systematically vary: 
