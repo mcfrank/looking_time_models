@@ -53,7 +53,8 @@ main_simulation_uc <- function(subject = x,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
                 forced_exposure = TRUE,
-                forced_sample = 5){
+                forced_sample = 5, 
+                show_posterior = FALSE){
   
   
   feature_number <- ncol(stimuli_sequence[startsWith(names(stimuli_sequence), 
@@ -229,6 +230,12 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
    
     #stimulus_idx = stimulus_idx + 1
   }
+  
+  if (show_posterior){
+    return(ll_df_posterior)
+  }
+  
+  
   return (df_model)  
 
 }
