@@ -43,3 +43,61 @@ simulation_wrappter <- function(subject_n, stimuli_sequence, noise_parameter,
   print(sim_id)
   return(sim_df)  
 }
+
+get_fam_pref_df <- function(params_df){
+  bckgrd_df <- params_df %>% 
+    filter(type == "background") %>% 
+    pivot_wider(names_from = type, 
+                values_from = mean_lt) %>% 
+    select(sim_id, background, forced_exposure_n, 
+           noise_parameter, eig_from_world, alpha_prior, beta_prior, 
+           sd_lt, ci.upper, ci.lower, n) %>% 
+    rename(bckgd_mean_lt = background, 
+           bckgd_sd_lt = sd_lt, 
+           bckgd_ci_upper = ci.upper, 
+           bckgrd_ci_lower = ci.lower)
+  
+  deviant_df <- params_df %>% 
+    filter(type == "deviant") %>% 
+    pivot_wider(names_from = type, 
+                values_from = mean_lt) %>% 
+    select(sim_id, deviant, 
+           sd_lt, ci.upper, ci.lower) %>% 
+    rename(deviant_mean_lt = deviant, 
+           deviant_sd_lt = sd_lt, 
+           deviant_ci_upper = ci.upper, 
+           deviant_ci_lower = ci.lower)
+  
+  
+  sim_res_df <- bckgrd_df %>% 
+    left_join(deviant_df, by = "sim_id") 
+  
+  return(sim_res_df)
+  
+}
+
+
+t_test_from_mean <- function(m1,m2,s1,s2,n1,n2, m0=0,equal.variance=FALSE)
+{
+  if( equal.variance==FALSE ) 
+  {
+    se <- sqrt( (s1^2/n1) + (s2^2/n2) )
+    # welch-satterthwaite df
+    df <- ( (s1^2/n1 + s2^2/n2)^2 )/( (s1^2/n1)^2/(n1-1) + (s2^2/n2)^2/(n2-1) )
+  } else
+  {
+    # pooled standard deviation, scaled by the sample sizes
+    se <- sqrt( (1/n1 + 1/n2) * ((n1-1)*s1^2 + (n2-1)*s2^2)/(n1+n2-2) ) 
+    df <- n1+n2-2
+  }      
+  t <- (m1-m2-m0)/se 
+  dat <- c(m1-m2, se, t, 2*pt(-abs(t),df))    
+  names(dat) <- c("Difference of means", "Std Error", "t", "p-value")
+  return(dat) 
+}
+
+t_test_wrapper <- function(sim_id, bckgd_mean_lt, deviant_mean_lt, bckgd_sd_lt, deviant_sd_lt, n){
+  data <- t_test_from_mean(bckgd_mean_lt, deviant_mean_lt, bckgd_sd_lt, deviant_sd_lt, n, n)
+  
+}
+

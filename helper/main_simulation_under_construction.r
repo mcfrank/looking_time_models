@@ -20,7 +20,7 @@ main_simulations <- function(subject_n,
   lapply(seq(1, subject_n), 
          function(x){
            main_simulation_uc(subject = x,
-                              second_trial_same, 
+                              stimuli_sequence, 
                               noise_parameter = noise_parameter, 
                               eig_from_world = eig_from_world,
                               max_observation = max_observation, # should this be per trial or in total? currently per trial 
