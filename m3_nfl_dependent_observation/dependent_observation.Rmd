@@ -29,7 +29,7 @@ grid_theta <- seq(0.1, 1, 0.2)
 grid_epsilon <- seq(0.1, 1, 0.2)
 alpha_prior = 1
 beta_prior = 1
-alpha_epsilon = 10 
+alpha_epsilon = 1 
 beta_epsilon = 1
 
 ## eig related 
@@ -63,22 +63,25 @@ complex_stimuli <- generate_creature_sequence(
 ```{r}
 simple_stimuli
 ```
+```{r}
+simple_stimuli
+```
 
 ```{r}
 grid_theta <- seq(0.01, 1, 0.02)
 grid_epsilon <- seq(0.01, 1, 0.02)
 
 simple_sim_posterior_ll <- main_simulation_uc(subject = 1,
-                simple_stimuli, 
+                simple_stimuli %>% filter(trial_number == 1), 
                 noise_parameter = noise_parameter, 
-                eig_from_world = env_eig *10000,
+                eig_from_world = env_eig ,
                 max_observation = max_obs, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
                 alpha_prior = 1, 
                 beta_prior = 1,
-                alpha_epsilon = alpha_epsilon, 
-                beta_epsilon = beta_epsilon, 
+                alpha_epsilon = 1, 
+                beta_epsilon = 1, 
                 forced_exposure = FALSE,
                 forced_sample = NULL, 
                 show_posterior = TRUE) 
@@ -91,11 +94,56 @@ for (t in seq(1: length(simple_sim_posterior_ll))){
 
 bind_rows(simple_sim_posterior_ll) %>% 
   filter(!is.na(posterior)) %>% 
-  ggplot(aes(x  = theta, y = posterior)) + 
+  ggplot(aes(x  = theta, y = posterior, color = epsilon)) + 
   geom_point() + 
   facet_wrap(~t)
+  #facet_grid(t~epsilon)
 
 ```
+```{r}
+
+
+sim_res <- main_simulations(subject = 1,
+                simple_stimuli, 
+                noise_parameter = 0, 
+                eig_from_world = env_eig,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL) 
+```
+
+
+```{r}
+sim_res %>% 
+  get_sim_res %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+  geom_jitter(alpha = .1) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  ylim(0, 50)
+```
+```{r}
+sim_res %>% 
+  group_by(subject_id, stimulus_idx) %>% 
+  mutate()
+
+sim_res %>% 
+  get_sim_res
+```
+
+```{r}
+sim_res %>% 
+  ggplot(aes(x = t, y = EIG, color = stimulus_idx)) + 
+  geom_point()  + 
+  facet_wrap(~subject_id)
+```
+
+
 
 ```{r}
 all_false <- simple_stimuli %>% 
