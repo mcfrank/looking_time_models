@@ -66,6 +66,10 @@ main_simulation_uc <- function(subject = x,
   m_observation <- initialize_m_observation(feature_number, max_observation, stimuli_sequence)
   ll_df_posterior <- initialize_ll_df_posterior(grid_theta, grid_epsilon, max_observation, feature_number)
   ll_df_z_given_theta <- initialize_ll_df_z_given_theta(grid_theta, grid_epsilon, max_observation, feature_number)
+  
+  
+  
+  
 
   
   # material for calculating df_posterior 
@@ -139,16 +143,17 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
                                                                    m_observation,
                                                                    current_observation, 
                                                                    grid_theta, grid_epsilon, 
-                                                                   alpha_prior, beta_prior, 
-                                                                   alpha_epsilon, beta_epsilon)
+                                                                   alpha_prior, beta_prior)
       
       
       
+     
+        unnormalized_log_posterior <- ll_df_z_given_theta[[t]][[index]]$lp_z_given_theta + 
+          df_lp_theta_epsilon$lp_theta + 
+          df_lp_theta_epsilon$lp_epsilon
+        
       
-      
-      unnormalized_log_posterior <- ll_df_z_given_theta[[t]][[index]]$lp_z_given_theta + 
-                                    df_lp_theta_epsilon$lp_theta + 
-                                    df_lp_theta_epsilon$lp_epsilon
+     
       
       
       
@@ -183,7 +188,7 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
       prev_observation_posterior = prev_posterior_list[[ceiling(i/2)]]
       post_posterior_list[[i]] <- update_posterior(previous_posterior_df =  prev_observation_posterior,
                                                    current_posterior_df = post_posterior_list[[i]], 
-                                                   (i%%2 == 1), 
+                                                   (i%%2 == 1),
                                                    grid_theta, grid_epsilon)
     }
     
