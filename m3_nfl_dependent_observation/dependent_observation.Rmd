@@ -14,6 +14,7 @@ source(here("helper/get_eig_faster.R"))
 source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
 source(here("helper/main_simulation_under_construction.r"))
+source(here("helper/params_helper_experiment.r"))
 
 num_features = 1
 num_features_simple = 1
@@ -58,21 +59,12 @@ complex_stimuli <- generate_creature_sequence(
 
 
 
-
-
-```{r}
-simple_stimuli
-```
-```{r}
-simple_stimuli
-```
-
 ```{r}
 grid_theta <- seq(0.01, 1, 0.02)
 grid_epsilon <- seq(0.01, 1, 0.02)
 
 simple_sim_posterior_ll <- main_simulation_uc(subject = 1,
-                simple_stimuli %>% filter(trial_number == 1), 
+                simple_stimuli %>% filter(trial_number < 3), 
                 noise_parameter = noise_parameter, 
                 eig_from_world = env_eig ,
                 max_observation = max_obs, # should this be per trial or in total? currently per trial 
@@ -100,23 +92,33 @@ bind_rows(simple_sim_posterior_ll) %>%
   #facet_grid(t~epsilon)
 
 ```
+
+
 ```{r}
 
 
-sim_res <- main_simulations(subject = 1,
+sim_res <- main_simulations(subject = 30,
                 simple_stimuli, 
-                noise_parameter = 0, 
-                eig_from_world = env_eig,
+                noise_parameter = 0.01, 
+                eig_from_world = env_eig/10,
                 max_observation = max_obs, # should this be per trial or in total? currently per trial 
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
                 alpha_prior = 1, 
-                beta_prior = 1,
+                beta_prior = 5,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
                 forced_exposure = FALSE,
                 forced_sample = NULL) 
 ```
+
+```{r}
+sim_res %>% 
+  ggplot(aes(x = t, y = EIG, color = stimulus_idx)) + 
+  geom_point() + 
+  facet_wrap(~subject_id)
+```
+
 
 
 ```{r}
