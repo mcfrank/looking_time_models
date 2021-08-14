@@ -19,6 +19,7 @@ get_df_lp_z_y_raw <- function(t, stimulus_idx, last_t_for_last_stimulus, index, 
   }
   
   df_lp_z_y_raw <- expand_grid(df_lp_y_given_theta, df_lp_z_given_y)
+  return(df_lp_z_y_raw)
 }
 
 
@@ -37,7 +38,7 @@ get_lp_z_given_theta_for_raw <- function(t, last_t_for_last_stimulus, index, df_
                             }
         }
                              
-
+  return(lp_z_given_theta)
   
 }
 

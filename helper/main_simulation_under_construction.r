@@ -1,5 +1,6 @@
 source(here('helper/grid_approximation.r'))
 source(here("helper/d_update_posterior.r"))
+source(here("helper/d_posterior_for_EIG.r"))
 source(here("helper/initialization.r"))
 
 
@@ -151,11 +152,7 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
         unnormalized_log_posterior <- ll_df_z_given_theta[[t]][[index]]$lp_z_given_theta + 
           df_lp_theta_epsilon$lp_theta + 
           df_lp_theta_epsilon$lp_epsilon
-        
-      
-     
-      
-      
+
       
       ll_df_posterior[[t]][[index]]$unnormalized_log_posterior <- unnormalized_log_posterior
       ll_df_posterior[[t]][[index]]$log_posterior <-  ll_df_posterior[[t]][[index]]$unnormalized_log_posterior - matrixStats::logSumExp( ll_df_posterior[[t]][[index]]$unnormalized_log_posterior)
@@ -176,6 +173,7 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
     
     
     prev_posterior_list <- ll_df_posterior[[t]][feature_occurence]
+    prev_z_given_theta_list <- ll_df_z_given_theta[[t]][feature_occurence]
     
     post_posterior_list <- lapply(seq(1, n_possible_combination),
                                   function(x){
@@ -183,14 +181,40 @@ while(stimulus_idx <= total_trial_number && t <= max_observation){
                                                 epsilon = grid_epsilon)
                                   })
     
+    last_t_for_last_stimulus = ifelse(stimulus_idx == 1, 1,
+                                      max((df_model[df_model$stimulus_idx == stimulus_idx-1,])$t, na.rm = TRUE)
+    )
+    prev_z_given_theta_last_stimulus <- ll_df_z_given_theta[[last_t_for_last_stimulus]][feature_occurence]
+    
+    
     for (i in 1:n_possible_combination){
+      
+      
+      all_hypothetical_observations_on_this_stimulus = c((unlist(all_possible_combinations$unique_combination[[i]]))[last_t_for_last_stimulus:t], 
+                             all_possible_combinations$hypothetical_observation[[i]])
+      
+      
       post_posterior_df = post_posterior_list[[i]]
+      
       prev_observation_posterior = prev_posterior_list[[ceiling(i/2)]]
-      post_posterior_list[[i]] <- update_posterior(previous_posterior_df =  prev_observation_posterior,
-                                                   current_posterior_df = post_posterior_list[[i]], 
-                                                   (i%%2 == 1),
-                                                   grid_theta, grid_epsilon)
-    }
+      prev_observation_z_given_theta = prev_z_given_theta_list[[ceiling(i/2)]]
+      prev_last_stimulus_observation_z_given_theta = prev_z_given_theta_last_stimulus[[ceiling(i/2)]]
+      
+      post_df_z_given_theta = eig_get_df_lp_z_given_theta(t,
+                                                       df_model,
+                                                       prev_last_stimulus_observation_z_given_theta,
+                                                       all_hypothetical_observations_on_this_stimulus, # contains unique combination + hypothetical scenarios 
+                                                       grid_theta, grid_epsilon, 
+                                                       df_lp_y_given_theta)
+      
+      
+      post_posterior_list[[i]]$unnormalized_log_posterior <- post_df_z_given_theta$lp_z_given_theta +  df_lp_theta_epsilon$lp_theta + 
+        df_lp_theta_epsilon$lp_epsilon
+      
+      post_posterior_list[[i]]$log_posterior <-   post_posterior_list[[i]]$unnormalized_log_posterior - matrixStats::logSumExp(post_posterior_list[[i]]$unnormalized_log_posterior)
+      post_posterior_list[[i]]$posterior <- exp(post_posterior_list[[i]]$log_posterior)
+    
+        }
     
     for (s in 1:n_possible_combination){
       
