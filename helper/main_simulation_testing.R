@@ -77,7 +77,10 @@ main_simulation_testing <- function(subject = x,
                               list()
                                      })
                           
-  
+  ll_eig_materials <- lapply(seq(1, max_observation, 1), 
+                                         function(x){
+                                           list()
+                                         })
   
   
   
@@ -228,6 +231,9 @@ main_simulation_testing <- function(subject = x,
     ll_df_hypothetical_posterior[[t]] <- post_posterior_list
     
     
+    l_kl = list()
+    l_pp = list()
+    
     for (s in 1:n_possible_combination){
       
       all_possible_combinations$kl[s] <- get_kl(post_posterior_list[[s]]$posterior, 
@@ -237,7 +243,17 @@ main_simulation_testing <- function(subject = x,
                                                                        prev_posterior_list[[ceiling(s/2)]]$posterior, 
                                                                        all_possible_combinations$hypothetical_observation[s]) 
       
+      l_kl[[s]] <- all_possible_combinations$kl[s]
+      l_pp[[s]] <-  all_possible_combinations$post_predictives[s]
+      
     }
+    
+    l_eig_materials <-list()
+    l_eig_materials[[1]] <- l_kl
+    l_eig_materials[[2]] <- l_pp
+    
+    
+    ll_eig_materials[[t]] <- l_eig_materials
     
     
     df_model$EIG[[t]] <- get_eig_with_combinationa(unique_combination_df = current_unique_possible_combinations,
@@ -278,10 +294,11 @@ main_simulation_testing <- function(subject = x,
     obs_df <- as.data.frame(m_observation) %>% mutate(t = row_number())
     df_model <- df_model %>% 
       left_join(obs_df, by = "t")
-    res_list[[1]] <- df_model
+    res_list[[1]] <- df_model %>% filter(!is.na(EIG))
     res_list[[2]] <- ll_df_posterior
     res_list[[3]] <- ll_df_hypothetical_posterior
-    names(res_list) <- c("df_model", "real posterior", "hypothetical_posterior")
+    res_list[[4]] <- ll_eig_materials
+    names(res_list) <- c("df_model", "real posterior", "hypothetical_posterior", "eig_materials")
     return (res_list)
     
     

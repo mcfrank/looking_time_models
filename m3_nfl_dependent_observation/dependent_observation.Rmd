@@ -114,6 +114,8 @@ sim_res <- main_simulations(subject = 3,
 
 
 ```{r}
+grid_theta <- seq(0.01, 1, 0.02)
+grid_epsilon <- seq(0.01, 1, 0.02)
 res <- main_simulation_testing(subject = 1,
                 simple_stimuli, 
                 noise_parameter = 0.1, 
@@ -122,7 +124,7 @@ res <- main_simulation_testing(subject = 1,
                 grid_theta = grid_theta, 
                 grid_epsilon = grid_epsilon, 
                 alpha_prior = 1, 
-                beta_prior = 30,
+                beta_prior = 1,
                 alpha_epsilon = alpha_epsilon, 
                 beta_epsilon = beta_epsilon, 
                 forced_exposure = FALSE,
@@ -152,11 +154,315 @@ res[[1]]  %>%
   filter(V1 == FALSE)
 ```
 
-```{r}
-res[[2]] %>% bind_rows()
+#0.01539623 0.10661700
 
-res[[3]][[13]]
+the second dropped, and the thirteenth dropped, why? 
+```{r}
+# the posterior at first time point (FALSE)
+obs <- res[[2]][[25]][[1]]
+# the posterior for (FALSE TRUE)
+obs_t <- res[[3]][[25]][[1]] 
+# the posterior for (FALSE FALSE)
+obs_f <- res[[3]][[25]][[2]]
+
+eig_materials <- res[[4]][[25]]
+
+# get kl if true 
+get_kl_with_obs <- function(res, obs = TRUE){
+  eig_materials <- res[[4]]
+  kl_list = list()
+  
+  for (i in seq(1:length(eig_materials))){
+    if (length(eig_materials[[i]]) != 0){
+    
+    if(obs == TRUE){
+      kl_list[[i]] <- eig_materials[[i]][[1]][[1]]
+    }else{
+       kl_list[[i]] <- eig_materials[[i]][[1]][[2]]
+    }
+    }
+  }
+  return (kl_list)
+}
+
+get_pp_with_obs <- function(res, obs = TRUE){
+  eig_materials <- res[[4]]
+  pp_list = list()
+  
+  for (i in seq(1:length(eig_materials))){
+    if (length(eig_materials[[i]]) != 0){
+    
+    if(obs == TRUE){
+      pp_list[[i]] <- eig_materials[[i]][[2]][[1]]
+    }else{
+       pp_list[[i]] <- eig_materials[[i]][[2]][[2]]
+    }
+    }
+  }
+  return (pp_list)
+}
+
+res[[1]]$kl_if_true <- tibble("kl_if_true" = get_kl_with_obs(res) %>% 
+  unlist())
+
+res[[1]]$kl_if_false <- tibble("kl_if_false" = get_kl_with_obs(res, FALSE) %>% 
+  unlist())
+
+res[[1]]$pp_if_true <- tibble("pp_if_true" = get_pp_with_obs(res) %>% 
+  unlist())
+
+res[[1]]$pp_if_false <- tibble("pp_if_false" = get_pp_with_obs(res, FALSE) %>% 
+  unlist())
 ```
+
+```{r}
+plot_kl_if_true <- res[[1]] %>% 
+  filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = kl_if_true$kl_if_true, color = V1)) + 
+  geom_point() + 
+  theme(legend.position = "none") +
+  labs(subtitle = "kl when hypothetical obs is TRUE")
+
+plot_pp_if_true <- res[[1]] %>% 
+  filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = pp_if_true$pp_if_true, color = V1)) + 
+  geom_point() + 
+    theme(legend.position = "none") +
+  labs(subtitle = "pp when hypothetical obs is TRUE")
+
+
+
+plot_eig_from_both_sides <- res[[1]] %>% 
+  mutate(eig_true_side = kl_if_true$kl_if_true * pp_if_true$pp_if_true, 
+         eig_false_side = kl_if_false$kl_if_false * pp_if_false$pp_if_false, 
+         sum_sides = eig_true_side + eig_false_side) %>% 
+  pivot_longer(c(eig_true_side, eig_false_side, sum_sides), 
+               names_to = "hypothetical_obs", 
+               values_to = "value") %>% 
+  filter(stimulus_idx == 1) %>% 
+  #filter(hypothetical_obs != "eig_true_side") %>% 
+  ggplot(aes(x = t, y = value, color = hypothetical_obs)) + 
+  geom_point() + 
+  labs(title = "eig trajectory")
+
+plot_kl_if_false <- res[[1]] %>% 
+  filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = kl_if_false$kl_if_false, color = V1)) + 
+  geom_point() + 
+    theme(legend.position = "none") +
+
+  labs(subtitle = "kl when hypothetical obs is FALSE")
+
+plot_pp_if_false <- res[[1]] %>% 
+  filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = pp_if_false$pp_if_false, color = V1)) + 
+  geom_point() + 
+    theme(legend.position = "none") +
+
+  labs(subtitle = "pp when hypothetical obs is FALSE")
+
+plots <- cowplot::plot_grid(plot_kl_if_true, plot_pp_if_true, 
+                              plot_kl_if_false, plot_pp_if_false, 
+                            ncol = 2)
+cowplot::plot_grid(plots, plot_eig_from_both_sides, ncol = 1)
+```
+
+why does the false side have such a big drop in kl? 
+```{r}
+#res[[2]][[10]]
+t10 <- res[[2]][[10]]
+
+t10_true <- res[[3]][[10]][[1]]
+t10_false <- res[[3]][[10]][[2]]
+
+
+t9 <- res[[2]][[9]]
+t9_true <- res[[3]][[9]][[1]]
+t9_false <- res[[3]][[9]][[2]]
+
+t10_false_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, false")
+
+t10_true_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, true")
+
+
+t9_false_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t9_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, false")
+
+t9_true_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t9_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, true")
+
+get_kl <- function (post_posterior,prev_posterior) {
+  sum(post_posterior * log(x / y)) 
+}
+noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
+  p_1 <- sum(((1 - epsilon) * theta * posterior) + 
+               (epsilon * (1-theta) * posterior))
+  
+  ifelse(heads, p_1, 1 - p_1)
+  
+}
+
+
+cowplot::plot_grid(t10_false_plot, t10_true_plot, 
+                   t9_false_plot, t9_true_plot, ncol = 2)
+
+#prev_posterior 
+#t10[[1]]$posterior
+#post_posterior 
+#t10_true$posterior 
+
+
+# KL when TRUE 
+print("When there's a misobservation:")
+print("kl when true")
+sum(t10_true$posterior * log( t10_true$posterior / t10[[1]]$posterior
+))
+print("pp when true")
+noisy_post_pred(t10[[1]]$theta, t10[[1]]$epsilon, t10[[1]]$posterior, TRUE)
+
+# KL when false 
+print("kl when false")
+sum(t10_false$posterior * log(t10_false$posterior / t10[[1]]$posterior
+))
+print("pp when false")
+noisy_post_pred(t10[[1]]$theta, t10[[1]]$epsilon, t10[[1]]$posterior, FALSE)
+
+
+print("When there's no misobservation:")
+print("kl when true")
+sum(t9_true$posterior * log( t9_true$posterior / t9[[1]]$posterior
+))
+print("pp when true")
+noisy_post_pred(t9[[1]]$theta, t9[[1]]$epsilon, t9[[1]]$posterior, TRUE)
+
+# KL when false 
+print("kl when false")
+sum(t9_false$posterior * log(t9_false$posterior / t9[[1]]$posterior
+))
+print("pp when false")
+noisy_post_pred(t9[[1]]$theta, t9[[1]]$epsilon, t9[[1]]$posterior, FALSE)
+
+
+
+```
+
+
+```{r}
+t10_false_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, false")
+
+t10_true_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, true")
+
+
+t9_false_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t9_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, false")
+
+t9_true_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t9_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, true")
+
+
+cowplot::plot_grid(t10_false_plot, t10_true_plot, 
+                   t9_false_plot, t9_true_plot, ncol = 2)
+```
+
+
+
+```{r}
+obs  %>% 
+  #mutate(type = "t") %>% 
+  #bind_rows(obs_f %>% mutate(type = "t+1_false")) %>%
+  #bind_rows(obs_t %>% mutate(type = "t+1_true" )) %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+
+obs_t %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+obs_f %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+```
+
+```{r}
+# the posterior at first time point (FALSE)
+obs_f <- res[[2]][[1]]
+# the posterior for (FALSE TRUE)
+obs_ft <- res[[3]][[1]][[1]] 
+# the posterior for (FALSE FALSE)
+obs_ff <- res[[3]][[1]][[2]]
+
+
+```
+
+```{r}
+obs_f[[1]] %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+obs_ft %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+obs_ff %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 
