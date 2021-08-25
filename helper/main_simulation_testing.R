@@ -99,8 +99,9 @@ main_simulation_testing <- function(subject = x,
   t <- 1
   
   
-  while(stimulus_idx <= total_trial_number && t <= max_observation){
-    
+ # while(stimulus_idx <= total_trial_number && t <= max_observation){
+   
+  while (t <= 30){ 
     df_model$t[[t]] = t
     df_model$stimulus_idx[[t]] = stimulus_idx
     
@@ -160,9 +161,12 @@ main_simulation_testing <- function(subject = x,
       
       
       
-      unnormalized_log_posterior <- ll_df_z_given_theta[[t]][[index]]$lp_z_given_theta + 
+  
+  
+      unnormalized_log_posterior <- ll_df_z_given_theta[[t]][[index]]$lp_z_given_theta  + 
         df_lp_theta_epsilon$lp_theta + 
         df_lp_theta_epsilon$lp_epsilon
+      
       
       
       ll_df_posterior[[t]][[index]]$unnormalized_log_posterior <- unnormalized_log_posterior
