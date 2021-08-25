@@ -1,11 +1,11 @@
 source(here("helper/noisy_update.R"))
 
 get_df_lp_theta_epsilon <- function( grid_theta, grid_epsilon, 
-                                  alpha_theta, beta_theta, 
+                                  alpha_prior, beta_prior, 
                                   alpha_epsilon, beta_epsilon){
   
   df_lp_thetas = tibble("theta" = grid_theta, 
-                        "lp_theta" = lp_theta(grid_theta, alpha_theta, beta_theta))
+                        "lp_theta" = lp_theta(grid_theta, alpha_prior, beta_prior))
   df_lp_epsilons = tibble("epsilon" = grid_epsilon, 
                           "lp_epsilon" = lp_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
   

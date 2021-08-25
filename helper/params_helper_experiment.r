@@ -17,12 +17,12 @@ get_sim_eva <- function(sim_res){
 }
 
 
-simulation_wrappter <- function(subject_n, stimuli_sequence, noise_parameter, 
-                                eig_from_world, max_observation, alpha_prior, beta_prior, forced_sample, sim_id, 
-                                type){
+simulation_wrapper <- function(subject_n, stimuli_sequence, noise_parameter, 
+                                eig_from_world, max_observation, alpha_prior, beta_prior, sim_id, 
+                                type = "regular"){
   
   sim_df <- main_simulations(subject_n, 
-                             stimuli_sequence, 
+                             stimuli_sequence[[sim_id]], 
                              noise_parameter, 
                              eig_from_world,
                              max_observation, # should this be per trial or in total? currently per trial 
@@ -32,10 +32,10 @@ simulation_wrappter <- function(subject_n, stimuli_sequence, noise_parameter,
                              beta_prior,
                              alpha_epsilon = alpha_epsilon, 
                              beta_epsilon = beta_epsilon, 
-                             forced_exposure = TRUE,
-                             forced_sample) %>% 
-    get_sim_res() %>% 
-    get_sim_eva()
+                             forced_exposure = FALSE,
+                             forced_sample = NULL) #%>% 
+    #get_sim_res() %>% 
+    #get_sim_eva()
   
   sim_df$sim_id <- sim_id
   sim_df$type <- type
