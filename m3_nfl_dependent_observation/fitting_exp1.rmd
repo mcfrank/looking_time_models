@@ -1,0 +1,159 @@
+---
+title: "Fitting model to data"
+author: "anjie"
+date: "8/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+```
+
+```{r}
+replace_character <- function(string,position,replacement){   
+  temp <- strsplit(string, "")[[1]];   
+  temp[position] <- replacement;   
+  paste0(temp, collapse = "") }
+
+
+d <- read_csv(here("data/trimmed_RTdata.csv"))
+
+
+temp_deviant_order <- d %>% 
+  filter(trial_type == "deviant") %>% 
+  select(subject, block_number, trial_number, trial_type) %>% 
+  group_by(subject, block_number) %>% 
+  mutate(
+    index = row_number(),
+    new_trial_type_index = case_when(
+      index == 1 ~ "first_deviant", 
+      index == 2 ~ "second_deviant"
+    ), 
+  ) %>% 
+  ungroup() %>% 
+  select(subject, block_number, trial_number, new_trial_type_index)
+
+
+ temp_d <- d %>% 
+   left_join(temp_deviant_order, by = c("subject", "block_number", "trial_number")) %>% 
+   rowwise() %>% 
+   mutate(
+    new_trial_type_index = if_else(is.na(new_trial_type_index), 
+                               "background", 
+                               new_trial_type_index)
+  )
+
+ 
+d_lt_scheme <- d %>% 
+   left_join(temp_d %>% filter(new_trial_type_index == "first_deviant") %>%  
+               mutate(new_first_dev_position = trial_number) %>% 
+               select(subject, block_number, new_first_dev_position), by = c("subject", "block_number")) %>% 
+   left_join(temp_d %>% filter(new_trial_type_index == "second_deviant") %>%  
+               mutate(new_second_dev_position = trial_number) %>% 
+               select(subject, block_number, new_second_dev_position), by = c("subject", "block_number")
+   )
+ 
+ new_d %>% 
+   select(-c(first_dev_position, second_dev_position)) %>% 
+   rename(first_dev_position = new_first_dev_position, 
+          second_dev_position = new_second_dev_position) %>% 
+    group_by(subject, block_number) %>% 
+  mutate(total_trial = max(trial_number),
+         ) %>% 
+  rowwise() %>% 
+  mutate( temp_background = paste(rep("B", total_trial), collapse = ""), 
+          sequence_scheme = case_when(
+            block_deviant_number == 0 ~ temp_background, 
+            block_deviant_number == 1 ~ replace_character(temp_background, first_dev_position, "D"), 
+            block_deviant_number == 2 ~ replace_character(temp_background, c(first_dev_position, second_dev_position), "D"),
+          )) 
+```
+
+
+2.get the parameters used in the original experiment and construct a training sequence 
+feature missing: 
+- different subjects using slightly different noise parameter & EIG_envr? 
+- different background and deviant? (currently all one feature on and off)
+- dependency between blocks? 
+```{r}
+s <- "BBBBBBBB"
+
+# has requirmeent for the sparity of vector space or the dissimilar ratio won't work 
+scheme_to_stimuli <- function(sequence_scheme, 
+                              fixed_length_complexity = TRUE,
+                              complexity, 
+                              #similarity?, 
+                              feature_space_n, 
+                              simple_feature_n, complex_feature_n, 
+                              dissimilar_ratio
+){
+  
+  if (fixed_length_complexity){
+    background_creature <- sample(c(rep(FALSE, 
+                                        feature_space_n - ifelse(complexity == "complex", complex_feature_n, simple_feature_n)),                                     rep(TRUE, ifelse(complexity == "complex", complex_feature_n, simple_feature_n))))
+    
+    # make deviant creature
+    # first figure out which location has TRUE
+    deviant_creature <- background_creature
+    
+    feature_pos <- which(background_creature == TRUE)
+    non_feature_pos <- which(background_creature == FALSE)
+    total_feature_n <- length(feature_pos)
+    feature_flip <- ceiling(total_feature_n * dissimilar_ratio)
+    feature_change_pos <- sample(feature_pos, 
+                               feature_flip, 
+                               replace = FALSE)
+    deviant_creature[feature_change_pos] <- !deviant_creature[feature_change_pos]
+  
+    # change non-feature to feature
+    non_feature_change_pos <- sample(non_feature_pos, 
+                                   ifelse(feature_flip > length(non_feature_pos), length(non_feature_pos), feature_flip), 
+                                   replace = FALSE)
+  
+   deviant_creature[non_feature_change_pos] <-!deviant_creature[non_feature_change_pos]
+  
+   dissimilar_stimuli = creature
+  
+  
+  }else{
+    
+    background_creature <- sample(c(rep(TRUE, ifelse(complexity == "complex", 
+                                                     complex_feature_n, 
+                                                     simple_feature_n))))
+    # how to represent dissimilarity with ratio? currently just flipping 
+    #FIXME: 
+    deviant_creature <- as.logical(1-background_creature)
+    
+  }
+  
+    
+  block_list <- strsplit(sequence_scheme, "")[[1]]
+  
+  background_sequence <- replicate(length(block_list), background_creature, simplify = FALSE)
+  background_sequence[which(block_list == "D")] <- replicate(length(which(block_list == "D")), 
+                                                             deviant_creature, simplify = FALSE)
+  
+  tidy_creature_sequence <- bind_rows(lapply(background_sequence,
+                                             function(x) x %>% as_tibble_row(.name_repair = make.names))) 
+  
+  # renaming columns 
+  rename_column <- function(x){paste0("V", x)}
+  tidy_column_names <- lapply(1:length(background_creature), rename_column)
+  colnames(tidy_creature_sequence) <- tidy_column_names
+  
+  return(tidy_creature_sequence)
+  
+
+}
+
+
+
+```
+
+3.fit the models with different parameters
+```{r}
+
+```
+
