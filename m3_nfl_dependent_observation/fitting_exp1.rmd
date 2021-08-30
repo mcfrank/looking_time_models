@@ -53,9 +53,7 @@ d_lt_scheme <- d %>%
    left_join(temp_d %>% filter(new_trial_type_index == "second_deviant") %>%  
                mutate(new_second_dev_position = trial_number) %>% 
                select(subject, block_number, new_second_dev_position), by = c("subject", "block_number")
-   )
- 
- new_d %>% 
+   ) %>% 
    select(-c(first_dev_position, second_dev_position)) %>% 
    rename(first_dev_position = new_first_dev_position, 
           second_dev_position = new_second_dev_position) %>% 
@@ -78,7 +76,6 @@ feature missing:
 - different background and deviant? (currently all one feature on and off)
 - dependency between blocks? 
 ```{r}
-s <- "BBBBBBBB"
 
 # has requirmeent for the sparity of vector space or the dissimilar ratio won't work 
 scheme_to_stimuli <- function(sequence_scheme, 
@@ -142,6 +139,8 @@ scheme_to_stimuli <- function(sequence_scheme,
   rename_column <- function(x){paste0("V", x)}
   tidy_column_names <- lapply(1:length(background_creature), rename_column)
   colnames(tidy_creature_sequence) <- tidy_column_names
+  tidy_creature_sequence <- tidy_creature_sequence %>% 
+    mutate(trial_number = row_number())
   
   return(tidy_creature_sequence)
   
@@ -152,8 +151,146 @@ scheme_to_stimuli <- function(sequence_scheme,
 
 ```
 
-3.fit the models with different parameters
+3.generate stimuli sequence with a fixed set of parameters 
+
+currently assuming independence between blocks from the same participants 
 ```{r}
+d_with_stimuli_sequence <- d_lt_scheme %>% 
+  select(subject, block_number, sequence_scheme) %>% 
+  distinct() %>% 
+  rowwise() %>% 
+  mutate(
+    stimuli_sequence = nest(scheme_to_stimuli(sequence_scheme, fixed_length_complexity = FALSE, 
+                                              complexity = "complex", 
+                                              feature_space_n = 1, 
+                                              simple_feature_n = 1, 
+                                              complex_feature_n = 1, 
+                                              dissimilar_ratio = 1), data = everything()), 
+   
+  ) %>% 
+  ungroup() %>% 
+  mutate(sim_id = row_number())
+  
+```
+
+```{r}
+source(here("helper/get_eig_faster.R"))
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/main_simulation_under_construction.r"))
+source(here("helper/params_helper_experiment.r"))
+library(matrixStats)
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_epsilon = 1 
+beta_epsilon = 1
+
+d_for_linking <- d_with_stimuli_sequence %>% 
+  select(sim_id, stimuli_sequence) %>% 
+  mutate(noise_parameter = 0.001, 
+         eig_from_world = 0.005, 
+         max_observation = 500, 
+         alpha_prior = 1, 
+         beta_prior = 1)   # this eventually needs to be changed 
+
+d_for_linking
+```
+
+```{r}
+sim_res <- pmap_dfr(d_for_linking, 
+     simulation_wrapper_for_linking_data
+     )
+```
+
+# double check the length 
+```{r}
+sim_res %>% 
+  group_by(sim_id, stimulus_idx) %>% 
+  summarise(
+    sample_n = n()
+  ) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  group_by(sim_id) %>% 
+  mutate(trial_num = max(stimulus_idx)) %>% 
+  ungroup() %>% 
+  distinct(sim_id, trial_num) %>% 
+  left_join(d_with_stimuli_sequence, by = "sim_id") %>% 
+  rowwise() %>% 
+  mutate(origianl_seq_length = length(str_split(sequence_scheme, "")[[1]])) %>% 
+  filter(origianl_seq_length != trial_num)
+```
+```{r}
+d_with_stimuli_sequence
+d_res_final <- d_lt_scheme %>% 
+  ungroup() %>% 
+  select(subject, block_number, block_type, trial_number, trial_type, rt
+         ) %>% 
+  left_join(d_with_stimuli_sequence, by = c("subject", "block_number")) %>% 
+  left_join(sim_res %>% group_by(sim_id, stimulus_idx) %>% 
+              summarise(
+              sample_n = n()
+              ) %>% 
+              filter(!is.na(stimulus_idx)) %>% 
+              rename(trial_number = stimulus_idx), 
+            by = c("sim_id", "trial_number"))
+  
+  
+```
+
+
+# plotting 
+
+
+
+
+
+```{r}
+d_res_final %>% 
+  ggplot(aes(x = trial_number, y = sample_n, color = trial_type)) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  theme_classic() 
+```
+
+```{r}
+d_res_final %>% 
+  group_by(
+    trial_number, 
+    block_type, 
+    trial_type
+  ) %>% 
+  summarise(
+    mean_lt = mean(rt+500), 
+    mean_sample = mean(sample_n)
+  ) %>% 
+  ggplot(aes(x = log(mean_lt), y = mean_sample)) + 
+   geom_point() + 
+  geom_smooth(method = "lm") + 
+  #facet_wrap(~block_type)+ 
+  theme_classic()
+```
+```{r}
+d_res_summary = d_res_final %>% 
+  group_by(
+    trial_number, 
+    block_type, 
+    trial_type
+  ) %>% 
+  summarise(
+    log_rt = log(rt+500),
+    mean_lt = mean(rt+500), 
+    mean_log_lt = mean(log_rt),
+    mean_sample = mean(sample_n)
+  ) 
+
+cor.test(d_res_summary$mean_lt, d_res_summary$mean_sample, method=c("pearson"))
+cor.test(d_res_summary$mean_log_lt, d_res_summary$mean_sample, method=c("pearson"))
 
 ```
+
+
+
+
+
 
