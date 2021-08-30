@@ -44,6 +44,32 @@ simulation_wrapper <- function(subject_n, stimuli_sequence, noise_parameter,
   return(sim_df)  
 }
 
+simulation_wrapper_for_linking_data <- function(sim_id, stimuli_sequence, noise_parameter, 
+                               eig_from_world, max_observation, alpha_prior, beta_prior){
+  
+  sim_df <- main_simulations(1, 
+                             stimuli_sequence[[sim_id]], 
+                             noise_parameter, 
+                             eig_from_world,
+                             max_observation, # should this be per trial or in total? currently per trial 
+                             grid_theta = grid_theta, 
+                             grid_epsilon = grid_epsilon, 
+                             alpha_prior, 
+                             beta_prior,
+                             alpha_epsilon = alpha_epsilon, 
+                             beta_epsilon = beta_epsilon, 
+                             forced_exposure = FALSE,
+                             forced_sample = NULL) #%>% 
+  #get_sim_res() %>% 
+  #get_sim_eva()
+  
+  sim_df$sim_id <- sim_id
+  
+  print(sim_id)
+  return(sim_df)  
+}
+
+
 get_fam_pref_df <- function(params_df){
   bckgrd_df <- params_df %>% 
     filter(type == "background") %>% 
