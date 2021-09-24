@@ -44,10 +44,10 @@ simulation_wrapper <- function(subject_n, stimuli_sequence, noise_parameter,
   return(sim_df)  
 }
 
-simulation_wrapper_for_linking_data <- function(sim_id, stimuli_sequence, noise_parameter, 
-                               eig_from_world, max_observation, alpha_prior, beta_prior){
+simulation_wrapper_for_linking_data <- function(sim_id, n, stimuli_sequence, noise_parameter, 
+                               eig_from_world, max_observation, alpha_prior, beta_prior, alpha_epsilon, beta_epsilon){
   
-  sim_df <- main_simulations(1, 
+  sim_df <- main_simulations(n, 
                              stimuli_sequence[[sim_id]], 
                              noise_parameter, 
                              eig_from_world,
@@ -56,8 +56,8 @@ simulation_wrapper_for_linking_data <- function(sim_id, stimuli_sequence, noise_
                              grid_epsilon = grid_epsilon, 
                              alpha_prior, 
                              beta_prior,
-                             alpha_epsilon = alpha_epsilon, 
-                             beta_epsilon = beta_epsilon, 
+                             alpha_epsilon, 
+                             beta_epsilon, 
                              forced_exposure = FALSE,
                              forced_sample = NULL) #%>% 
   #get_sim_res() %>% 
