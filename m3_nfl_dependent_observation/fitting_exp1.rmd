@@ -9,288 +9,331 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
-```
-
-```{r}
-replace_character <- function(string,position,replacement){   
-  temp <- strsplit(string, "")[[1]];   
-  temp[position] <- replacement;   
-  paste0(temp, collapse = "") }
+library(matrixStats)
 
 
-d <- read_csv(here("data/trimmed_RTdata.csv"))
-
-
-temp_deviant_order <- d %>% 
-  filter(trial_type == "deviant") %>% 
-  select(subject, block_number, trial_number, trial_type) %>% 
-  group_by(subject, block_number) %>% 
-  mutate(
-    index = row_number(),
-    new_trial_type_index = case_when(
-      index == 1 ~ "first_deviant", 
-      index == 2 ~ "second_deviant"
-    ), 
-  ) %>% 
-  ungroup() %>% 
-  select(subject, block_number, trial_number, new_trial_type_index)
-
-
- temp_d <- d %>% 
-   left_join(temp_deviant_order, by = c("subject", "block_number", "trial_number")) %>% 
-   rowwise() %>% 
-   mutate(
-    new_trial_type_index = if_else(is.na(new_trial_type_index), 
-                               "background", 
-                               new_trial_type_index)
-  )
-
- 
-d_lt_scheme <- d %>% 
-   left_join(temp_d %>% filter(new_trial_type_index == "first_deviant") %>%  
-               mutate(new_first_dev_position = trial_number) %>% 
-               select(subject, block_number, new_first_dev_position), by = c("subject", "block_number")) %>% 
-   left_join(temp_d %>% filter(new_trial_type_index == "second_deviant") %>%  
-               mutate(new_second_dev_position = trial_number) %>% 
-               select(subject, block_number, new_second_dev_position), by = c("subject", "block_number")
-   ) %>% 
-   select(-c(first_dev_position, second_dev_position)) %>% 
-   rename(first_dev_position = new_first_dev_position, 
-          second_dev_position = new_second_dev_position) %>% 
-    group_by(subject, block_number) %>% 
-  mutate(total_trial = max(trial_number),
-         ) %>% 
-  rowwise() %>% 
-  mutate( temp_background = paste(rep("B", total_trial), collapse = ""), 
-          sequence_scheme = case_when(
-            block_deviant_number == 0 ~ temp_background, 
-            block_deviant_number == 1 ~ replace_character(temp_background, first_dev_position, "D"), 
-            block_deviant_number == 2 ~ replace_character(temp_background, c(first_dev_position, second_dev_position), "D"),
-          )) 
-```
-
-
-2.get the parameters used in the original experiment and construct a training sequence 
-feature missing: 
-- different subjects using slightly different noise parameter & EIG_envr? 
-- different background and deviant? (currently all one feature on and off)
-- dependency between blocks? 
-```{r}
-
-# has requirmeent for the sparity of vector space or the dissimilar ratio won't work 
-scheme_to_stimuli <- function(sequence_scheme, 
-                              fixed_length_complexity = TRUE,
-                              complexity, 
-                              #similarity?, 
-                              feature_space_n, 
-                              simple_feature_n, complex_feature_n, 
-                              dissimilar_ratio
-){
-  
-  if (fixed_length_complexity){
-    background_creature <- sample(c(rep(FALSE, 
-                                        feature_space_n - ifelse(complexity == "complex", complex_feature_n, simple_feature_n)),                                     rep(TRUE, ifelse(complexity == "complex", complex_feature_n, simple_feature_n))))
-    
-    # make deviant creature
-    # first figure out which location has TRUE
-    deviant_creature <- background_creature
-    
-    feature_pos <- which(background_creature == TRUE)
-    non_feature_pos <- which(background_creature == FALSE)
-    total_feature_n <- length(feature_pos)
-    feature_flip <- ceiling(total_feature_n * dissimilar_ratio)
-    feature_change_pos <- sample(feature_pos, 
-                               feature_flip, 
-                               replace = FALSE)
-    deviant_creature[feature_change_pos] <- !deviant_creature[feature_change_pos]
-  
-    # change non-feature to feature
-    non_feature_change_pos <- sample(non_feature_pos, 
-                                   ifelse(feature_flip > length(non_feature_pos), length(non_feature_pos), feature_flip), 
-                                   replace = FALSE)
-  
-   deviant_creature[non_feature_change_pos] <-!deviant_creature[non_feature_change_pos]
-  
-   dissimilar_stimuli = creature
-  
-  
-  }else{
-    
-    background_creature <- sample(c(rep(TRUE, ifelse(complexity == "complex", 
-                                                     complex_feature_n, 
-                                                     simple_feature_n))))
-    # how to represent dissimilarity with ratio? currently just flipping 
-    #FIXME: 
-    deviant_creature <- as.logical(1-background_creature)
-    
-  }
-  
-    
-  block_list <- strsplit(sequence_scheme, "")[[1]]
-  
-  background_sequence <- replicate(length(block_list), background_creature, simplify = FALSE)
-  background_sequence[which(block_list == "D")] <- replicate(length(which(block_list == "D")), 
-                                                             deviant_creature, simplify = FALSE)
-  
-  tidy_creature_sequence <- bind_rows(lapply(background_sequence,
-                                             function(x) x %>% as_tibble_row(.name_repair = make.names))) 
-  
-  # renaming columns 
-  rename_column <- function(x){paste0("V", x)}
-  tidy_column_names <- lapply(1:length(background_creature), rename_column)
-  colnames(tidy_creature_sequence) <- tidy_column_names
-  tidy_creature_sequence <- tidy_creature_sequence %>% 
-    mutate(trial_number = row_number())
-  
-  return(tidy_creature_sequence)
-  
-
-}
-
-
-
-```
-
-3.generate stimuli sequence with a fixed set of parameters 
-
-currently assuming independence between blocks from the same participants 
-```{r}
-d_with_stimuli_sequence <- d_lt_scheme %>% 
-  select(subject, block_number, sequence_scheme) %>% 
-  distinct() %>% 
-  rowwise() %>% 
-  mutate(
-    stimuli_sequence = nest(scheme_to_stimuli(sequence_scheme, fixed_length_complexity = FALSE, 
-                                              complexity = "complex", 
-                                              feature_space_n = 1, 
-                                              simple_feature_n = 1, 
-                                              complex_feature_n = 1, 
-                                              dissimilar_ratio = 1), data = everything()), 
-   
-  ) %>% 
-  ungroup() %>% 
-  mutate(sim_id = row_number())
-  
-```
-
-```{r}
+source(here("helper/make_scheme_and_params.r"))
 source(here("helper/get_eig_faster.R"))
 source(here("helper/get_stimuli.R"))
 source(here("helper/get_observation.R"))
 source(here("helper/main_simulation_under_construction.r"))
 source(here("helper/params_helper_experiment.r"))
-library(matrixStats)
+
+
+d <- read_csv(here("data/processed_rt_task_data.csv"))
+
+
+```
+
+# figuring out the sequece and generate the stimuli sequence with allt he parameters 
+
+
+```{r}
+
+alpha_epsilon = c(1)
+beta_epsilon = c(1)
+alpha_priors = c(1, 50)
+beta_priors = c(1,50)
+noise_parameters = c(0.001, 0.005)
+eigs_from_world = c(0.001,0.005)
+max_observation = 500
+fixed_length_complexity = TRUE 
+feature_space_n = 7
+simple_feature_n = 1
+complex_feature_n = 3
+dissimilar_ratio = 1
+sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
+complexity = c("complex", "simple")
+
+full_params_df <- make_simulation_params(
+                                   sequence_scheme, 
+                                   complexity, 
+                                   alpha_priors, 
+                                   beta_priors, 
+                                   alpha_epsilon, 
+                                   beta_epsilon, 
+                                   noise_parameter, 
+                                   eig_from_world, 
+                                   max_observation, 
+                                   fixed_length_complexity, 
+                                   feature_space_n, 
+                                   simple_feature_n, 
+                                   complex_feature_n, 
+                                   dissimilar_ratio)
+
+full_params_df
+
+```
+
+
+
+
+# running the simulation 
+
+
+
+```{r}
 grid_theta <- seq(0.1, 1, 0.2)
 grid_epsilon <- seq(0.1, 1, 0.2)
-grid_theta <- seq(0.1, 1, 0.2)
-grid_epsilon <- seq(0.1, 1, 0.2)
-alpha_epsilon = 1 
-beta_epsilon = 1
 
-d_for_linking <- d_with_stimuli_sequence %>% 
-  select(sim_id, stimuli_sequence) %>% 
-  mutate(noise_parameter = 0.001, 
-         eig_from_world = 0.005, 
-         max_observation = 500, 
-         alpha_prior = 1, 
-         beta_prior = 1)   # this eventually needs to be changed 
 
-d_for_linking
+
+
+run_all_sims <- function(full_params_df){
+  
+  
+  params_id <- full_params_df %>% 
+  distinct(params_id) %>% 
+  select(params_id) %>% 
+  pull()
+  
+  sim_use_params_df <- full_params_df %>% 
+    select(params_id, sim_id, n, stimuli_sequence, noise_parameter, 
+                               eig_from_world, max_observation, alpha_prior, beta_prior, alpha_epsilon, beta_epsilon)
+  
+  lapply(params_id, 
+         function(id){
+           pmap_dfr(sim_use_params_df %>% filter(params_id == id) %>% select(-c("params_id")), 
+            simulation_wrapper_for_linking_data
+            ) %>% 
+             mutate(params_id = id)
+         }) %>% 
+    bind_rows()
+  
+}
+
+
+all_sims_res <- run_all_sims(full_params_df)
+saveRDS(all_sims_res, file = "premeetingrun.RDS")
+
 ```
 
 ```{r}
-sim_res <- pmap_dfr(d_for_linking, 
-     simulation_wrapper_for_linking_data
-     )
+sim_res_only_deviant_last <- run_all_sims(full_params_df %>% filter(sequence_scheme == "BBBBBD"))
+
 ```
 
-# double check the length 
+
 ```{r}
-sim_res %>% 
-  group_by(sim_id, stimulus_idx) %>% 
-  summarise(
-    sample_n = n()
-  ) %>% 
+alpha_epsilon = c(1)
+beta_epsilon = c(1)
+alpha_priors = c(1, 50)
+beta_priors = c(1,50)
+noise_parameters = c(0.001)
+eigs_from_world = c(0.005)
+max_observation = 500
+fixed_length_complexity = FALSE 
+feature_space_n = 10
+simple_feature_n = 1
+complex_feature_n = 5
+dissimilar_ratio = 1
+
+
+
+non_fixed_full_params_df <- make_simulation_params(alpha_priors, 
+                                   beta_priors, 
+                                   alpha_epsilon, 
+                                   beta_epsilon, 
+                                   noise_parameter, 
+                                   eig_from_world, 
+                                   max_observation, 
+                                   fixed_length_complexity, 
+                                   feature_space_n, 
+                                   simple_feature_n, 
+                                   complex_feature_n, 
+                                   dissimilar_ratio)
+
+all_sims_res <- run_all_sims(non_fixed_full_params_df)
+
+```
+
+
+# cleaning the simulation result to run correlation with the model 
+
+
+```{r}
+complete_sim_res <- all_sims_res %>% 
+  group_by(params_id, sim_id, subject_id, stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
   filter(!is.na(stimulus_idx)) %>% 
-  group_by(sim_id) %>% 
-  mutate(trial_num = max(stimulus_idx)) %>% 
-  ungroup() %>% 
-  distinct(sim_id, trial_num) %>% 
-  left_join(d_with_stimuli_sequence, by = "sim_id") %>% 
-  rowwise() %>% 
-  mutate(origianl_seq_length = length(str_split(sequence_scheme, "")[[1]])) %>% 
-  filter(origianl_seq_length != trial_num)
-```
-```{r}
-d_with_stimuli_sequence
-d_res_final <- d_lt_scheme %>% 
-  ungroup() %>% 
-  select(subject, block_number, block_type, trial_number, trial_type, rt
-         ) %>% 
-  left_join(d_with_stimuli_sequence, by = c("subject", "block_number")) %>% 
-  left_join(sim_res %>% group_by(sim_id, stimulus_idx) %>% 
-              summarise(
-              sample_n = n()
-              ) %>% 
-              filter(!is.na(stimulus_idx)) %>% 
-              rename(trial_number = stimulus_idx), 
-            by = c("sim_id", "trial_number"))
-  
-  
+  left_join(full_params_df %>% select(-n), by = c("params_id", "sim_id")) %>% 
+  mutate(prior_info = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
+  mutate(eig_info = paste("np", noise_parameter, "ee", eig_from_world))
+
+
 ```
 
 
-# plotting 
 
 
-
-
+# import looking time 
 
 ```{r}
-d_res_final %>% 
-  ggplot(aes(x = trial_number, y = sample_n, color = trial_type)) + 
-  stat_summary(fun.data = "mean_cl_boot") + 
-  theme_classic() 
-```
+lt_df <- read_csv(here("data/processed_rt_task_data.csv"))
 
-```{r}
-d_res_final %>% 
-  group_by(
-    trial_number, 
-    block_type, 
-    trial_type
-  ) %>% 
+lt_df_cleaned <- lt_df %>% 
+  group_by(deviant_position, block_type, trial_number, trial_type) %>% 
   summarise(
-    mean_lt = mean(rt+500), 
-    mean_sample = mean(sample_n)
+    mean_lt = mean(trial_looking_time),
+    log_mean_lt = log(mean(trial_looking_time))
   ) %>% 
-  ggplot(aes(x = log(mean_lt), y = mean_sample)) + 
-   geom_point() + 
+  mutate(
+    sequence_scheme = case_when(
+      deviant_position == 2 ~ "BDBBBB", 
+      deviant_position == 4 ~ "BBBDBB", 
+      deviant_position == 6 ~ "BBBBBD", 
+      is.na(deviant_position) ~ "BBBBBB"
+    ), 
+    complexity = case_when(
+      block_type == "complex_dissimilar" ~ "complex", 
+      block_type == "simple_dissimilar" ~ "simple"
+    )
+  )
+lt_df_cleaned
+```
+
+```{r}
+lt_df_with_blocks <- lt_df %>% 
+  group_by(deviant_position, block_type, block_number, trial_number, trial_type) %>% 
+  summarise(
+    mean_lt = mean(trial_looking_time),
+    log_mean_lt = log(mean(trial_looking_time))
+  ) %>% 
+  mutate(
+    sequence_scheme = case_when(
+      deviant_position == 2 ~ "BDBBBB", 
+      deviant_position == 4 ~ "BBBDBB", 
+      deviant_position == 6 ~ "BBBBBD", 
+      is.na(deviant_position) ~ "BBBBBB"
+    ), 
+    complexity = case_when(
+      block_type == "complex_dissimilar" ~ "complex", 
+      block_type == "simple_dissimilar" ~ "simple"
+    )
+  )
+
+lt_df_with_blocks
+```
+
+
+```{r}
+complete_sim_res %>% 
+  group_by(params_id, stimulus_idx, sim_id, sequence_scheme, complexity, prior_info, eig_info) %>% 
+  summarise(sample_n = mean(sample_n)) %>% 
+  rename(trial_number = stimulus_idx) %>% 
+  left_join(lt_df_cleaned, by = c("sequence_scheme", "complexity", "trial_number")) %>% 
+  ggplot(aes(x = log(sample_n), y = log_mean_lt, color = trial_number)) + 
+  geom_point()+ 
   geom_smooth(method = "lm") + 
-  #facet_wrap(~block_type)+ 
+  facet_wrap(eig_info~prior_info)
+
+
+```
+
+```{r}
+complete_sim_res %>% 
+   ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange",  position = position_dodge(width = .2)) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "line",  position = position_dodge(width = .2)) + 
+  theme_classic() + 
+  facet_grid(eig_info~sequence_scheme)
+
+complete_sim_res %>% 
+   ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange",  position = position_dodge(width = .2)) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "line",  position = position_dodge(width = .2)) + 
+  theme_classic() + 
+  facet_grid(prior_info ~ sequence_scheme)
+```
+
+
+```{r}
+lapply(seq(1, 8, 1), 
+       function(x){
+         calculate_correlation(complete_sim_res, 
+                               lt_df_with_blocks %>% filter(block_number == x)) %>% 
+           mutate(block_number = x)
+       }) %>% 
+  bind_rows() %>% 
+  ggplot(aes(x = block_number, y = pearson_cor, color = prior_info)) + 
+  geom_point() + 
+  geom_line() + 
   theme_classic()
 ```
+
+
 ```{r}
-d_res_summary = d_res_final %>% 
-  group_by(
-    trial_number, 
-    block_type, 
-    trial_type
-  ) %>% 
-  summarise(
-    log_rt = log(rt+500),
-    mean_lt = mean(rt+500), 
-    mean_log_lt = mean(log_rt),
-    mean_sample = mean(sample_n)
-  ) 
 
-cor.test(d_res_summary$mean_lt, d_res_summary$mean_sample, method=c("pearson"))
-cor.test(d_res_summary$mean_log_lt, d_res_summary$mean_sample, method=c("pearson"))
+calculate_correlation <- function(complete_sim_res, lt_df_cleaned){
+  
+  temp_d <- complete_sim_res %>% 
+      group_by(params_id, stimulus_idx, sim_id, sequence_scheme, complexity, prior_info) %>% 
+      summarise(sample_n = mean(sample_n)) %>% 
+      rename(trial_number = stimulus_idx) %>% 
+      left_join(lt_df_cleaned, by = c("sequence_scheme", "complexity", "trial_number")) %>% 
+      ungroup() 
+  
+  all_params_id <- temp_d %>% 
+    distinct(params_id) %>% 
+    pull()
+  
+  corr_value_df <- lapply(all_params_id, 
+         function(x){
+            sub_d <- temp_d %>% filter(params_id == x)
+            pearson_cor <- cor(log(sub_d$sample_n), sub_d$log_mean_lt, use = "pairwise.complete.obs")
+            return(tibble(
+              pearson_cor = pearson_cor, 
+              params_id = x
+            ))
+         }) %>% 
+    bind_rows()
+  
+  corr_value_df <- temp_d %>% 
+    select(params_id, prior_info) %>% 
+    distinct(params_id, prior_info) %>% 
+    left_join(corr_value_df, by = "params_id") %>% 
+    arrange(-pearson_cor)
+  
+  return(corr_value_df)
+    
+}
 
+calculate_correlation(complete_sim_res, lt_df_cleaned) %>% 
+  ggplot(aes(x = prior_info, y = pearson_cor)) + 
+  geom_point()
+
+```
+
+
+```{r}
+complete_sim_res %>% 
+  #filter(sequence_scheme == "BBBBBD") %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange",  position = position_dodge(width = .2)) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "line",  position = position_dodge(width = .2)) + 
+  theme_classic()+
+  langcog::scale_color_solarized(name = "Complexity") + 
+  facet_grid(prior_info~sequence_scheme)
 ```
 
 
 
 
 
+
+
+
+```{r}
+sim_res %>% 
+  group_by(sim_id, subject_id, stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  left_join(ss_type_df, by = "sim_id" ) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange",  position = position_dodge(width = .2)) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "line",  position = position_dodge(width = .2)) + 
+  theme_classic()+
+  langcog::scale_color_solarized(name = "Complexity") + 
+  facet_wrap(~sequence_scheme)
+```
 
