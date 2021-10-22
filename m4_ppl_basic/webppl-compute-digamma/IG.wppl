@@ -1,0 +1,544 @@
+var admin = function(targetParams, budget, students) {
+  return Infer({method: 'enumerate'}, function(){
+    // Do not allow more than total number of students' number of teachers
+    var maxTeachers = Math.min(students.length, Math.floor(budget/costPerTeacher));
+    
+    // Draw a random number of teachers within the budget to simulate a school
+    //var numTeachers = uniformDraw(_.range(1, maxTeachers + 1));
+    var numTeachers = flip(0.9) ? 2 : 1;
+    
+    // Sort students by their prior beliefs' distributional means
+    var sortedStudents = sortStudents(students);
+    
+    // Sort noisy students by their assumed prior beliefs
+    var sortedGuessedStudents = sortGuessedStudents(students);
+
+    // Array of student distributed into subsets representing numTeachers classrooms
+    var distributedStudents = distributeStudents(sortedStudents, numTeachers);
+    
+    // Calculate the expected target given the targetParams
+    var target = targetParams.alpha / (targetParams.alpha + targetParams.beta);
+    
+    // Assign teachers to teach each classroom
+    var classroomExpectations = map(function(studentsInClassroom){
+      
+      // Model each classroom independently
+//       var teacherScore = getTeacherScore(target, studentsInClassroom);
+//       print("break1")
+//       viz.hist(teacherScore)
+//       print(expectation(teacherScore))
+//       print("break2")
+// //    return getTeacherScore(target, studentsInClassroom);
+//       return expectation(teacherScore);
+
+//     }, distributedStudents);
+    
+    var teacherScore = getTeacherScore(target, studentsInClassroom);
+//       print("break1")
+      //viz.hist(teacherScore)
+//       print(mapObject(function(propName, value){
+//         return 
+//       }, teacherScore))
+//       print(teacherScore)
+      //print(MAP(teacherScore))
+      //print("break2")
+//    return getTeacherScore(target, studentsInClassroom);
+//       return expectation(teacherScore);
+      return MAP(teacherScore).val;
+
+    }, distributedStudents);
+    
+    // Argmax version, as opposed to expected value
+//     var classroomMaxScores = map(function(classroomDist){
+//       classroomDist.support
+//       return Math.max(classroomDist.support);
+//     }, classroomDists);
+    
+//     print(classroomMaxScores)
+    
+    //factor(sum(classroomExpectations));
+    
+    // Array of student distributed into subsets representing numTeachers classrooms
+    var distributedUnsortedStudents = distributeStudents(sortedGuessedStudents, numTeachers);
+    
+    // Assign teachers to teach each classroom
+    var unsortedClassroomExpectations = map(function(studentsInClassroom){
+      var teacherScore = getTeacherScore(target, studentsInClassroom);
+      return MAP(teacherScore).val;
+    }, distributedUnsortedStudents);
+    
+
+    return sum(unsortedClassroomExpectations) <= sum(classroomExpectations)
+  })
+
+}
+
+
+// A version of teacher method that returns the scores
+var getTeacherScore = function(target, students) { 
+  return Infer({method: 'enumerate'}, function(){
+
+    var example = repeat(7, flip);
+
+    // All students are in this scope
+    var learnerPosteriors = map(function(student){
+      
+      // Individual students in this scope
+      return learnerDist(student.priorAlpha, student.priorBeta, example);
+    
+    }, students);
+    
+    // Stochastic generation of posteriors, not using closed form
+    //map(function(learnerPost){ observe(learnerPost, target) }, learnerPosteriors)
+    
+    var scores = map(function(currPosterior){
+      return currPosterior.score(target);
+    }, learnerPosteriors)
+    
+    //print(scores)
+    
+    factor(sum(scores));
+    
+    return sum(scores);
+
+  });
+  
+
+}
+
+
+// Helper function to sort students by prior distribution mean
+var sortGuessedStudents = function(students) {
+  
+  var betaMeanFn = function(x){
+    
+    return x.guessAlpha / (x.guessAlpha + x.guessBeta)};
+  
+  var sortedStudents = sortOn(students, betaMeanFn)
+  
+  return sortedStudents;
+}
+
+// Helper function to sort students by speculated prior distribution
+var sortStudents = function(students) {
+
+  //Sort on true alphas/betas
+  var betaMeanFn = function(x){return x.priorAlpha / (x.priorAlpha + x.priorBeta + 0.0)};
+
+  //Sort on guessed alphas/betas
+  //var betaMeanFn = function(x){return x.priorAlpha / (x.guessAlpha + x.guessBeta + 0.0)};
+  
+  var sortedStudents = sortOn(students, betaMeanFn)
+  
+  return sortedStudents;
+}
+
+var sortNoisyStudents = function(students) {
+
+  //Sort on guessed alphas/betas
+  var betaMeanFn = function(x){return x.priorAlpha / (x.guessAlpha + x.guessBeta + 0.0)};
+  
+  var sortedStudents = sortOn(students, betaMeanFn)
+  
+  return sortedStudents;
+}
+
+
+// Helper function to distribute students into N classrooms
+var distributeStudents = function(students, N){
+  if (N < 2) { return [students]; };
+
+  var len = students.length;
+  
+  if (len % N === 0) {
+    var size = Math.floor(len / N);
+    return [students.slice(0, size)].concat(distributeStudents(students.slice(size), N-1))
+  }
+
+  else {
+    var size = Math.ceil(len / N);
+    return [students.slice(0, size)].concat(distributeStudents(students.slice(size), N-1))
+  }
+
+}
+
+var teacher = function(target, students) {
+  return Infer({method: 'enumerate'}, function() {
+    var example = repeat(7, flip);
+    
+    //var utility = learnerDist(studentInitialAlpha, studentInitialBeta, [example]);
+    //var utility2 = learnerDist(3, 1, [example]);
+    
+    var learnerPosteriors = map2(function(priorAlpha, priorBeta){
+      return learnerDist(priorAlpha, priorBeta, example);
+    }, students.priorAlphas, students.priorBetas);
+    
+    
+    map(function(learnerPost){ observe(learnerPost, target) }, 
+       learnerPosteriors)
+    
+    // observe(Dist, val) === factor(Dist.score(val))
+    // condition(x === y) === factor( x === y ? 0 : -Infinity)
+    
+    var scores = map(function(currUtility){
+      return currUtility.score(target);
+    }, utilities)
+    
+    factor(sum(scores));
+    
+    return sum(example);
+  });
+};
+
+var addTrues = function(total, test){
+  return test ? total + 1 : total;
+}
+
+//Recursive function to generate a sequence of student priorAlphas and priorBetas
+var generateSequence = function(numStudents, min, max){
+  return repeat(numStudents, function(){uniformDraw(_.range(1,10))})
+  
+  //*****
+  //Non-functional programming approach
+  //*****
+  //
+  //for(var i = 0; i < numStudents; i++){
+  //  ground[priorAlphas][i] = Math.floor(Math.random() * 10) + 1 //Generate random int between 1 and 10 inclusive
+  //}
+}
+
+//Wrapper function to return an array of objects, each that represent a student and contains priorAlpha and priorBeta properties
+var generateStudentsArray = function(numStudents){
+  var priorAlphas = generateSequence(numStudents, 1, 10);
+  //var priorBetas = generateSequence(numStudents, 1, 10);
+  var priorBetas = map(function(alpha){
+    return 11-alpha;
+  }, priorAlphas);
+  
+  // Calculate the beliefs as a function of 
+  var students = map2(function(priorAlpha, priorBeta){
+    var guessAlpha = Math.max(priorAlpha + uniformDraw(_.range(-2, 2)), 1);
+    var guessBeta = Math.max(priorBeta + uniformDraw(_.range(-2, 2)), 1);    
+    
+    // Temporarily use uniform distribution to get better res
+    var guessAlpha = Math.max(priorAlpha + uniformDraw(_.range(-2, 2)), 1);
+    var guessBeta = Math.max(priorBeta + uniformDraw(_.range(-2, 2)), 1);
+    
+    return {priorAlpha: priorAlpha, priorBeta: priorBeta, guessAlpha: guessAlpha, guessBeta: guessBeta}
+  
+  }, priorAlphas, priorBetas);
+
+  return students; 
+}
+
+var updateStudentGuesses = function(students, numAssessments){
+
+  var updatedStudents = map(function(student){
+
+    var range = 5 * Math.pow(1.3, -1 * numAssessments)
+    var guessAlpha = Math.max(student.priorAlpha + 2 * range * Math.random() - range, 1);
+    var guessBeta = Math.max(student.priorBeta + 2 * range * Math.random() - range, 1);    
+   
+    // Temporarily use uniform distribution to get better res
+    //var guessAlpha = Math.max(priorAlpha + uniformDraw(_.range(-2, 2)), 1);
+    //var guessBeta = Math.max(priorBeta + uniformDraw(_.range(-2, 2)), 1);
+    
+    return {priorAlpha: student.priorAlpha, priorBeta: student.priorBeta, guessAlpha: guessAlpha, guessBeta: guessBeta}
+  
+  }, students);
+
+  return updatedStudents; 
+}
+
+//Wrapper function to return a dictionary of arrays representing prior alphas and prior betas
+var generateStudents = function(numStudents){
+   return {priorAlphas: generateSequence(numStudents, 1, 10), priorBetas: generateSequence(numStudents, 1, 10)}; 
+}
+
+var generateStudents = function(numStudents){
+  var priorAlphas = generateSequence(numStudents, 1, 10);
+  var priorBetas = generateSequence(numStudents, 1, 10);
+  
+  // Calculate the beliefs as a function of 
+  var students = map2(function(priorAlpha, priorBeta){
+    return {priorAlpha: priorAlpha, priorBeta: priorBeta}
+  }, priorAlphas, priorBetas)
+  
+   return {priorAlphas: generateSequence(numStudents, 1, 10), priorBetas: generateSequence(numStudents, 1, 10)}; 
+}
+
+var generateTargetParams = function(nu){
+  var alpha = uniformDraw(_.range(1,nu-1));
+  var beta = nu-alpha
+  return {alpha: alpha, beta: beta}
+}
+
+
+//Returns student posterior distribution
+var learnerDist = function(priorAlpha, priorBeta, example){
+  
+  var numTrues = sum(example)//reduce(addTrues, 0, example);
+  
+  var postAlpha = priorAlpha + numTrues //Number of trues
+  
+  var postBeta = priorBeta + example.length - numTrues //Number of falses
+  
+  return Beta({a: postAlpha, b: postBeta})
+}
+
+//Returns parameters of student posterior distribution
+var learnerDistParams = function(priorAlpha, priorBeta, example){
+  
+  var numTrues = sum(example)//reduce(addTrues, 0, example);
+  
+  var postAlpha = priorAlpha + numTrues //Number of trues
+  
+  var postBeta = priorBeta + example.length - numTrues //Number of falses
+  
+  return {a: postAlpha, b: postBeta}
+}
+
+var getTeacherIG = function(students, targetParams, numExamples){
+  return Infer({method: 'enumerate'}, function(){
+    
+    //Use this to seed the prior likelihoods of examples
+    var target = targetParams.alpha / (targetParams.alpha + targetParams.beta);
+
+    //var examples = uniformDraw(_.range(0, numExamples));
+
+    //var examples = repeat(numExamples, function(){ return flip(target)});
+
+    //var examples = repeat(numExamples, flip);
+
+    var h = uniformDraw(_.range(0, numExamples + 1));
+    var t = numExamples - h;
+     
+    var believedIGs = map(function(student){
+      return IG2(targetParams.alpha, targetParams.beta, student.guessAlpha, student.guessBeta, h, t);
+    }, students)
+
+    var actualIGs = map(function(student){
+      return IG2(targetParams.alpha, targetParams.beta, student.priorAlpha, student.priorBeta, h, t);
+    }, students)
+    
+    //print(scores)
+    
+    factor(sum(actualIGs));
+    
+    return sum(actualIGs);
+
+  });
+}
+
+var getTeacherNoisyIG = function(students, targetParams, numExamples){
+  return Infer({method: 'enumerate'}, function(){
+    
+    //Use this to seed the prior likelihoods of examples
+    var target = targetParams.alpha / (targetParams.alpha + targetParams.beta);
+
+    //var examples = uniformDraw(_.range(0, numExamples));
+
+    //var examples = repeat(numExamples, function(){ return flip(target)});
+
+    //var examples = repeat(numExamples, flip);
+
+    var h = uniformDraw(_.range(0, numExamples + 1));
+    var t = numExamples - h;
+     
+    var believedIGs = map(function(student){
+      return IG2(targetParams.alpha, targetParams.beta, student.guessAlpha, student.guessBeta, h, t);
+    }, students)
+
+    var actualIGs = map(function(student){
+      return IG2(targetParams.alpha, targetParams.beta, student.priorAlpha, student.priorBeta, h, t);
+    }, students)
+    
+    //print(scores)
+    
+    factor(sum(believedIGs));
+    
+    return sum(actualIGs);
+
+  });
+}
+
+var getAdminIG = function(students, numTeachers, targetParams, numExamples){
+  // Array of student distributed into subsets representing numTeachers classrooms
+  var distributedStudents = distributeStudents(students, numTeachers);
+  
+  // Assign teachers to teach each classroom
+    var classroomExpectations = map(function(studentsInClassroom){
+      var teacherIG = getTeacherIG(studentsInClassroom, targetParams, numExamples);
+      return MAP(teacherIG).val;
+
+    }, distributedStudents);
+
+    return classroomExpectations;
+}
+
+var getAdminNoisyIG = function(students, numTeachers, targetParams, numExamples){
+  // Array of student distributed into subsets representing numTeachers classrooms
+  var distributedStudents = distributeStudents(students, numTeachers);
+  
+  // Assign teachers to teach each classroom
+    var classroomExpectations = map(function(studentsInClassroom){
+      var teacherIG = getTeacherNoisyIG(studentsInClassroom, targetParams, numExamples);
+      return MAP(teacherIG).val;
+
+    }, distributedStudents);
+
+    return classroomExpectations;
+}
+
+var ignore = function(){
+var studentsArray = generateStudentsArray(100);
+//print(studentsArray)
+
+var targetParams = generateTargetParams(10);
+print("Alpha: " + targetParams.alpha + " | Beta: " + targetParams.beta + " | Mean: " + targetParams.alpha / (targetParams.alpha + targetParams.beta));
+
+var sortedStudents = sortStudents(studentsArray);
+//var inference = admin(targetParams, 100, studentsArray)
+//viz(inference)
+
+
+print("1 teacher: " + getAdminIG(sortedStudents, 1, targetParams, 5))
+print("")
+
+print(getAdminIG(sortedStudents, 2, targetParams, 5))
+print("2 teachers: " + Math.sum(getAdminIG(sortedStudents, 2, targetParams, 5)))
+print("")
+
+print(getAdminIG(sortedStudents, 3, targetParams, 5))
+print("3 teachers: " + Math.sum(getAdminIG(sortedStudents, 3, targetParams, 5)))
+print("")
+
+print(getAdminIG(sortedStudents, 5, targetParams, 5))
+print("5 teachers: " + Math.sum(getAdminIG(sortedStudents, 5, targetParams, 5)))
+print("")
+
+print(getAdminIG(sortedStudents, 10, targetParams, 5))
+print("10 teachers: " + Math.sum(getAdminIG(sortedStudents, 10, targetParams, 5)))
+print("")
+
+}
+
+var numTeachersArr = [1,2,3,4,5,6,7,8,9,10];
+var numAssessments = [0,1,2,3,4,5];
+var teacherMus = [.5, .6, .7, .8, .9];
+var teacherNu = 10;
+
+// For testing numTeachers
+
+// var output_file = "numTeachers-1example.csv";
+// var output_handle = webpplCsv.openFile(output_file);
+// webpplCsv.writeLine(output_handle, "trialNum, NumTeachers, target, IG, sortedStudents, scoreAboveBaseline");
+
+// var results = mapN(function(trialNum){
+
+//   var studentsArray = generateStudentsArray(100);
+//   var sortedStudents = sortStudents(studentsArray);
+
+//   var teacherMusMapping = map(function(mu){
+
+//     var teacherAlpha = mu*10;
+//     var teacherBeta = teacherNu - teacherAlpha;
+
+//     var targetParams = {alpha: teacherAlpha, beta: teacherBeta};
+
+//     var numTeachersMapping = map(function(numTeachers){
+
+//       var unsortedIG = Math.sum(getAdminIG(studentsArray, numTeachers, targetParams, 1));
+
+//       var sortedIG = Math.sum(getAdminIG(sortedStudents, numTeachers, targetParams, 1));
+      
+
+//       webpplCsv.writeLine(output_handle, trialNum+","+numTeachers+"," + mu+"," + unsortedIG+",unsorted,0");
+//       webpplCsv.writeLine(output_handle, trialNum+","+numTeachers+"," + mu+"," + sortedIG+",sorted,0");
+//       return true;
+
+//     }, numTeachersArr);
+//   }, teacherMus);
+
+// }, 100);
+
+
+// var output_file = "assessments-1example.csv";
+// var output_handle = webpplCsv.openFile(output_file);
+// webpplCsv.writeLine(output_handle, "trialNum, NumAssessments, target, IG, noisyStudents, scoreAboveBaseline");
+
+
+// var results = mapN(function(trialNum){
+
+//   var studentsArray = generateStudentsArray(100);
+//   var sortedStudents = sortStudents(studentsArray);
+
+//   var teacherMusMapping = map(function(mu){
+
+//     var teacherAlpha = mu*10;
+//     var teacherBeta = teacherNu - teacherAlpha;
+
+//     var targetParams = {alpha: teacherAlpha, beta: teacherBeta};
+
+//     var numAssessmentsMapping = map(function(numAssessments){
+
+//       var noisyStudents = updateStudentGuesses(sortedStudents, numAssessments);
+//       var sortedNoisyStudents = sortNoisyStudents(noisyStudents);
+//       var trueIG = Math.sum(getAdminIG(sortedStudents, 10, targetParams, 1));
+//       var noisyIG = Math.sum(getAdminNoisyIG(sortedNoisyStudents, 10, targetParams, 1));
+      
+
+//       webpplCsv.writeLine(output_handle, trialNum+"," +numAssessments+"," + mu+"," + trueIG+",true,0");
+//       webpplCsv.writeLine(output_handle, trialNum+"," +numAssessments+"," + mu+"," + noisyIG+",noisy,0");
+//       return true;
+
+//     }, numAssessments);
+//   }, teacherMus);
+
+// }, 100);
+
+
+
+var output_file = "pareto-5example.csv";
+var output_handle = webpplCsv.openFile(output_file);
+webpplCsv.writeLine(output_handle, "trialNum, NumTeachers, NumAssessments, target, IG, scoreAboveBaseline");
+
+var budget = 100
+
+var results = mapN(function(trialNum){
+
+  var studentsArray = generateStudentsArray(100);
+  var sortedStudents = sortStudents(studentsArray);
+
+  var teacherMusMapping = map(function(mu){
+
+    var teacherAlpha = mu*10;
+    var teacherBeta = teacherNu - teacherAlpha;
+
+    var targetParams = {alpha: teacherAlpha, beta: teacherBeta};
+
+    var numTeachersMapping = map(function(numTeachers){
+      var numAssessmentsMapping = map(function(numAssessments){
+
+        if(numTeachers * 10 + numAssessments * 20 > 100){
+          var noisyIG = 0;
+          webpplCsv.writeLine(output_handle, trialNum+"," +numTeachers+"," +numAssessments+"," + mu+"," + noisyIG+",0");
+        }
+        else{
+          var noisyStudents = updateStudentGuesses(sortedStudents, numAssessments);
+          var sortedNoisyStudents = sortNoisyStudents(noisyStudents);
+          print(noisyStudents[90].guessAlpha / (noisyStudents[90].guessAlpha + noisyStudents[90].guessBeta));
+          var noisyIG = Math.sum(getAdminNoisyIG(sortedNoisyStudents, numTeachers, targetParams, 5));
+        
+          webpplCsv.writeLine(output_handle, trialNum+"," +numTeachers+"," +numAssessments+"," + mu+"," + noisyIG+",0");
+
+        }
+                return true;
+        }, numAssessments);
+      }, numTeachersArr);
+  }, teacherMus);
+
+}, 100);
+
+webpplCsv.closeFile(output_handle);
+
