@@ -1,4 +1,5 @@
-make_simulation_params <- function(sequence_scheme, 
+make_simulation_params <- function(n,
+                                    sequence_scheme, 
                                    complexity,
                                   alpha_priors, 
                                    beta_priors, 
@@ -29,7 +30,7 @@ make_simulation_params <- function(sequence_scheme,
   
   stimulus_sequence_df <- tibble(sequence_scheme = sequence_scheme) %>% 
     crossing(tibble(complexity = complexity)) %>% 
-    mutate(n = 100) %>% 
+    mutate(n = 1) %>% 
     rowwise() %>% 
     mutate(
       stimuli_sequence = nest(scheme_to_stimuli(sequence_scheme, fixed_length_complexity = fixed_length_complexity, 

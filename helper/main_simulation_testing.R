@@ -101,7 +101,7 @@ main_simulation_testing <- function(subject = x,
   
  # while(stimulus_idx <= total_trial_number && t <= max_observation){
    
-  while (t <= 30){ 
+  while (t <= max_observation && stimulus_idx < total_trial_number){ 
     df_model$t[[t]] = t
     df_model$stimulus_idx[[t]] = stimulus_idx
     

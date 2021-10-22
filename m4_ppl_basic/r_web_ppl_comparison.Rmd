@@ -1,0 +1,320 @@
+---
+title: "webppl and r comparison"
+author: "anjie"
+date: "10/14/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(rwebppl)
+```
+
+```{r eval=FALSE, include=FALSE}
+my_model <- 'var observedData = [true, true, true, true, true, true, true, true]
+// flat prior 
+var beta_a = 1
+var beta_b = 1
+
+
+var get_pp = function(observed_feature, beta_a, beta_b, posterior_predictive){
+  
+ 
+  if (observed_feature.length == 0){
+    return posterior_predictive
+  }else{
+    
+    if(observed_feature[0]){
+      
+      var current_pp = beta_a / (beta_a + beta_b)
+
+      posterior_predictive.push(current_pp)
+  
+
+      return (get_pp(observed_feature.slice(1), beta_a + 1, beta_b, posterior_predictive))
+    }else{
+      var current_pp = beta_b / (beta_a + beta_b)
+      posterior_predictive.push(current_pp)
+      return (get_pp(observed_feature.slice(1), beta_a, beta_b+1, posterior_predictive))
+    }
+    
+  }
+  
+  
+}
+
+var get_pp_score = function(observed_feature, beta_a, beta_b, posterior_predictive){
+  
+    if (observed_feature.length == 0){
+    return posterior_predictive
+  }else{
+    
+     var current_pp = Beta({a: beta_a, b: beta_b}).score(observed_feature[0])
+     posterior_predictive.push(current_pp)
+    if(observed_feature[0]){
+      return (get_pp(observed_feature.slice(1), beta_a + 1, beta_b, posterior_predictive))
+    }else{
+      
+      return (get_pp(observed_feature.slice(1), beta_a, beta_b+1, posterior_predictive))
+    }
+    
+  }
+  
+}
+
+var get_surprisal = function(pp_array){
+  return map(function(pp){-Math.log(pp)}, pp_array)
+}
+
+var get_entropy = function(pp_array){
+  return map(function(pp){
+    -(pp * Math.log(pp) + (1-pp) * Math.log(1-pp))
+  }, pp_array)
+  
+}
+
+// Stirling s approximation
+var get_beta_function_approximation = function(alpha, beta){
+  Math.sqrt(Math.PI * 2) * ((Math.pow(alpha, alpha - 1/2) * Math.pow(beta, beta-1/2)) / Math.pow(alpha + beta, alpha + beta - 1/2))
+}
+
+var get_diagamma_function_approximation = function(val){
+  Math.log(val) - (1/(2*val)) 
+}
+
+var get_kl = function(alpha_1, beta_1, alpha_2, beta_2){
+
+
+
+  Math.log(get_beta_function_approximation(alpha_2, beta_2) / get_beta_function_approximation(alpha_1, beta_1)) + 
+    (alpha_1 - alpha_2) * get_diagamma_function_approximation(alpha_1) +
+    (beta_1 - beta_2) * get_diagamma_function_approximation(beta_1) + 
+    (alpha_2 - alpha_1 + beta_2 - beta_1) * get_diagamma_function_approximation(alpha_1 + beta_1)
+  
+}
+
+var get_kl_wrapper = function(observed_feature, 
+                               alpha_1, beta_1,
+                              kls){
+  
+ 
+  if (observed_feature.length == 0){
+    return kls
+  }else{
+    
+    if(observed_feature[0]){
+      var kl = get_kl(alpha_1 , beta_1, alpha_1 + 1, beta_1)
+      kls.push(kl)
+      return (get_kl_wrapper(observed_feature.slice(1), alpha_1 + 1, beta_1, kls))
+    }else{
+      var kl = get_kl(alpha_1, beta_1, alpha_1, beta_1+1)
+      kls.push(kl)
+      return (get_kl_wrapper(observed_feature.slice(1), alpha_1, beta_1 + 1, kls))
+    }
+    
+  }
+  
+  
+}
+
+console.log("observation:")
+console.log(observedData)
+console.log("posterior predictives:")
+console.log(get_pp(observedData, beta_a, beta_b, []))
+console.log("surprisal:")
+console.log(get_surprisal(get_pp(observedData, beta_a, beta_b, [])))
+console.log("entropy:")
+console.log(get_entropy(get_pp(observedData, beta_a, beta_b, [])))
+console.log("KL:")
+console.log(get_kl_wrapper(observedData, 1, 1, []))
+'
+webppl(my_model)
+
+```
+# basic R version
+
+```{r}
+generate_stimuli <- function(total_number_trial, 
+                             deviant_position){
+
+  stimuli_sequence <- rep(TRUE, total_number_trial)
+  stimuli_sequence <- replace(stimuli_sequence, deviant_position, FALSE)
+  return (stimuli_sequence)
+}
+
+stimuli <- generate_stimuli(8, 5)
+stimuli
+```
+
+
+track everything
+
+```{r}
+get_pp <- function(stimuli, prior_alpha, prior_beta){
+  pp_list <- rep(NA, length(stimuli))
+  
+  for (i in 1:length(stimuli)){
+    if (stimuli[i] == TRUE){
+      pp = prior_alpha / (prior_alpha + prior_beta)
+      prior_alpha = prior_alpha + 1
+    }else{
+      pp = prior_beta / (prior_alpha + prior_beta)
+      prior_beta = prior_beta + 1
+    }
+    pp_list[i] <- pp
+  }
+  
+  return(pp_list)
+}
+
+get_surprisal <- function(pp){
+  sapply(pp, function(x){-log(x)})
+}
+
+get_entropy <- function(pp){
+  sapply(pp, function(x){-(x * log(x) + (1-x) * log(1-x))})
+}
+
+
+get_beta_function_approximation <- function(x, y){
+    sqrt(2*pi) * ((x^(x-1/2)) * (y^(y-1/2)) / ((x+y)^(x+y-1/2)))
+}
+  
+get_diagamma_function_approximation <- function(x){
+    return(log(x) - 1/(2*x))
+}
+
+calculate_kl <- function(new_alpha, new_beta, old_alpha, old_beta){
+  log(get_beta_function_approximation(new_alpha, new_beta)/get_beta_function_approximation(old_alpha, old_beta)) + 
+       (old_alpha - new_alpha) * get_diagamma_function_approximation(old_alpha) + (old_beta - new_beta) * get_diagamma_function_approximation(old_beta) + (new_alpha - old_alpha + new_beta - old_beta)* get_diagamma_function_approximation(old_alpha + old_beta)
+}
+  
+
+get_kl <- function(stimuli, prior_alpha, prior_beta){
+  
+  
+  kl_list <- rep(NA, length(stimuli))
+  old_alpha = prior_alpha
+  old_beta = prior_beta
+  
+   for (i in 1:length(stimuli)){
+     if (stimuli[i] == TRUE){
+       new_alpha = old_alpha + 1
+       new_beta = old_beta
+     }else{
+       new_beta = old_beta + 1 
+       new_alpha = old_alpha 
+     }
+
+     kl <- calculate_kl(new_alpha, new_beta, old_alpha, old_beta)
+       
+      
+     kl_list[i] <- kl
+     
+     old_alpha = new_alpha
+     old_beta = new_beta
+  }
+  
+  return (kl_list)
+  
+}
+
+
+get_ig <- function(obs, mode, current_alpha, current_beta){
+  if(obs){
+    if(mode == "kl"){
+      ig = calculate_kl(current_alpha + 1, current_beta, current_alpha, current_beta)
+    }else if(mode == "surprisal"){
+      ig = -log(current_alpha / (current_alpha + current_beta))
+    }
+    
+  }else{
+    if(mode == "kl"){
+       ig = calculate_kl(current_alpha, current_beta + 1, current_alpha, current_beta)
+    }else if(mode == "surprisal"){
+      ig = -log(current_beta / (current_alpha + current_beta))
+    }
+  }
+  return (ig)
+}
+
+
+get_eig <- function(stimuli, prior_alpha, prior_beta, mode){
+  
+  eig_list <- rep(NA, length(stimuli))
+  
+  current_alpha = prior_alpha 
+  current_beta = prior_beta
+  
+  
+  for (i in 1:length(stimuli)){
+    current_obs <- stimuli[i]
+    # if true 
+    pp_true = current_alpha / (current_alpha + current_beta)
+    ig_val_true = get_ig(TRUE, mode, current_alpha, current_beta)
+    
+    # if false 
+    pp_false = current_beta / (current_alpha + current_beta)
+    ig_val_false = get_ig(FALSE, mode, current_alpha, current_beta)
+    
+    eig = pp_true * ig_val_true + pp_false *ig_val_false
+    
+    eig_list[[i]] <- eig
+    
+    if(current_obs){
+      current_alpha = current_alpha + 1
+    }else{
+      current_beta = current_beta + 1
+    }
+  }
+  
+  return (eig_list)
+}
+
+
+
+get_pp(stimuli, 1, 1)
+get_surprisal(get_pp(stimuli, 1, 1))
+get_entropy(get_pp(stimuli, 1, 1))
+get_kl(stimuli, 1, 1)
+get_eig(stimuli, 1, 1, "kl")
+get_eig(stimuli, 1, 1, "surprisal")
+
+```
+
+
+```{r}
+get_measurement <- function(stimuli, prior_alpha, prior_beta){
+  
+  pps<- get_pp(stimuli, prior_alpha, prior_beta)
+  surprisals <- get_surprisal(pps)
+  entropys <- get_entropy(pps)
+  kls <- get_kl(stimuli, prior_alpha, prior_beta)
+  eigs_kl <- get_eig(stimuli, prior_alpha, prior_beta, mode = "kl")
+  eigs_surprisal <- get_eig(stimuli, prior_alpha, prior_beta, mode = "surprisal")
+  
+  df_all <- tibble(
+    "stimuli" = stimuli,
+    "pps" = pps,
+    "surprisal" = surprisals,
+    "entropy" = entropys,
+    "kls" = kls, 
+    "eigs_kl" = eigs_kl,
+    "eigs_surprisal" = eigs_surprisal
+
+  )
+  
+  return (df_all)
+  
+}
+
+get_measurement(stimuli, prior_alpha = 1, prior_beta = 1) %>% 
+  mutate(stimulus_id = row_number()) %>% 
+  pivot_longer(cols = 3:7, names_to = "measurement_type", 
+               values_to = "values_type") %>% 
+  ggplot(aes(x = stimulus_id, y = values_type, color = stimuli))  + 
+  geom_point() +
+  facet_wrap(~measurement_type)
+```
+
+
