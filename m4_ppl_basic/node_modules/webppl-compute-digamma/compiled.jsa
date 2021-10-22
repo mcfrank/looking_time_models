@@ -1,0 +1,41 @@
+var webppl = require("c:\Users\Larry\AppData\Roaming\npm\node_modules\webppl\src\main.js");
+var webpplComputeDigamma = require("c:\Users\Larry\Dropbox\Stanford University\2016-2017\PSYCH 197\teaching\webppl\node_modules\webppl-compute-digamma");
+webppl.requireHeader("c:\Users\Larry\Dropbox\Stanford University\2016-2017\PSYCH 197\teaching\webppl\node_modules\webppl-compute-digamma\src\header.js");
+var __runner__ = util.trampolineRunners.cli();
+function printWebPPLValue(x) {
+  if (dists.isDist(x) && x.print) {
+    console.log(x.meta.name + ':');
+    console.log(x.print());
+  } else {
+    console.log(x);
+  }
+};
+function topK(s, x) {
+  printWebPPLValue(x);
+};
+var main = (function (_globalCurrentAddress) {
+    return function (p) {
+        return function (runTrampoline) {
+            return function (s, k, a) {
+                runTrampoline(function () {
+                    return p(s, k, a);
+                });
+            };
+        };
+    }(function (globalStore, _k0, _address0) {
+        var _currentAddress = _address0;
+        _addr.save(_globalCurrentAddress, _address0);
+        var digamma = webpplComputeDigamma.digamma;
+        return function () {
+            return digamma(globalStore, _k0, _address0.concat('_155'), [
+                ad.scalar.neg(2.5),
+                ad.scalar.neg(1),
+                0,
+                1,
+                10
+            ], {});
+        };
+    });
+});
+
+main({})(__runner__)({}, topK, '');
