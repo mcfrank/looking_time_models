@@ -294,14 +294,14 @@ return(res[[1]])
 plot_kl_materials <- function(res_with_kl){
   plot_kl_if_true <- res_with_kl %>% 
   #filter(stimulus_idx == 1) %>% 
-  ggplot(aes(x = t, y = kl_if_true, color = V1)) + 
+  ggplot(aes(x = t, y = kl_if_true, color = stimulus_idx)) + 
   geom_point() + 
   theme(legend.position = "none") +
   labs(subtitle = "kl when hypothetical obs is TRUE")
 
 plot_pp_if_true <- res_with_kl %>% 
   #filter(stimulus_idx == 1) %>% 
-  ggplot(aes(x = t, y = pp_if_true, color = V1)) + 
+  ggplot(aes(x = t, y = pp_if_true, color = stimulus_idx)) + 
   geom_point() + 
     theme(legend.position = "none") +
   labs(subtitle = "pp when hypothetical obs is TRUE")
@@ -323,7 +323,7 @@ plot_eig_from_both_sides <- res_with_kl %>%
 
 plot_kl_if_false <- res_with_kl %>% 
   #filter(stimulus_idx == 1) %>% 
-  ggplot(aes(x = t, y = kl_if_false, color = V1)) + 
+  ggplot(aes(x = t, y = kl_if_false, color = stimulus_idx)) + 
   geom_point() + 
     theme(legend.position = "none") +
 
@@ -331,7 +331,7 @@ plot_kl_if_false <- res_with_kl %>%
 
 plot_pp_if_false <- res_with_kl %>% 
  # filter(stimulus_idx == 1) %>% 
-  ggplot(aes(x = t, y = pp_if_false, color = V1)) + 
+  ggplot(aes(x = t, y = pp_if_false, color = stimulus_idx)) + 
   geom_point() + 
     theme(legend.position = "none") +
 
@@ -439,12 +439,16 @@ plot_posterior_all_epsilon <- function(res, time_step, max_time){
       res[[2]][[t]][[f]]$t <- t  
     }
   }
+  
   bind_rows(res[[2]]) %>% 
     filter(t %in% time_step) %>% 
+    filter(epsilon == 0.1) %>% 
     ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
     geom_point()+
     #geom_line() + 
     facet_wrap(~t)
+  
+  
    
 }
 

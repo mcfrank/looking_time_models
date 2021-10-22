@@ -32,12 +32,12 @@ d <- read_csv(here("data/processed_rt_task_data.csv"))
 
 alpha_epsilon = c(1)
 beta_epsilon = c(1)
-alpha_priors = c(1, 50)
-beta_priors = c(1,50)
-noise_parameters = c(0.001, 0.005)
-eigs_from_world = c(0.001,0.005)
+alpha_priors = c(1)
+beta_priors = c(1)
+noise_parameters = c(0.05)
+eigs_from_world = c(0.001)
 max_observation = 500
-fixed_length_complexity = TRUE 
+fixed_length_complexity = FALSE 
 feature_space_n = 7
 simple_feature_n = 1
 complex_feature_n = 3
@@ -45,14 +45,14 @@ dissimilar_ratio = 1
 sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 complexity = c("complex", "simple")
 
-full_params_df <- make_simulation_params(
+full_params_df <- make_simulation_params(n = 100,
                                    sequence_scheme, 
                                    complexity, 
                                    alpha_priors, 
                                    beta_priors, 
                                    alpha_epsilon, 
                                    beta_epsilon, 
-                                   noise_parameter, 
+                                   noise_parameters, 
                                    eig_from_world, 
                                    max_observation, 
                                    fixed_length_complexity, 
@@ -104,7 +104,7 @@ run_all_sims <- function(full_params_df){
 
 
 all_sims_res <- run_all_sims(full_params_df)
-saveRDS(all_sims_res, file = "premeetingrun.RDS")
+#usaveRDS(all_sims_res, file = "premeetingrun_noisier.RDS")
 
 ```
 
