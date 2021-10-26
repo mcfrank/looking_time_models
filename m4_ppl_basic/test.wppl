@@ -1,4 +1,245 @@
 
 var a = webpplComputeDigamma.digamma(2)
-//console.log(a)
+console.log(a)
 
+var observedData = [true, true, true, true, true, true, true, true]
+// flat prior 
+var beta_a = 1
+var beta_b = 1
+
+
+var get_pp = function(observed_feature, beta_a, beta_b, posterior_predictive){
+  
+ 
+  if (observed_feature.length == 0){
+    return posterior_predictive
+  }else{
+    
+    if(observed_feature[0]){
+      
+      var current_pp = beta_a / (beta_a + beta_b)
+
+      posterior_predictive.push(current_pp)
+  
+
+      return (get_pp(observed_feature.slice(1), beta_a + 1, beta_b, posterior_predictive))
+    }else{
+      var current_pp = beta_b / (beta_a + beta_b)
+      posterior_predictive.push(current_pp)
+      return (get_pp(observed_feature.slice(1), beta_a, beta_b+1, posterior_predictive))
+    }
+    
+  }
+  
+  
+}
+
+var get_pp_score = function(observed_feature, beta_a, beta_b, posterior_predictive){
+  
+    if (observed_feature.length == 0){
+    return posterior_predictive
+  }else{
+    
+     var current_pp = Beta({a: beta_a, b: beta_b}).score(observed_feature[0])
+     posterior_predictive.push(current_pp)
+    if(observed_feature[0]){
+      return (get_pp(observed_feature.slice(1), beta_a + 1, beta_b, posterior_predictive))
+    }else{
+      
+      return (get_pp(observed_feature.slice(1), beta_a, beta_b+1, posterior_predictive))
+    }
+    
+  }
+  
+}
+
+var get_surprisal = function(pp_array){
+  return map(function(pp){-Math.log(pp)}, pp_array)
+}
+
+var get_entropy = function(pp_array){
+  return map(function(pp){
+    -(pp * Math.log(pp) + (1-pp) * Math.log(1-pp))
+  }, pp_array)
+  
+}
+
+// Stirling's approximation
+var get_beta_function_approximation = function(alpha, beta){
+  Math.sqrt(Math.PI * 2) * ((Math.pow(alpha, alpha - 1/2) * Math.pow(beta, beta-1/2)) / Math.pow(alpha + beta, alpha + beta - 1/2))
+}
+
+var get_diagamma_function_approximation = function(val){
+  Math.log(val) - (1/(2*val)) 
+}
+
+var get_kl = function(alpha_1, beta_1, alpha_2, beta_2){
+  Math.log(get_beta_function_approximation(alpha_2, beta_2) / get_beta_function_approximation(alpha_1, beta_1)) + 
+    (alpha_1 - alpha_2) * get_diagamma_function_approximation(alpha_1) +
+    (beta_1 - beta_2) * get_diagamma_function_approximation(beta_1) + 
+    (alpha_2 - alpha_1 + beta_2 - beta_1) * get_diagamma_function_approximation(alpha_1 + beta_1)
+  
+}
+
+var get_kl_real = function(alpha_1, beta_1, alpha_2, beta_2){
+
+    if (alpha_2 == alpha_1){
+        // h == 0
+       var kl =  Math.log(alpha_2+beta_2) - Math.log(beta_2) + webpplComputeDigamma.digamma(beta_1) + webpplComputeDigamma.digamma(alpha_1 + beta_1)
+       return (kl)
+    }else if(beta_2 == beta_1){
+        // t == 0
+       var kl =  Math.log(alpha_2+beta_2) - Math.log(alpha_2) + webpplComputeDigamma.digamma(alpha_1) + webpplComputeDigamma.digamma(alpha_1 + beta_1)
+       return (kl)
+    }
+    
+}
+
+var get_kl_real_corrected = function(alpha_1, beta_1, alpha_2, beta_2){
+
+    if (alpha_2 == alpha_1){
+        // h == 0
+       var kl =  -Math.log(alpha_1+beta_1) + Math.log(beta_1)  - webpplComputeDigamma.digamma(beta_1) + webpplComputeDigamma.digamma(alpha_1 + beta_1)
+       return (kl)
+    }else if(beta_2 == beta_1){
+        // t == 0
+       var kl =  -Math.log(alpha_1+beta_1) + Math.log(alpha_1) - webpplComputeDigamma.digamma(alpha_1) + webpplComputeDigamma.digamma(alpha_1 + beta_1)
+       return (kl)
+    }
+    
+}
+   
+   
+
+var get_kl_wrapper = function(observed_feature, 
+                               alpha_1, beta_1,
+                              kls){
+  
+ 
+  if (observed_feature.length == 0){
+    return kls
+  }else{
+    
+    if(observed_feature[0]){
+      var kl = get_kl(alpha_1 , beta_1, alpha_1 + 1, beta_1)
+      kls.push(kl)
+      return (get_kl_wrapper(observed_feature.slice(1), alpha_1 + 1, beta_1, kls))
+    }else{
+      var kl = get_kl(alpha_1, beta_1, alpha_1, beta_1+1)
+      kls.push(kl)
+      return (get_kl_wrapper(observed_feature.slice(1), alpha_1, beta_1 + 1, kls))
+    }
+    
+  }
+}
+
+var get_kl_real_wrapper = function(observed_feature, 
+    alpha_1, beta_1,
+   kls){
+
+
+if (observed_feature.length == 0){
+return kls
+}else{
+
+if(observed_feature[0]){
+var kl = get_kl_real(alpha_1 , beta_1, alpha_1 + 1, beta_1)
+kls.push(kl)
+return (get_kl_real_wrapper(observed_feature.slice(1), alpha_1 + 1, beta_1, kls))
+}else{
+var kl = get_kl_real(alpha_1, beta_1, alpha_1, beta_1+1)
+kls.push(kl)
+return (get_kl_real_wrapper(observed_feature.slice(1), alpha_1, beta_1 + 1, kls))
+}
+
+}
+}
+
+var get_kl_real_corrected_wrapper = function(observed_feature, 
+    alpha_1, beta_1,
+   kls){
+
+
+if (observed_feature.length == 0){
+return kls
+}else{
+
+if(observed_feature[0]){
+var kl = get_kl_real_corrected(alpha_1 , beta_1, alpha_1 + 1, beta_1)
+kls.push(kl)
+return (get_kl_real_corrected_wrapper(observed_feature.slice(1), alpha_1 + 1, beta_1, kls))
+}else{
+var kl = get_kl_real_corrected(alpha_1, beta_1, alpha_1, beta_1+1)
+kls.push(kl)
+return (get_kl_real_corrected_wrapper(observed_feature.slice(1), alpha_1, beta_1 + 1, kls))
+}
+
+}
+}
+var get_eig_wrapper = function(observed_feature, 
+                               alpha_1, beta_1, eigs){
+  
+  if (observed_feature.length == 0){
+    return eigs
+  }else{
+    // if true  
+    
+    var kl_true = get_kl(alpha_1, beta_1, alpha_1+1, beta_1)
+    var pp_true = alpha_1 / (alpha_1 + beta_1)
+
+    // if false 
+    var kl_false = get_kl(alpha_1, beta_1, alpha_1, beta_1+1)
+    var pp_false = beta_1 / (alpha_1 + beta_1)
+   
+    // eig 
+    var eig = kl_true * pp_true + kl_false * pp_false 
+    eigs.push(eig)
+    
+    if(observed_feature[0]){
+     
+      return (get_eig_wrapper(observed_feature.slice(1), 
+                              alpha_1 + 1, 
+                              beta_1, eigs))
+    }else{
+      return (get_eig_wrapper(observed_feature.slice(1), 
+                              alpha_1, 
+                              beta_1 + 1, eigs))
+    }
+  }
+  
+  
+}
+
+
+
+console.log("observation:")
+console.log(observedData)
+console.log("posterior predictives:")
+console.log(get_pp(observedData, beta_a, beta_b, []))
+console.log("surprisal:")
+console.log(get_surprisal(get_pp(observedData, beta_a, beta_b, [])))
+console.log("entropy:")
+console.log(get_entropy(get_pp(observedData, beta_a, beta_b, [])))
+console.log("old_KL:")
+console.log(get_kl_wrapper(observedData, 1, 1, []))
+console.log("new_KL:")
+console.log(get_kl_real_wrapper(observedData, 1, 1, []))
+console.log("new_KL_corrected:")
+console.log(get_kl_real_wrapper(observedData, 1, 1, []))
+console.log("EIG:")
+console.log(get_eig_wrapper(observedData, 1, 1, []))
+
+/*
+var observedData_false = [true, true, false, true, true, true, true, true, false, false]
+console.log("observation:")
+console.log(observedData_false)
+console.log("posterior predictives:")
+console.log(get_pp(observedData_false, beta_a, beta_b, []))
+console.log("surprisal:")
+console.log(get_surprisal(get_pp(observedData_false, beta_a, beta_b, [])))
+console.log("entropy:")
+console.log(get_entropy(get_pp(observedData_false, beta_a, beta_b, [])))
+console.log("KL:")
+console.log(get_kl_wrapper(observedData_false, 1, 1, []))
+console.log("EIG:")
+console.log(get_eig_wrapper(observedData_false, 1, 1, []))*/
