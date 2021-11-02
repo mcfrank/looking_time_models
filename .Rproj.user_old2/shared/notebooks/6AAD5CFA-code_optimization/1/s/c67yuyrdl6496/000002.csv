@@ -1,0 +1,36 @@
+"0","```r
+pre_optimization <- function(){
+  
+  unnormalized_log_posterior <-  mapply(function(x, y) 
+    init_lp_theta_given_z(observation = observation, 
+                     theta = x, 
+                     epsilon = y, 
+                     alpha_theta = alpha_theta, 
+                     beta_theta = beta_theta,
+                     alpha_epsilon = alpha_epsilon, 
+                     beta_epsilon = beta_epsilon), 
+    posterior_df$theta, 
+    posterior_df$epsilon)
+  
+}
+
+after_optimization <- function(){
+  
+  cheaper_unnormalized_log_posterior <-  cheaper_lp_theta_given_z(observation, 
+                                                                    grid_theta, 
+                                                                    grid_epsilon,
+                                                                    posterior_df, 
+                                                                    alpha_theta, beta_theta, 
+                                                                    alpha_epsilon, beta_epsilon)
+
+  
+}
+
+bm<- bench::mark(
+  pre_optimization(), 
+  after_optimization()
+  
+)
+bm
+autoplot(bm)
+```"

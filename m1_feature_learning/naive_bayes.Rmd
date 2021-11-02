@@ -180,13 +180,21 @@ example_block_complex_similar
                               #NUM_FEATURE_SAMPLE_PER_OBSERVATION)
 #example_observation
 
+example_block_complex_similar <- generate_block_sequence(
+  TOTAL_FEATURE_N, 
+  SIMPLE_FEATURE_N, 
+  COMPLEX_FEATURE_N,
+  SIMILAR_RATIO, 
+  DISSIMILAR_RATIO,
+  5, c(4), "complex", "similar")
+
 ```
 
 ## naive bayes model
 
 ```{r}
 # calculate beta count for a given block
-get_beta_count <- function(block, feature_prior = c(3,1)){
+get_beta_count <- function(block, feature_prior = c(1,1)){
   prior <- replicate(length(block[[1]]), feature_prior, simplify = FALSE)
   
   beta_count <- list()

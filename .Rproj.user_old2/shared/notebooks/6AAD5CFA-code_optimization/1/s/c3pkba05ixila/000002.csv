@@ -1,0 +1,7 @@
+"0","```r
+vect <- seq(1,10,1)
+
+microbenchmark( lapply(p, function(x){z_bar}), 
+                p[[1]] <- z_bar,
+                times = 100000)
+```"

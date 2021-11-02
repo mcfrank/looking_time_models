@@ -1,0 +1,130 @@
+---
+title             : "Quantifying the syntactic bootstrapping effect in verb learning: A meta-analytic synthesis"
+shorttitle        : "Syntactic Bootstrapping MA"
+author:  
+  - name          : "Anjie Cao"
+    affiliation   : "1"
+    corresponding : yes    
+    address       : "450 Jane Stanford Way, Stanford, 94305"
+    email         : "anjiecao@stanford.edu" 
+  - name          : "Molly Lewis"
+    affiliation   : "2"
+    email         : "mollyllewis@gmail.com"
+affiliation:
+    
+  - id            : "1"
+    institution   : "Department of Psychology, Stanford University"
+  - id            : "2"
+    institution   : "Department of Psychology, Carnegie Mellon Unviversity"
+author_note: "Data Availability Statement: All data and analysis scripts are available at https://github.com/anjiecao/SyntacticBootstrappingMA."
+
+ 
+abstract: |
+  How do children infer the meaning of a novel verb? One prominent proposal is that children rely on syntactic information in the linguistic context, a phenomenon known as “syntactic bootstrapping” (Naigles, 1990). For example, given the sentence “The bunny is gorping the duck”, a child could use knowledge of English syntactic roles to infer that “gorping” refers to an action where the bunny is acting in some way on a duck. Here, we examine the strength of the syntactic bootstrapping effect, its developmental trajectory and generalizability using meta-analytic methods. Across 60 experiments in the literature (*N* = 849 participants), we find a reliable syntactic bootstrapping effect (*d* = .24). Yet, despite its theoretical prominence, the syntactic bootstrapping effect is relatively small, comparable in size to cross-situational learning and sound symbolism, but smaller than mutual-exclusivity and gaze-following. Further, we find that the effect does not strengthen over development, and is present only for studies that use transitive sentences. An examination of a range of methodological factors suggests that the effect is not strongly influenced by methodological implementation. In the General Discussion,  we consider implications of our findings for theories of verb learning and make recommendations for future research.  
+
+  
+
+  
+  
+keywords          : "language acquisition, syntactic bootstrapping, meta-analysis, verb learning"
+wordcount         : "7811"
+bibliography      : ["references.bib"]
+csl               : "apa6-meta.csl"
+header-includes:
+  - \usepackage{setspace}
+  - \usepackage{float}
+  - \usepackage{graphicx}
+  - \AtBeginEnvironment{tabular}{\singlespacing}
+  - \usepackage{pbox}
+  - \usepackage{hyphsubst}
+ # - \floatplacement{figure}{t} # make every figure with caption = t
+figsintext        : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+lineno            : no
+always_allow_html : true
+#lang              : "english"
+documentclass     : "apa6"
+class             : "man"
+output:
+  papaja::apa6_pdf:  #word_document 
+    latex_engine: xelatex # this solved an encoding issue
+  #always_allow_html: true
+---
+
+```{r load_utility_packages, include = FALSE}
+library(papaja)
+library(rmarkdown)
+library(tidyverse) 
+library(here)
+library(glue)
+library(metafor)
+library(knitr)
+library(PublicationBias)
+library(janitor)
+library(insight)
+library(patchwork)
+library(metalabr)
+library(pwr)
+
+
+# scripts for data presentation
+source(here("writeups/paper/scripts/prisma_diagram.R"))
+source(here("writeups/paper/scripts/model_print.R"))
+source(here("writeups/paper/scripts/forest_plot_helper.R"))
+source(here("writeups/paper/scripts/funnel_plot_helper.R"))
+source(here("writeups/paper/scripts/predictor_plot_helper.R"))
+source(here("writeups/paper/scripts/metalab_plot_helper.R"))
+```
+
+
+```{r global_options, include = FALSE}
+knitr::opts_chunk$set(warning = FALSE, 
+                      message = FALSE, 
+                      cache = FALSE,
+                      echo = FALSE
+                      )
+knitr::opts_chunk$set(dev = 'pdf')
+
+theme_set(theme_classic(base_size = 11))
+```
+
+```{r constant}
+alpha <- .05
+CRIT_95 <- 1.96
+CRIT_99 <- 2.58
+```
+
+
+# Introduction
+```{r child = "sections/01_intro.Rmd"}
+```
+
+# Method
+```{r child = "sections/02_method.Rmd"}
+```
+
+# Results
+```{r child = "sections/03_results.Rmd"}
+```
+
+# General Discussion
+```{r child = "sections/04_discussion.Rmd"}
+```
+
+\newpage
+
+# References
+
+---
+nocite: | 
+  @arunachalam2013out, @arunachalam2013two, @arunachalam2019semantic, @he2020two, @jyotishi2017, @messenger2015learning, @scott2017lookit, @naiglesUnpub, @fenson2000short
+...
+  
+```{r appendix}
+#render_appendix("appendix.Rmd")
+```
+
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}

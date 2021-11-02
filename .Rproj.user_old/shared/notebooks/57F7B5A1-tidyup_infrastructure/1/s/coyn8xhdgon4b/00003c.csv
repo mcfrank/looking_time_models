@@ -1,0 +1,11 @@
+"0",""
+"0","# trial level eig doesn't make sense?"
+"0","sims %>% "
+"0","  group_by(id, stimulus_idx) %>% "
+"0","  summarise(trial_EIG = sum(EIG)) %>% "
+"0","  ggplot(aes(x = stimulus_idx, "
+"0","             y = trial_EIG, "
+"0","             group = id)) + "
+"0","  geom_line(alpha = .3)"
+"2","`summarise()` has grouped output by 'id'. You can override using the `.groups` argument.
+"

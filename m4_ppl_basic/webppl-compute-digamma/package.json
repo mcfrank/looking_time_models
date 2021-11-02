@@ -1,0 +1,32 @@
+{
+  "name": "webppl-compute-digamma",
+  "version": "0.0.1",
+  "description": "WebPPL library for computing the digamma function",  
+  "webppl": {
+    "wppl": ["src/library.wppl"],
+    "macros": ["src/macros.sjs"],
+    "headers": ["src/header.js"]
+  },
+  "main": "src/library.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/probmods/webppl-package-template.git"
+  },
+  "homepage": "https://github.com/probmods/webppl-package-template",
+  "dependencies": {
+    "compute-array-constructors": "^1.0.0",
+    "compute-polynomial": "^1.1.0",
+    "dstructs-matrix": "^2.0.0",
+    "utils-deep-get": "^1.0.0",
+    "utils-deep-set": "^1.0.1",
+    "validate.io-array-like": "^1.0.1",
+    "validate.io-boolean-primitive": "^1.0.0",
+    "validate.io-function": "^1.0.2",
+    "validate.io-matrix-like": "^1.0.2",
+    "validate.io-nan": "^1.0.3",
+    "validate.io-number-primitive": "^1.0.0",
+    "validate.io-object": "^1.0.4",
+    "validate.io-string-primitive": "^1.0.0",
+    "validate.io-typed-array-like": "^1.0.0"
+  }
+}

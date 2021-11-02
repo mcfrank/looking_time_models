@@ -1,0 +1,99 @@
+---
+output:
+  pdf_document: default
+---
+
+\setlength{\parindent}{0.5in}
+\setlength{\leftskip}{0in}
+
+# Supplemental Information
+
+Here we give the closed form derivation for the information gain metric we use in our simulations. We are interested in computing
+
+\begin{equation}
+\label{eq:ig}
+IG(e) = D_{KL} ( B_T || B_{S} )  - D_{KL} (B_T ||B_{S+e} ) 
+\end{equation}
+
+\noindent where the divergence measure is computed in closed form for e.g., $B_T$ and $B_S$, as
+
+\begin{equation}
+\label{eq:dkl}
+\begin{split}
+D_{KL} (B_T ||B_{S} )  = & \log( \frac{B(\alpha_{S},\beta_{S})}{B(\alpha_{T},\beta_{T})}) +  (\alpha_T - \alpha_S) \psi (\alpha_T) \\ 
+& + (\beta_T - \beta_S) \psi (\beta_T) +  (\alpha_T - \alpha_S + \beta_T - \beta_S) \psi (\alpha_T + \beta_T). \\
+\end{split}
+\end{equation}
+
+\noindent where $\psi$ denotes the digamma function and $B(a,b)$ denotes the beta function. We can substitute Equation \ref{eq:dkl} into Equation \ref{eq:ig} to get
+
+\begin{equation}
+\begin{split}
+IG(e)  = & \log( \frac{B(\alpha_{S},\beta_{S})}{B(\alpha_{T},\beta_{T})}) + (\alpha_T - \alpha_S) \psi (\alpha_T)  \\ 
+& + (\beta_T - \beta_S) \psi (\beta_T) +  (\alpha_T - \alpha_S + \beta_T - \beta_S) \psi (\alpha_T + \beta_T)  \\
+& - \log( \frac{B(\alpha_{S+e},\beta_{S+e})}{B(\alpha_{T},\beta_{T})}) - (\alpha_T - \alpha_{S+e}) \psi (\alpha_T) \\ 
+& - (\beta_T - \beta_{S+e}) \psi (\beta_T) - (\alpha_T - \alpha_{S+e} + \beta_T - \beta_{S+e}) \psi (\alpha_T + \beta_T)
+\end{split}
+\label{eq:step2}
+\end{equation}
+
+Consider the case where $e$ is a series of $h$ 1's (heads) and $t$ 0's (tails). Then $\alpha_{S+e}= \alpha_S + h$ and $\beta_{S+e}= \beta_{S} + t$, so we can simplify Equation \ref{eq:step2} to
+
+\begin{equation}
+\begin{split}
+IG(e)  = & \log( \frac{B(\alpha_{S},\beta_{S})}{B(\alpha_{T},\beta_{T})}) - \log( \frac{B(\alpha_{S}+h,\beta_{S}+t)}{B(\alpha_{T},\beta_{T})}) \\ 
+& + (\alpha_T - \alpha_S) \psi (\alpha_T) +  (\beta_T - \beta_S) \psi (\beta_T) \\
+& + (\alpha_T - \alpha_S + \beta_T - \beta_S) \psi (\alpha_T + \beta_T)  \\
+& - (\alpha_T - \alpha_{S} - h) \psi (\alpha_T) - (\beta_T - \beta_S - t) \psi (\beta_T) \\
+& - (\alpha_T - \alpha_{S} - h + \beta_T - \beta_{S} - t) \psi (\alpha_T + \beta_T) \\
+= & \log( \frac{B(\alpha_{S},\beta_{S})}{B(\alpha_{T},\beta_{T})} \cdot \frac{B(\alpha_{T},\beta_{T})}{B(\alpha_{S}+h,\beta_{S}+t)}) \\ 
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+= & \log( \frac{B(\alpha_{S},\beta_{S})}{B(\alpha_{S}+h,\beta_{S}+t)}) \\ 
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+\end{split}
+\end{equation}
+
+\noindent And, since 
+
+\begin{equation}
+B(a,b) = \frac{\Gamma(a)\Gamma(b)}{\Gamma(a+b)},
+\end{equation}
+
+\noindent we can rewrite the first term and reduce:
+
+\begin{equation}
+\begin{split}
+IG(e) = & \log( \frac{\frac{\Gamma(\alpha_S)\Gamma(\beta_S)}{\Gamma(\alpha_S+\beta_S)}}{\frac{\Gamma(\alpha_S + h)\Gamma(\beta_S + t)}{\Gamma(\alpha_S+\beta_S + h + t)}})   \\
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+=& \log( \frac{\Gamma(\alpha_S)\Gamma(\beta_S) \Gamma(\alpha_S+\beta_S + h + t)}{ \Gamma(\alpha_S + h)\Gamma(\beta_S + t) \Gamma(\alpha_S+\beta_S)})   \\
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+=& \log( \frac{\Gamma(\alpha_S)}{\Gamma(\alpha_S + h)}) + \log( \frac{\Gamma(\beta_S)}{\Gamma(\beta_S + t)}) + \log(\frac{\Gamma(\alpha_S+\beta_S + h + t)}{  \Gamma(\alpha_S+\beta_S)})   \\
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+=& -\log( \frac{\Gamma(\alpha_S + h)}{\Gamma(\alpha_S)}) - \log( \frac{\Gamma(\beta_S + t)}{\Gamma(\beta_S)}) + \log(\frac{\Gamma(\alpha_S+\beta_S + h + t)}{  \Gamma(\alpha_S+\beta_S)})   \\
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+\end{split}
+\end{equation}
+
+\noindent When $h=0$, the first log term reduces to 0. When $t=0$, the second log term reduces to 0. Otherwise, since for positive integer $n$, 
+
+\begin{equation}
+\frac{\Gamma(x + n)}{\Gamma(x)} = \prod^{n-1}_{k=0}{(x+k)},
+\end{equation}
+
+\noindent we can reduce the previous formulation a bit further when $h \neq 0$ and $t \neq 0$, to
+
+\begin{equation}
+\begin{split}
+IG(e) = &- \log(\prod^{h-1}_{i=0}(\alpha_S + i)) - \log(\prod^{t-1}_{j=0}(\beta_S + j)) + \log(\prod^{h + t -1}_{k=0}(\alpha_S + \beta_S + k)) \\
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+\end{split}
+\end{equation}
+
+\noindent For computation, to prevent overflow we calculate the series equivalently as follows:
+
+\begin{equation}
+\begin{split}
+IG(e) = &\sum^{h + t -1}_{k=0}\log(\alpha_S + \beta_S + k) - \sum^{h-1}_{i=0}\log(\alpha_S + i) - \sum^{t-1}_{j=0}\log(\beta_S + j) \\
+& + (h) \psi (\alpha_T) + (t) \psi (\beta_T) + (h + t) \psi (\alpha_T + \beta_T). \\
+\end{split}
+\end{equation}
