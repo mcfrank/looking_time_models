@@ -1,0 +1,8 @@
+"0","all_sims %>% "
+"0","  filter(stimulus_idx == 2) %>% "
+"0","  ggplot(aes(x = exposure_type, y = sample_n, color = type)) + "
+"0","  #geom_jitter(width = 0.1) + "
+"0","   stat_summary(fun.data = ""mean_cl_boot"", geom = ""pointrange"", position = position_dodge(width = .3)) + "
+"0","  facet_wrap(~EIG_from_world)+ "
+"0","    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))"
+"0",""

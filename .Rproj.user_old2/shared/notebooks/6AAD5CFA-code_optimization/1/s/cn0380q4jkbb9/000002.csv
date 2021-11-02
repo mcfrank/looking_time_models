@@ -1,0 +1,63 @@
+"0","```r
+library(microbenchmark)
+library(profvis)
+
+subject_n = 10
+
+no_optimization <- function(){
+
+sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          forced_exposure = TRUE,
+                          forced_sample = 5,
+                          optimize = FALSE)
+         }
+  ) %>% 
+    bind_rows()
+}
+
+with_optimization <- function(){
+  
+  sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          forced_exposure = TRUE,
+                          forced_sample = 5,
+                          optimize = TRUE)
+         }
+  ) %>% 
+    bind_rows()
+  
+  
+}
+
+# profvis(no_optimization())
+profvis(with_optimization())
+#with_optimization()
+
+#microbenchmark(no_optimization(), 
+ #              with_optimization(),times = 10)
+
+
+```"

@@ -1,0 +1,14 @@
+"0","  grid_apprxoimation_with_observation(
+  obs_s, 
+  track_epsilon = TRUE, 
+  grid_theta,
+  grid_epsilon,  
+  alpha_theta, 
+  beta_theta,
+  alpha_epsilon, 
+  beta_epsilon,
+  optimize = TRUE)
+"
+"2","Error in lp_theta_given_z(z_bar = na.omit(observations), theta = x, epsilon = y,  : 
+  object 'optmize' not found
+"

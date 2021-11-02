@@ -1,0 +1,10 @@
+"0","test_observation <- rep(TRUE, 5) %>% as_tibble_row(.name_repair = ""unique"")
+"
+"2","New names:
+* `` -> ...1
+* `` -> ...2
+* `` -> ...3
+* `` -> ...4
+* `` -> ...5
+"
+"0",""

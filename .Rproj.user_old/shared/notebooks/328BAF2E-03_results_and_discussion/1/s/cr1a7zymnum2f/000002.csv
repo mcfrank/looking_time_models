@@ -1,0 +1,7 @@
+"0","df.descriptive <- df.main %>% "
+"0","  group_by(task_name, task_info, resp_type, culture) %>% "
+"0","  summarise("
+"0","    mean = mean(as.numeric(resp), na.rm = TRUE), "
+"0","    sd = sd(as.numeric(resp), na.rm = TRUE))"
+"2","`summarise()` has grouped output by 'task_name', 'task_info', 'resp_type'. You can override using the `.groups` argument.
+"

@@ -1,0 +1,230 @@
+---
+title: "poweranalysis"
+author: "Molly"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(metafor)
+library(metapower)
+
+```
+
+# Simulations of meta-analytic moderator power
+For a number of the moderators we examined in our meta-analysis (e.g., noun phrase type), the average effect size did not statistically differ from zero. As such, in these cases, we failed to reject the null hypothesis.  This failure could be for two reasons: there is no true effect or there is an effect but we do not have the statistical power to detect it. We cannot determine which of these two reasons lead to the null moderating effects that we report, but we can examine our power  for moderator effects in the current meta-analysis (i.e. probability of rejecting a false null hypothesis).
+
+There are not agreed-upon methods for calculating power for the multilevel mixed effect meta-analytic models we report in the paper, but methods do exist for mixed effect models (Hedges & Pigott, 2004). We conducted simulations of power for moderating effects using an implementation of these methods in R (metapower; Griffin, 2020).
+
+
+
+
+```{r}
+ma_data <- read_csv(here("data/processed/syntactic_bootstrapping_tidy_data.csv"))
+
+null_model <- rma(yi = d_calc, 
+                    vi = d_var_calc,
+                    random = ~ 1 | short_cite/same_infant/row_id,
+                     method = "REML",
+                     data = ma_data )
+
+i2 <- null_model$I2
+
+mod_estimate <- mpower(
+              effect_size = null_model$beta %>% as.numeric(),
+              study_size = ma_data %>% select(n_1) %>% pull() %>% mean(),#questionable?
+              k = nrow(ma_data),
+              i2 = i2/100,
+              es_type = "d",
+              test_type = "two-tailed",
+              p = 0.05,
+              con_table = NULL
+              )
+```
+
+
+
+```{r}
+transitive_model <- rma(d_calc,
+                             vi = d_var_calc,
+                    random = ~ 1 | short_cite/same_infant/row_id,
+                     method = "REML",
+                     data = filter(ma_data, sentence_structure == "transitive"))
+
+intransitive_model <- rma(d_calc,
+                             vi = d_var_calc,
+                    random = ~ 1 | short_cite/same_infant/row_id,
+                     method = "REML",
+                     data = filter(ma_data, sentence_structure == "intransitive") )
+
+n_study_transitive <- ma_data %>% ungroup() %>% filter( sentence_structure == "transitive") %>% distinct(plot_label) %>% count() %>% pull()
+n_study_intransitive <- ma_data %>%  ungroup() %>% filter( sentence_structure == "intransitive") %>% distinct(plot_label) %>% count() %>% pull()
+```
+
+```{r}
+# get actual MA params
+actual_study_size = ma_data %>% select(n_1) %>% pull() %>% mean()
+actual_k <- nrow(ma_data)/2
+actual_i2 <- mean(c(intransitive_model$I2, c(transitive_model$I2)))
+
+# function for getting power varying ES1 and k
+power_sim_function <- function(es1, this_k, this_study_size, es2, this_i2){
+      power <- mod_power(
+              n_groups = 2,
+              effect_sizes = c(es1, es2),
+              study_size =  this_study_size,# this should be participants
+              k = this_k,
+              i2 = this_i2/100,
+              es_type = "d",
+              p = 0.05,
+              con_table = NULL
+              )$mod_power[[2]]
+      
+      data.frame(transitive_es = es1,
+                 k = this_k,
+                 estimated_power = power)
+}
+
+# do the thing
+target_es <- c(seq(0, 1, .05))
+k_factor <- c(1, 2, 5, 10)
+sim_es <- cross_df(list(transitive = target_es, k = k_factor*actual_k))
+#(ask abuot the map2_df))
+estimated_power <- map2_df(
+          sim_es$transitive, 
+          sim_es$k,
+          power_sim_function,
+          actual_study_size,
+          0,
+          actual_i2) 
+```
+
+To estimate power for a categorical moderating effect, we varied the effect size difference between the two levels of the moderator (e.g., "pronoun" vs. "noun"), and the number of conditions (studies) present for each level in the meta-analysis. We estimated the between study variance empirically ($I^2$ = `r round(actual_i2, 2)`). 
+
+The figure below shows the estimated power if our meta-analytic models for  moderator effects. Shown in purple is the estimated power, given the actual number of conditions present in our meta-analysis; other lines show estimated power if more conditions were present in our meta-analysis. The dashed line shows 80% power.
+
+This analysis suggests that we have reasonably high power to detect medium-to-large effects size differences (at least $d$ = .5), but low power to detect smaller effect sizes. Thus, the null effects for moderating effects reported in the paper should be interpretted with caution: while these analyses provide strong evidence that  moderator effects are not large, it remains possible that some of the null effects we report are actually non-zero but small in magnitude. 
+
+
+```{r}
+# Plot the thing
+plotting_data <-   estimated_power %>%
+  mutate(k_ratio_print = case_when(
+    k == actual_k*1 ~ "Actual # of conditions", 
+    k == actual_k*2 ~ "x2 actual # of conditions", 
+    k == actual_k*5 ~ "x5 actual # of conditions", 
+    k == actual_k*10 ~ "x10 actual # of conditions"
+  )) %>%
+  mutate(k_ratio_print = fct_relevel(k_ratio_print, "x10 actual # of conditions", "x5 actual # of conditions", "x2 actual # of conditions", "Actual # of conditions"))
+
+ggplot(plotting_data, aes(x = transitive_es, y = estimated_power, color = k_ratio_print, group = k_ratio_print)) +
+  geom_hline(aes(yintercept = .8), linetype = 2) +
+  geom_point() +
+  geom_line() +
+  xlab("Effect Size Difference") +
+  annotate("text", x = .85, y = .83, label = "80% power") +
+  ylab("Estimated Power") +
+  ggtitle("Simulated power for moderator analyses") +
+  theme_classic() +
+  scale_color_discrete(name = "Number of conditions in MA",
+                       labels = c(expression(paste(italic("x"), "10 actual # of conditions")), expression(paste(italic("x"), "5 actual # of conditions")),
+                                  expression(paste(italic("x"), "2 actual # of conditions")), "Actual # of conditions")) +
+  theme(legend.text.align = 0)
+```
+
+
+
+
+# key function
+
+```{r}
+# k is number of studie sincluded 
+CDF <- function (t, k, ncp, i2) 
+{
+  df <- k - 1
+  constant <- (1 - i2)^0.5
+  part1 <- pgamma(df * (1 - i2)/2, df/2) * pnorm((t - ncp) * 
+    constant)
+  part2 <- 2 * df * integrate(func, Z = t, df = df, ncp = ncp, 
+    i2 = i2, lower = constant, upper = Inf, rel.tol = 1e-14)$value
+  return(part1 + part2)
+}
+
+
+
+compute_power <- function (k, effect_size, variance, i2, c_alpha, test_type) 
+{
+  ncp <- effect_size/(sqrt(variance/k))
+  t <- c_alpha
+  if (test_type == "two-tailed") {
+    fixed_power <- (1 - pnorm(c_alpha - ncp)) + pnorm(-1 * 
+      c_alpha - ncp)
+    random_power <- 1 - (CDF(c_alpha, k, ncp, i2) - CDF(-c_alpha, 
+      k, ncp, i2))
+  }
+  else {
+    fixed_power <- 1 - pnorm(c_alpha - ncp)
+    random_power <- 1 - (CDF(c_alpha, k, ncp, i2))
+  }
+  return(list(fixed_power = fixed_power, random_power = random_power))
+}
+
+
+ power_list <- list(variance = variance, 
+                    power = compute_power(k, effect_size, variance, i2, c_alpha, test_type), 
+                    power_range = compute_power_range(power_range_df), 
+                    effect_size = effect_size, study_size = study_size, 
+                    i2 = i2, k = k, es_type = es_type, test_type = test_type, 
+    p = p)
+
+power_range_df <- data.frame(
+      k_v = rep(seq(2, range_factor * k), times = 3), 
+      es_v = effect_size, 
+      n_v = study_size, 
+      i2 = i2, c_alpha = c_alpha, 
+      test_type = test_type) %>% 
+      mutate(
+        variance = mapply(compute_variance, .data$n_v, # <- study_size goes in here 
+                          .data$es_v, es_type))
+```
+
+```{r}
+# study size is the nubmer of participants included in each study 
+compute_variance <- function (study_size, effect_size, es_type, con_table) 
+{
+  if (es_type == "d") {
+    return(round(((study_size/2 + study_size/2)/((study_size/2) * 
+      (study_size/2))) + ((effect_size^2)/(2 * (study_size/2 + 
+      study_size/2))), 5))
+  }
+  else if (es_type == "r") {
+    return(1/(study_size - 3))
+  }
+  else if (es_type == "or") {
+    con_table <- data.frame(a = con_table[1], b = con_table[2], 
+      c = con_table[3], d = con_table[4])
+    return((1/con_table$a) + (1/con_table$b) + (1/con_table$c) + 
+      (1/con_table$d))
+  }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

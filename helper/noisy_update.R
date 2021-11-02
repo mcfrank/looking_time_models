@@ -19,7 +19,7 @@ update_posterior_distribution <- function(grid_theta,
   
   updates <- nrow(all_observation)
   
-  datalist <- list()
+  datalist <- vector(mode = "list", length = updates)
   
   # walk sequntially through updating on each
   for (i in seq(1, updates, 1)) {
@@ -52,11 +52,13 @@ update_posterior_distribution <- function(grid_theta,
 
 
 
-lp_theta_given_z <- function(z_bar, 
+ lp_theta_given_z <- function(z_bar, 
                              theta, epsilon, 
                              alpha_theta, beta_theta, 
-                             alpha_epsilon, beta_epsilon) {
- 
+                             alpha_epsilon, beta_epsilon ) {
+
+
+   
   lp_z_given_theta(z_bar, theta, epsilon) + 
     lp_theta(theta, alpha_theta, beta_theta) + 
     lp_epsilon(epsilon, alpha_epsilon, beta_epsilon)
@@ -67,11 +69,11 @@ lp_z_given_theta <- function(z_bar,
                              theta, 
                              epsilon){
   
-  sum(sapply(z_bar, function(x){lp_z_ij_given_theta(zij = x, 
-                                                    theta = theta, 
-                                                    epsilon = epsilon)}))
-  
-  
+    sum(sapply(z_bar[[1]], 
+               function(x){lp_z_ij_given_theta(zij = x, 
+                                               theta = theta, 
+                                               epsilon = epsilon)}))
+
 }
 
 
@@ -87,6 +89,7 @@ lp_z_ij_given_theta <- function(zij, theta, epsilon){
 
 
 lp_z_ij_given_y <- function(zij, yi, epsilon){
+  
   if (zij == yi){
     log(1 - epsilon)
   }else{
@@ -105,8 +108,14 @@ lp_theta <- function(theta, alpha_theta, beta_theta){
   dbeta(x = theta, shape1 = alpha_theta, shape2 = beta_theta, log = TRUE)
 }
 
-lp_epsilon <- function(theta, alpha_epsilon, beta_epsilon){
-  dbeta(x = theta, shape1 = alpha_epsilon, shape2 = beta_epsilon, log = TRUE)
+
+p_theta <- function(theta, alpha_theta, beta_theta){
+  # actually i think i'm still a little unsure of what the relationship between theta and p(theta) is
+  dbeta(x = theta, shape1 = alpha_theta, shape2 = beta_theta, log = FALSE)
+}
+
+lp_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
+  dbeta(x = epsilon, shape1 = alpha_epsilon, shape2 = beta_epsilon, log = TRUE)
 }
 
 

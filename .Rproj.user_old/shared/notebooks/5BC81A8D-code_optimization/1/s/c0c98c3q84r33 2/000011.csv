@@ -1,0 +1,8 @@
+"0","
+kls %>% 
+  ggplot(aes(x = kl)) + 
+  geom_histogram() + 
+  scale_x_continuous()
+"
+"2","`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+"

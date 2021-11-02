@@ -1,0 +1,605 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+http://winvector.github.io/Accumulation/Accum.html
+
+
+
+
+
+
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(profvis)
+library(microbenchmark)
+
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/grid_approximation.R"))
+source(here("helper/noisy_update.R"))
+source(here("helper/main_simulation.R"))
+source(here("helper/get_kl_eig.R"))
+
+```
+
+```{r}
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 6
+trials_per_block = 3
+deviant_positions = 2
+feature_theta = 0.9
+dissimilarity_ratio = 0.9
+noise_parameter = 0.1
+
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_theta = 1
+beta_theta = 1
+
+alpha_prior = 5
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+## eig related 
+env_eig = 0.005
+max_obs = 500
+
+## experiment related 
+subject_n = 10
+```
+
+```{r, include=FALSE}
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = 5, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+```
+
+list vs df vs matrix: https://www.brodieg.com/2018/11/23/is-your-matrix-running-slow-try-lists/
+column referencing / subsetting is faster in DF than in M
+but when needs to select columns AND row dataframe is SLOWER, worse when duplicates columns 
+
+actually not necessarily: 
+Unit: microseconds
+                   expr    min     lq     mean  median     uq
+     df_model$t[[1000]]  1.128  1.522  3.82384  2.2325  4.159
+ m_model[, "t"][[1000]] 23.622 26.732 71.32065 41.3060 45.055
+     max neval
+  26.485   100
+ 774.485   100
+ 
+ but for row assignment yes: 
+ Unit: nanoseconds
+                                                                                                                          expr
+                                                                                                 m_observation[1, ] <- new_obs
+ df_observation[df_observation$t == t, str_detect(names(df_observation),      "V")] <- tibble(V1 = TRUE, V2 = TRUE, V3 = TRUE)
+    min       lq      mean   median       uq     max neval
+    531    637.5   1564.66    894.0   2232.5    6400   100
+ 596171 620196.0 677410.67 634726.5 688627.0 1099617   100
+
+```{r}
+source(here("helper/main_simulation_under_construction.R"))
+source(here("helper/get_eig_faster.R"))#new eig function under testing
+
+source(here("helper/original_main_sim_for_testing.R"))
+
+new_sim <- function(){
+new_sims <- main_simulation_uc(subject = 1,
+                simple_stimuli , 
+                noise_parameter = noise_parameter, 
+                eig_from_world = 0.001,
+                max_observation = 50, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = alpha_prior, 
+                beta_prior = beta_prior,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = TRUE,
+                forced_sample = 5,
+                optimize = FALSE)
+  
+}
+old_sim <- function(){
+old_sims <- main_simulation(
+  1, 
+  multifeature_stimuli , 
+  noise_parameter = noise_parameter, 
+  eig_from_world = 0.001,
+  max_observation = 50, # should this be per trial or in total? currently in total 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon, 
+  exposure_type = "forced_short", 
+  forced_exposure = TRUE,
+  forced_sample = 5,
+  optimize = TRUE 
+)
+return(old_sims)
+}
+
+sim_bm <- bench::mark(old_sim(), 
+             new_sim())
+sim_bm 
+
+new_sims 
+old_sims
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(microbenchmark)
+library(profvis)
+
+subject_n = 10
+
+no_optimization <- function(){
+
+sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          forced_exposure = TRUE,
+                          forced_sample = 5,
+                          optimize = FALSE)
+         }
+  ) %>% 
+    bind_rows()
+}
+
+with_optimization <- function(){
+  
+  sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          forced_exposure = TRUE,
+                          forced_sample = 5,
+                          optimize = TRUE)
+         }
+  ) %>% 
+    bind_rows()
+  
+  
+}
+
+# profvis(no_optimization())
+profvis(with_optimization())
+#with_optimization()
+
+#microbenchmark(no_optimization(), 
+ #              with_optimization(),times = 10)
+
+
+```
+```{r}
+vect <- seq(1,10,1)
+
+microbenchmark( lapply(p, function(x){z_bar}), 
+                p[[1]] <- z_bar,
+                times = 100000)
+```
+
+```{r}
+list_df <- lapply(seq(1, 1000, 1), 
+                  function(x){tibble("x" = 1)})
+
+
+names(list_df) <- as.character(seq(1, 1000,1))
+
+library(dict)
+library(hash)
+
+keys = as.character(seq(1, 1000, 1))
+hash_df <- hash(list_df)
+hash_df$"10"
+
+
+microbenchmark(  t==1,
+                times = 5000)
+
+list_df[[10]]
+```
+
+```{r}
+pre_optimization <- function(){
+  
+  unnormalized_log_posterior <-  mapply(function(x, y) 
+    init_lp_theta_given_z(observation = observation, 
+                     theta = x, 
+                     epsilon = y, 
+                     alpha_theta = alpha_theta, 
+                     beta_theta = beta_theta,
+                     alpha_epsilon = alpha_epsilon, 
+                     beta_epsilon = beta_epsilon), 
+    posterior_df$theta, 
+    posterior_df$epsilon)
+  
+}
+
+after_optimization <- function(){
+  
+  cheaper_unnormalized_log_posterior <-  cheaper_lp_theta_given_z(observation, 
+                                                                    grid_theta, 
+                                                                    grid_epsilon,
+                                                                    posterior_df, 
+                                                                    alpha_theta, beta_theta, 
+                                                                    alpha_epsilon, beta_epsilon)
+
+  
+}
+
+bm<- bench::mark(
+  pre_optimization(), 
+  after_optimization()
+  
+)
+bm
+autoplot(bm)
+```
+
+```{r FUNCTION}
+
+
+```
+
+
+# compare two ways of doing grid approximation 
+```{r}
+iteration = 500
+feature_number = 1
+grid_theta = seq(0.01, 0.99, 0.01)
+grid_epsilon = seq(0.01, 0.99, 0.01)
+obs_s <- noisy_observation_creature(
+      stimuli_df = stimuli_sequence,
+      trial_index  = 1, 
+      n_sample = iteration, 
+      epsilon = noise_parameter
+    )
+
+new_grid_approximation <- function(obs_s, iteration){
+  
+  df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
+                                                 alpha_theta, beta_theta, 
+                                                 alpha_epsilon, beta_epsilon)
+  df_posterior <- expand_grid(theta = grid_theta,
+                              epsilon = grid_epsilon,
+                              feature_index = seq(1, feature_number))
+  # not sure when do we really need the non-log one, save some $$$  
+  df_posterior$unnormalized_log_posterior <- NA_real_
+  df_posterior$log_posterior <- NA_real_
+
+
+  list_df_posterior <- lapply(seq(1, iteration, 1), 
+                              function(x){df_posterior})
+  
+  
+  t = 1
+  while(t <= iteration){
+    
+    if(t == 1){
+      # do some fresh calculation
+      
+      list_df_posterior[[t]] <- init_update( list_df_posterior[[t]], 
+                                             df_lp_theta_epsilon, 
+                                             obs_s[t, ],
+                                             grid_theta, grid_epsilon,
+                                             alpha_theta, beta_theta, 
+                                             alpha_epsilon, beta_epsilon)
+    }else{
+      list_df_posterior[[t]] <- update_posterior(previous_posterior_df =  list_df_posterior[[t-1]],
+                                                         current_posterior_df =  list_df_posterior[[t]], 
+                                                         obs_s[t, ], 
+                                                         grid_theta, grid_epsilon)
+    }
+    
+    t = t + 1
+  
+  
+  }
+  
+  new_pos <- list_df_posterior[[iteration]]
+
+  return(new_pos$unnormalized_log_posterior)
+}
+
+old_grid_approximation <- function(obs_s, iteration){
+  
+  old_pos <- grid_apprxoimation_with_observation(
+  obs_s, 
+  grid_theta,
+  grid_epsilon,  
+  alpha_theta, 
+  beta_theta,
+  alpha_epsilon, 
+  beta_epsilon)
+  
+  return(old_pos$unnormalized_log_posterior)
+  
+}
+
+
+
+bm_grid_approx <- bench::mark(
+  new_grid_approximation(obs_s, iteration), 
+  old_grid_approximation(obs_s, iteration)
+)
+
+bm_grid_approx
+bm_grid_approx %>% autoplot()
+
+
+```
+
+
+```{r}
+
+source(here("helper/get_eig.R"))
+
+
+multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = 3, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+observations = multifeature_stimuli%>% select(starts_with("V"))
+current_observation = observations[1, ]
+posterior <- grid_apprxoimation_with_observation(
+  observations, 
+  grid_theta,
+  grid_epsilon,  
+  alpha_prior, 
+  beta_prior,
+  alpha_epsilon, 
+  beta_epsilon)   
+
+all_possible_creatures <- get_possible_creatures(observations[1, ])
+
+
+
+old_get_eig <- function(observations){
+  
+  
+
+eig <- get_eig(current_observation, 
+        observations, 
+                    posterior, 
+                    grid_theta = grid_theta, 
+                    grid_epsilon = grid_epsilon, 
+                    alpha_prior = alpha_prior, 
+                    beta_prior = beta_prior,
+                    alpha_epsilon = alpha_epsilon, 
+                    beta_epsilon = beta_epsilon)
+  
+  return(eig[[1]])
+
+}
+
+new_get_eig <- function(observations){
+  eig <- get_eig_faster(observations, 
+                           grid_theta, 
+                           grid_epsilon, 
+                           alpha_theta, 
+                           beta_theta, 
+                           alpha_epsilon, 
+                           beta_epsilon
+                           )
+}
+
+old_res <- old_get_eig(observations)
+new_res <- new_get_eig(observations)
+```
+
+```{r}
+bm_eig <- bench::mark(old_get_eig(observations), 
+            new_get_eig(observations))
+
+bm_eig %>% autoplot() + labs(title = "3 feature")
+
+
+```
+
+
+
+values_to_calculate: 
+- two ends of possible kls (sum of TF + FT)
+- do interval, lay out all values 
+- two ends of possible predictives 
+- do interval, la out all values 
+- calculate n combination in that value, (FEATURE choose SUM)
+- get EIG 
+
+
+
+```{r}
+new_get_eig <- function(observations, 
+                        all_possible_outcomes, 
+                        posterior_at_t, 
+                        grid_theta = grid_theta, 
+                        grid_epsilon = grid_epsilon, 
+                        alpha_prior = alpha_prior, 
+                        beta_prior = beta_prior,
+                        alpha_epsilon = alpha_epsilon, 
+                        beta_epsilon = beta_epsilon
+){
+  feature_n = ncol(observation)
+  eig_df <- tibble(
+    "index" = seq(0, feature_n), # sum of TF + FT combination 
+    "n_condition" = choose(feature_n, seq(0, feature_n)), 
+    "kl" = rep(NA_real_, feature_n + 1), 
+    "post_pred" = rep(NA_real_, feature_n + 1)
+  )
+  
+  # get kl 
+  eig_df$kl <- new_get_kl(observations,
+                          feature_n,
+                        posterior_at_t,
+                        grid_theta = grid_theta, 
+                        grid_epsilon = grid_epsilon, 
+                        alpha_prior = alpha_prior, 
+                        beta_prior = beta_prior,
+                        alpha_epsilon = alpha_epsilon, 
+                        beta_epsilon = beta_epsilon)
+  
+  # get post_pred 
+  
+  # sum(kl* post_pred * n_condition)
+  
+  
+  
+                        }
+```
+
+
+
+```{r}
+small_kls <- get_possible_kls(
+  small_multi_observation, 
+  small_possible_creatures, 
+  small_posterior_at_t, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon) %>% 
+  arrange(-kl) %>% 
+  mutate(
+    num_true =  V1 + V2 + V3 + V4 + V5 
+  ) 
+
+small_kls %>% 
+  ggplot(aes(x = num_true, y = kl)) + 
+  geom_point() + 
+  scale_x_continuous(breaks = seq(0, 10, 1))
+
+small_kls %>% 
+  ggplot(aes(x = kl)) + 
+  geom_histogram() 
+```
+
+```{r}
+small_multi_observation
+small_kls
+```
+
+
+
+
+
+```{r}
+test_observation <- rep(TRUE, 5) %>% as_tibble_row(.name_repair = "unique")
+test_posterior_at_t <- grid_apprxoimation_with_observation(
+  test_observation, 
+  grid_theta = seq(0.01, .99, .01), 
+  grid_epsilon = seq(0.01, .99, .01), 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
+
+old_get_possible_creatures <- function(test_observation){
+  get_possible_creatures(test_observation)
+
+}
+
+
+
+cheaper_get_possible_creatures <- function(feature_n){
+  
+  
+    flip_observation <- as.logical(1 - (current_observation) %>% 
+                                   as.logical()) %>% 
+    as.vector() %>% 
+    as_tibble_row(.name_repair = ~ names(current_observation)) 
+  
+  combine_observations <- bind_rows(current_observation, flip_observation)
+  
+  all_possible_creatures <- combine_observations %>% 
+    cross_df() %>% 
+    mutate(index = row_number())
+  
+  
+  
+}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

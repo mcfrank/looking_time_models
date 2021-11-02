@@ -1,0 +1,20 @@
+"0","```r
+list_df <- lapply(seq(1, 1000, 1), 
+                  function(x){tibble(\"x\" = 1)})
+
+
+names(list_df) <- as.character(seq(1, 1000,1))
+
+library(dict)
+library(hash)
+
+keys = as.character(seq(1, 1000, 1))
+hash_df <- hash(list_df)
+hash_df$\"10\"
+
+
+microbenchmark(  t==1,
+                times = 5000)
+
+list_df[[10]]
+```"

@@ -1,0 +1,5 @@
+"0","library(itertools)"
+"0","l = c(TRUE, FALSE)"
+"0","list(itertools.product(l, repeat=5))"
+"2","Error: unexpected '=' in ""list(itertools.product(l, repeat=""
+"

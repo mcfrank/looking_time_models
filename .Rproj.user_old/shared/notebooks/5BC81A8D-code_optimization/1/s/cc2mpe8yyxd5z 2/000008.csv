@@ -1,0 +1,7 @@
+"0","lens <- sims %>%"
+"0","  group_by(stimulus_idx) %>%"
+"0","  summarise(length = n()) %>%"
+"0","  filter(!is.na(stimulus_idx))"
+"0",""
+"0","ggplot(lens, aes(x = stimulus_idx, y = length)) + "
+"0","  geom_point() "

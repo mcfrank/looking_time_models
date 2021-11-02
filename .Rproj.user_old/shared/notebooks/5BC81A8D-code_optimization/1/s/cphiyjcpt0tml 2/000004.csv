@@ -1,0 +1,6 @@
+"0","hash_df <- hash(keys = as.character(seq(1, 1000, 1)), 
+                function(x){tibble(""x"" = 1)})
+"
+"2","Error in make.keys(keys) : 
+The empty character string, '', cannot be used for a key at key(s): 2
+"

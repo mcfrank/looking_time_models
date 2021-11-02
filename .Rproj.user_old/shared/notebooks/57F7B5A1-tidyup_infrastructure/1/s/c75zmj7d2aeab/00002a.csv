@@ -1,0 +1,4 @@
+"0",""
+"0","sim %>% "
+"0","  ggplot(aes(x = t, y = p_look_away)) + "
+"0","  geom_line()"

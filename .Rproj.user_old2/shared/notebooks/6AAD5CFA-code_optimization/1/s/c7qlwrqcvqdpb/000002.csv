@@ -1,0 +1,25 @@
+"0","```r
+small_kls <- get_possible_kls(
+  small_multi_observation, 
+  small_possible_creatures, 
+  small_posterior_at_t, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon) %>% 
+  arrange(-kl) %>% 
+  mutate(
+    num_true =  V1 + V2 + V3 + V4 + V5 
+  ) 
+
+small_kls %>% 
+  ggplot(aes(x = num_true, y = kl)) + 
+  geom_point() + 
+  scale_x_continuous(breaks = seq(0, 10, 1))
+
+small_kls %>% 
+  ggplot(aes(x = kl)) + 
+  geom_histogram() 
+```"
