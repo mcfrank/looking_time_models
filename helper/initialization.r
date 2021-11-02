@@ -1,7 +1,6 @@
 
-initialize_model <- function(subject, eig_from_world, max_observation){
-  tibble(subject_id = rep(subject, max_observation),
-         t = rep(NA,max_observation),
+initialize_model <- function(eig_from_world, max_observation){
+  tibble(t = rep(NA,max_observation),
          stimulus_idx = rep(NA,max_observation), 
          EIG = rep(NA,max_observation), 
          EIG_from_world = rep(eig_from_world,max_observation),

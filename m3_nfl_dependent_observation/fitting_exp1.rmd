@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
 library(matrixStats)
-
+library(partitions)
 
 source(here("helper/make_scheme_and_params.r"))
 source(here("helper/get_eig_faster.R"))
@@ -19,13 +19,10 @@ source(here("helper/get_observation.R"))
 source(here("helper/main_simulation_under_construction.r"))
 source(here("helper/params_helper_experiment.r"))
 
-
 d <- read_csv(here("data/processed_rt_task_data.csv"))
-
-
 ```
 
-# figuring out the sequece and generate the stimuli sequence with allt he parameters 
+Figuring out the sequece and generate the stimuli sequence with all the parameters 
 
 
 ```{r}
@@ -46,20 +43,20 @@ sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 complexity = c("complex", "simple")
 
 full_params_df <- make_simulation_params(n = 100,
-                                   sequence_scheme, 
-                                   complexity, 
-                                   alpha_priors, 
-                                   beta_priors, 
-                                   alpha_epsilon, 
-                                   beta_epsilon, 
-                                   noise_parameters, 
-                                   eig_from_world, 
-                                   max_observation, 
-                                   fixed_length_complexity, 
-                                   feature_space_n, 
-                                   simple_feature_n, 
-                                   complex_feature_n, 
-                                   dissimilar_ratio)
+                                         sequence_scheme, 
+                                         complexity, 
+                                         alpha_priors, 
+                                         beta_priors, 
+                                         alpha_epsilon, 
+                                         beta_epsilon, 
+                                         noise_parameters, 
+                                         eig_from_world, 
+                                         max_observation, 
+                                         fixed_length_complexity, 
+                                         feature_space_n, 
+                                         simple_feature_n, 
+                                         complex_feature_n, 
+                                         dissimilar_ratio)
 
 full_params_df
 
@@ -76,42 +73,48 @@ full_params_df
 grid_theta <- seq(0.1, 1, 0.2)
 grid_epsilon <- seq(0.1, 1, 0.2)
 
-
-
-
-run_all_sims <- function(full_params_df){
-  
-  
+run_all_sims <- function(full_params_df) {
   params_id <- full_params_df %>% 
-  distinct(params_id) %>% 
-  select(params_id) %>% 
-  pull()
+    distinct(params_id) %>% 
+    select(params_id) %>% 
+    pull()
   
   sim_use_params_df <- full_params_df %>% 
     select(params_id, sim_id, n, stimuli_sequence, noise_parameter, 
-                               eig_from_world, max_observation, alpha_prior, beta_prior, alpha_epsilon, beta_epsilon)
+           eig_from_world, max_observation, alpha_prior, 
+           beta_prior, alpha_epsilon, beta_epsilon)
   
   lapply(params_id, 
-         function(id){
-           pmap_dfr(sim_use_params_df %>% filter(params_id == id) %>% select(-c("params_id")), 
-            simulation_wrapper_for_linking_data
-            ) %>% 
-             mutate(params_id = id)
-         }) %>% 
+         function(id) {
+           pmap_dfr(sim_use_params_df %>% 
+                      filter(params_id == id) %>% 
+                      select(-c("params_id")), 
+                    simulation_wrapper_for_linking_data) %>% 
+             mutate(params_id = id) }) %>% 
     bind_rows()
-  
 }
 
 
 all_sims_res <- run_all_sims(full_params_df)
 #usaveRDS(all_sims_res, file = "premeetingrun_noisier.RDS")
-
 ```
+
+
+cleaning the simulation result to run correlation with the model 
+
 
 ```{r}
-sim_res_only_deviant_last <- run_all_sims(full_params_df %>% filter(sequence_scheme == "BBBBBD"))
+complete_sim_res <- all_sims_res %>% 
+  group_by(params_id, sim_id, subject_id, stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  left_join(full_params_df %>% select(-n), by = c("params_id", "sim_id")) %>% 
+  mutate(prior_info = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
+  mutate(eig_info = paste("np", noise_parameter, "ee", eig_from_world))
+
 
 ```
+
 
 
 ```{r}
@@ -131,35 +134,19 @@ dissimilar_ratio = 1
 
 
 non_fixed_full_params_df <- make_simulation_params(alpha_priors, 
-                                   beta_priors, 
-                                   alpha_epsilon, 
-                                   beta_epsilon, 
-                                   noise_parameter, 
-                                   eig_from_world, 
-                                   max_observation, 
-                                   fixed_length_complexity, 
-                                   feature_space_n, 
-                                   simple_feature_n, 
-                                   complex_feature_n, 
-                                   dissimilar_ratio)
+                                                   beta_priors, 
+                                                   alpha_epsilon, 
+                                                   beta_epsilon, 
+                                                   noise_parameter, 
+                                                   eig_from_world, 
+                                                   max_observation, 
+                                                   fixed_length_complexity, 
+                                                   feature_space_n, 
+                                                   simple_feature_n, 
+                                                   complex_feature_n, 
+                                                   dissimilar_ratio)
 
 all_sims_res <- run_all_sims(non_fixed_full_params_df)
-
-```
-
-
-# cleaning the simulation result to run correlation with the model 
-
-
-```{r}
-complete_sim_res <- all_sims_res %>% 
-  group_by(params_id, sim_id, subject_id, stimulus_idx) %>% 
-  summarise(sample_n = n()) %>% 
-  filter(!is.na(stimulus_idx)) %>% 
-  left_join(full_params_df %>% select(-n), by = c("params_id", "sim_id")) %>% 
-  mutate(prior_info = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
-  mutate(eig_info = paste("np", noise_parameter, "ee", eig_from_world))
-
 
 ```
 
@@ -232,14 +219,14 @@ complete_sim_res %>%
 
 ```{r}
 complete_sim_res %>% 
-   ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
   stat_summary(fun.data = "mean_cl_boot", geom = "pointrange",  position = position_dodge(width = .2)) +
   stat_summary(fun.data = "mean_cl_boot", geom = "line",  position = position_dodge(width = .2)) + 
   theme_classic() + 
   facet_grid(eig_info~sequence_scheme)
 
 complete_sim_res %>% 
-   ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
   stat_summary(fun.data = "mean_cl_boot", geom = "pointrange",  position = position_dodge(width = .2)) +
   stat_summary(fun.data = "mean_cl_boot", geom = "line",  position = position_dodge(width = .2)) + 
   theme_classic() + 
@@ -267,25 +254,25 @@ lapply(seq(1, 8, 1),
 calculate_correlation <- function(complete_sim_res, lt_df_cleaned){
   
   temp_d <- complete_sim_res %>% 
-      group_by(params_id, stimulus_idx, sim_id, sequence_scheme, complexity, prior_info) %>% 
-      summarise(sample_n = mean(sample_n)) %>% 
-      rename(trial_number = stimulus_idx) %>% 
-      left_join(lt_df_cleaned, by = c("sequence_scheme", "complexity", "trial_number")) %>% 
-      ungroup() 
+    group_by(params_id, stimulus_idx, sim_id, sequence_scheme, complexity, prior_info) %>% 
+    summarise(sample_n = mean(sample_n)) %>% 
+    rename(trial_number = stimulus_idx) %>% 
+    left_join(lt_df_cleaned, by = c("sequence_scheme", "complexity", "trial_number")) %>% 
+    ungroup() 
   
   all_params_id <- temp_d %>% 
     distinct(params_id) %>% 
     pull()
   
   corr_value_df <- lapply(all_params_id, 
-         function(x){
-            sub_d <- temp_d %>% filter(params_id == x)
-            pearson_cor <- cor(log(sub_d$sample_n), sub_d$log_mean_lt, use = "pairwise.complete.obs")
-            return(tibble(
-              pearson_cor = pearson_cor, 
-              params_id = x
-            ))
-         }) %>% 
+                          function(x){
+                            sub_d <- temp_d %>% filter(params_id == x)
+                            pearson_cor <- cor(log(sub_d$sample_n), sub_d$log_mean_lt, use = "pairwise.complete.obs")
+                            return(tibble(
+                              pearson_cor = pearson_cor, 
+                              params_id = x
+                            ))
+                          }) %>% 
     bind_rows()
   
   corr_value_df <- temp_d %>% 
@@ -295,7 +282,7 @@ calculate_correlation <- function(complete_sim_res, lt_df_cleaned){
     arrange(-pearson_cor)
   
   return(corr_value_df)
-    
+  
 }
 
 calculate_correlation(complete_sim_res, lt_df_cleaned) %>% 
