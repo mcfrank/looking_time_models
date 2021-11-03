@@ -69,9 +69,7 @@ all_sims_res <- full_params_df %>%
   group_by(params_id, sim_id, sub_id) %>%
   nest() %>%
   mutate(results = map(data, 
-                       function(df) main_simulation(params_df = df, 
-                                                    forced_exposure = FALSE,
-                                                    forced_sample = NULL))) %>%
+                       function(df) main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
 ```
 
