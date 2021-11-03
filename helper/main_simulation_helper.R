@@ -7,7 +7,7 @@ main_simulation <- function(params = df,
                             grid_theta = seq(0.1, 1, 0.2),
                             grid_epsilon = seq(0.1, 1, 0.2),
                             forced_exposure = FALSE,
-                            forced_sample = 5) {
+                            forced_sample = NULL) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -17,28 +17,28 @@ main_simulation <- function(params = df,
                              params$n_features)
   
   # list of lists of df for the posteriors and likelihoods
-  post <- initialize_posterior(grid_theta, grid_epsilon, 
-                               params$max_observation, params$n_features)
-  z_given_theta <- initialize_z_given_theta(grid_theta, grid_epsilon, 
-                                            params$max_observation, 
-                                            params$n_features)
+  lp_post <- initialize_posterior(grid_theta, grid_epsilon, 
+                                  params$max_observation, params$n_features)
+  lp_z_given_theta <- initialize_z_given_theta(grid_theta, grid_epsilon, 
+                                                  params$max_observation, 
+                                                  params$n_features)
   
   # possible observation df and book-keeping for likelihoods and posteriors for that
   possible_observations <- get_possible_observations(n_features = params$n_features)
-  z_given_theta_upcoming <- initialize_z_given_theta(grid_theta, grid_epsilon,
-                                                     nrow(possible_observations), 
-                                                     params$n_features)
-  post_upcoming <- initialize_posterior(grid_theta, grid_epsilon, 
-                                        nrow(possible_observations), params$n_features)
+  lp_z_given_theta_new <- initialize_z_given_theta(grid_theta, grid_epsilon,
+                                                   nrow(possible_observations), 
+                                                   params$n_features)
+  lp_post_new <- initialize_posterior(grid_theta, grid_epsilon, 
+                                   nrow(possible_observations), params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
-  theta_epsilon <- get_theta_epsilon(grid_theta, grid_epsilon, 
-                                     params$alpha_prior,  params$beta_prior, 
-                                     params$alpha_epsilon, params$beta_epsilon)
-  y_given_theta = tibble(theta = grid_theta, 
-                            y_ONE_given_theta = yi_given_theta(yi = 1, 
+  lp_prior <- score_prior(grid_theta, grid_epsilon, 
+                                  params$alpha_prior,  params$beta_prior, 
+                                  params$alpha_epsilon, params$beta_epsilon)
+  lp_y_given_theta = tibble(theta = grid_theta, 
+                            lp_y_ONE_given_theta = lp_yi_given_theta(yi = 1, 
                                                                      theta = grid_theta), 
-                            y_ZERO_given_theta = yi_given_theta(yi = 0, 
+                            lp_y_ZERO_given_theta = lp_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
   ### MAIN MODEL LOOP
@@ -66,15 +66,16 @@ main_simulation <- function(params = df,
     # 1. compute current posterior grid
     for (f in 1:params$n_features) {
       # update likelihood
-      z_given_theta[[t]][[f]] <- get_z_given_theta(t = t, f = f,
-                                                   y_given_theta = y_given_theta,
-                                                   z_given_theta = z_given_theta,
-                                                   model = model)
+      lp_z_given_theta[[t]][[f]] <- 
+        score_z_given_theta(t = t, f = f,
+                            lp_y_given_theta = lp_y_given_theta,
+                            lp_z_given_theta = lp_z_given_theta,
+                            model = model)
       
       # update posterior
-      post[[t]][[f]] <- get_post(z_given_theta = z_given_theta[[t]][[f]], 
-                                 theta_epsilon = theta_epsilon, 
-                                 post = post[[t]][[f]])
+      lp_post[[t]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta[[t]][[f]], 
+                                      lp_prior = lp_prior, 
+                                      lp_post = lp_post[[t]][[f]])
     }
     
     # -compute new posterior grid over all possible outcomes
@@ -87,15 +88,16 @@ main_simulation <- function(params = df,
         model$stimulus_idx[t+1] <- stimulus_idx
         
         # get upcoming likelihood
-        z_given_theta_upcoming[[o]][[f]] <- get_z_given_theta(t = t+1, f = f,
-                                                              y_given_theta = y_given_theta,
-                                                              z_given_theta = z_given_theta,
-                                                              model = model)
+        lp_z_given_theta_new[[o]][[f]] <- 
+          score_z_given_theta(t = t+1, f = f,
+                              lp_y_given_theta = lp_y_given_theta,
+                              lp_z_given_theta = lp_z_given_theta,
+                              model = model)
         
         # upcoming posterior
-        post_upcoming[[o]][[f]] <- get_post(z_given_theta = z_given_theta_upcoming[[o]][[f]], 
-                                            theta_epsilon = theta_epsilon, 
-                                            post = post[[t]][[f]])
+        lp_post_new[[o]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta_new[[o]][[f]], 
+                                            lp_prior = lp_prior, 
+                                            lp_post = lp_post_new[[t]][[f]])
         
         # kl between old and new posteriors
       }
@@ -105,7 +107,7 @@ main_simulation <- function(params = df,
     model$EIG[[t]] <- get_eig_with_combos(unique_combination_df = current_unique_poss_combos,
                                           possible_combinations = poss_combos,
                                           n_feature = params$n_features)
-      
+    
     # luce choice probability whether to look away
     model$p_look_away[t] = params$eig_from_world / (model$EIG[t] + params$eig_from_world)
     
