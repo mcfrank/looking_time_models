@@ -13,11 +13,9 @@ library(matrixStats)
 library(partitions)
 
 source(here("helper/make_scheme_and_params.R"))
-source(here("helper/get_eig_faster.R"))
-source(here("helper/get_stimuli.R"))
-source(here("helper/get_observation.R"))
+source(here("helper/initialization.R"))
+source(here("helper/probability_computations.R"))
 source(here("helper/main_simulation_helper.R"))
-source(here("helper/params_helper_experiment.R"))
 
 d <- read_csv(here("data/processed_rt_task_data.csv"))
 ```
@@ -59,7 +57,8 @@ full_params_df <- make_simulation_params(n = n,
 
 # note that this should happen in make_simulation_params
 full_params_df <- full_params_df %>%
-  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:8))
+  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:8)) %>%
+  mutate(n_features = 3)
 
 ```
 
