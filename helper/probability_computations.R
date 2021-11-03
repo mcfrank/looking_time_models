@@ -79,9 +79,9 @@ get_theta_epsilon <- function( grid_theta, grid_epsilon,
                                   alpha_epsilon, beta_epsilon){
   
   thetas = tibble("theta" = grid_theta, 
-                        "theta" = theta(grid_theta, alpha_prior, beta_prior))
+                        "lp_theta" = lp_theta(grid_theta, alpha_prior, beta_prior))
   epsilons = tibble("epsilon" = grid_epsilon, 
-                          "epsilon" = epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
+                          "lp_epsilon" = lp_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
   
   theta_epsilon = expand_grid(thetas, epsilons)
   return(theta_epsilon) 

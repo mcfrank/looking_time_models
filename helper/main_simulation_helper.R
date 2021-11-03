@@ -24,6 +24,7 @@ main_simulation <- function(params = df,
                                             params$n_features)
   
   # possible observation df and book-keeping for likelihoods and posteriors for that
+  # AC: this version is enumerating all possible observations? 
   possible_observations <- get_possible_observations(n_features = params$n_features)
   z_given_theta_upcoming <- initialize_z_given_theta(grid_theta, grid_epsilon,
                                                      nrow(possible_observations), 
@@ -32,13 +33,15 @@ main_simulation <- function(params = df,
                                         nrow(possible_observations), params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
+  # AC: needs to double check if these are lp or p, currently lp
+  
   theta_epsilon <- get_theta_epsilon(grid_theta, grid_epsilon, 
                                      params$alpha_prior,  params$beta_prior, 
                                      params$alpha_epsilon, params$beta_epsilon)
   y_given_theta = tibble(theta = grid_theta, 
-                            y_ONE_given_theta = yi_given_theta(yi = 1, 
+                            y_ONE_given_theta = lp_yi_given_theta(yi = 1, 
                                                                      theta = grid_theta), 
-                            y_ZERO_given_theta = yi_given_theta(yi = 0, 
+                            y_ZERO_given_theta = lp_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
   ### MAIN MODEL LOOP
@@ -78,6 +81,7 @@ main_simulation <- function(params = df,
     }
     
     # -compute new posterior grid over all possible outcomes
+    
     # -compute KL between old and new posterior 
     for (o in 1:nrow(possible_observations)) {
       for (f in 1:params$n_features) {
