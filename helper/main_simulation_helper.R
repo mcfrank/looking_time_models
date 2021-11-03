@@ -12,30 +12,36 @@ main_simulation <- function(params_df = df,
                             forced_sample = 5) {
   
   ### BOOK-KEEPING
-  feature_number <- ncol(params_df$stimuli_sequence$data[[1]]
+  n_features <- ncol(params_df$stimuli_sequence$data[[1]]
                          [startsWith(names(params_df$stimuli_sequence$data[[1]]), 
                                      "V")])
   total_trial_number = max(params_df$stimuli_sequence$data[[1]]$trial_number)
   
-  # df for keeping track of model behavior, 
+  # df for keeping track of model behavior
   df_model <-  initialize_model(params_df$eig_from_world, params_df$max_observation)
-  m_observation <- initialize_m_observation(feature_number, params_df$max_observation, 
+  # matrix of the noisy observations
+  m_observations <- initialize_m_observation(n_features, params_df$max_observation, 
                                             params_df$stimuli_sequence$data[[1]])
+  # list of lists of df for the posteriors
   ll_df_post <- initialize_ll_df_posterior(grid_theta, grid_epsilon, 
-                                      params_df$max_observation, feature_number)
+                                           params_df$max_observation, n_features)
+  # list of lists of df for the likelihoods
   ll_df_z_given_theta <- initialize_ll_df_z_given_theta(grid_theta, grid_epsilon, 
                                                         params_df$max_observation, 
-                                                        feature_number)
+                                                        n_features)
   
-  # material for calculating df_post 
+  # dataframe of thetas and epsilons
   df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
                                                  params_df$alpha_prior,  params_df$beta_prior, 
                                                  params_df$alpha_epsilon, params_df$beta_epsilon)
-  df_lp_y_given_theta = tibble(
-    "theta" = grid_theta, 
-    "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta ), 
-    "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta )
-  )
+  
+  df_lp_y_given_theta = tibble(theta = grid_theta, 
+                               lp_y_ONE_given_theta = 
+                                 lp_yi_given_theta(yi = 1, 
+                                                   theta = grid_theta), 
+                               lp_y_ZERO_given_theta = 
+                                 lp_yi_given_theta(yi = 0, 
+                                                   theta = grid_theta))
   
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
@@ -46,8 +52,8 @@ main_simulation <- function(params_df = df,
   # compute expected information gain
   # make a choice what to do
   while(stimulus_idx <= total_trial_number && t <= params_df$max_observation){
-    df_model$t[[t]] = t
-    df_model$stimulus_idx[[t]] = stimulus_idx
+    df_model$t[t] = t
+    df_model$stimulus_idx[t] = stimulus_idx
     
     # get stimulus, observation, add to current observation
     current_stimulus <- params_df$stimuli_sequence$data[[1]][stimulus_idx,]
@@ -56,117 +62,51 @@ main_simulation <- function(params_df = df,
       n_sample = 1, 
       epsilon = params_df$noise_parameter
     )
-    m_observation[t, ] <- current_observation
+    m_observations[t, ] <- current_observation
     
+    # steps in calculating EIG
+    # 1. compute current posterior grid
+    for (f in 1:n_features) {
+      # update likelihood
+      # todo: streamline this function
+      ll_df_z_given_theta[[t]][[f]] <- 
+        get_df_lp_z_given_theta(t = t, f = f,
+                                df_lp_y_given_theta = df_lp_y_given_theta,
+                                ll_df_z_given_theta = ll_df_z_given_theta,
+                                df_model = df_model, 
+                                current_observation = current_observation)
+      
+      # update posterior
+      ll_df_post[[t]][[f]] <- get_df_post(z_given_theta = ll_df_z_given_theta[[t]][[f]], 
+                                          df_lp_theta_epsilon = df_lp_theta_epsilon, 
+                                          df_post = ll_df_post[[t]][[f]])
+    }
     
-    # pseudocode:
-    # -compute current posterior grid
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
-    # -compute EIG over all this
-     
-    # ---- bookkeeping for caching scheme --- 
-    # cache possible unique combinations of observable features so we can 
-    # compute EIG over them
-    current_unique_poss_combos <- get_unique_combination(t, 
-                                                         m_observation, 
-                                                         feature_number)
-    
-    feature_pos <- current_unique_poss_combos$feature_pos
-    
-    all_poss_combos <- expand_grid(current_unique_poss_combos, 
-                                   hypothetical_observation = c(TRUE, FALSE)) 
-    
-    n_poss_combination <- nrow(all_poss_combos)
-    all_poss_combos$kl <- rep(NA_real_, n_poss_combination)
-    all_poss_combos$upcoming_preds <- rep(NA_real_, n_poss_combination)
-    
-    feature_occurence <- na.omit(as.vector(sapply(feature_pos, function(x){first(na.omit(x))})))
-    
-    # ---- get joint grid post over theta and epsilon ---
-    # caching scheme: now for each feature that could occur, score that feature
-    for (index in feature_occurence) {
-      ll_df_z_given_theta[[t]][[index]] <- get_df_lp_z_given_theta(t, 
-                                                                   df_lp_y_given_theta,
-                                                                   ll_df_z_given_theta, 
-                                                                   stimulus_idx,   # needs to be about each observation, not each stimulus  
-                                                                   index, 
-                                                                   df_model, 
-                                                                   m_observation,
-                                                                   current_observation, 
-                                                                   grid_theta, grid_epsilon, 
-                                                                   params_df$alpha_prior,  params_df$beta_prior)
-      
-      unnormalized_log_post <- ll_df_z_given_theta[[t]][[index]]$lp_z_given_theta + 
-        df_lp_theta_epsilon$lp_theta + 
-        df_lp_theta_epsilon$lp_epsilon
-      
-      ll_df_post[[t]][[index]]$unnormalized_log_post <- unnormalized_log_post
-      ll_df_post[[t]][[index]]$log_post <-  ll_df_post[[t]][[index]]$unnormalized_log_post - matrixStats::logSumExp( ll_df_post[[t]][[index]]$unnormalized_log_post)
-      ll_df_post[[t]][[index]]$post <- exp(ll_df_post[[t]][[index]]$log_post)
+    # TODO: initialize ll_df_z_given_theta_upcoming and ll_df_post_upcoming
+    for (o in 1:n_poss_outcomes) {
+      for (f in 1:n_feature) {
+        ll_df_z_given_theta[[t]][[f]] <- 
+          get_df_lp_z_given_theta(t = t, f = f,
+                                  df_lp_y_given_theta = df_lp_y_given_theta,
+                                  ll_df_z_given_theta = ll_df_z_given_theta,
+                                  df_model = df_model, 
+                                  current_observation = current_observation)
+        
+        # update posterior
+        ll_df_post[[t]][[f]] <- get_df_post(z_given_theta = ll_df_z_given_theta[[t]][[f]], 
+                                            df_lp_theta_epsilon = df_lp_theta_epsilon, 
+                                            df_post = ll_df_post[[t]][[f]])
+      }
     }
     
-    # find corresponding calculated value above for each feature and propagate into full post
-    for (i in 1:feature_number) {
-      calculated_value_index <- match(TRUE, sapply(feature_pos, function(x){i %in% x}))
-      calculated_value_index_in_ll <- feature_occurence[[calculated_value_index]]
-      ll_df_post[[t]][[i]] <- ll_df_post[[t]][[calculated_value_index_in_ll]]
-      ll_df_z_given_theta[[t]][[i]] <- ll_df_z_given_theta[[t]][[calculated_value_index_in_ll]]
-    }
     
-    # ---- EIG computation ---
-    # use previous post (at this observation) and new potential posts
-    # to compute EIG
-    prev_post_list <- ll_df_post[[t]][feature_occurence]
-    prev_z_given_theta_list <- ll_df_z_given_theta[[t]][feature_occurence]
-    
-    upcoming_post_list <- lapply(seq(1, n_poss_combination),
-                                 function(x){
-                                   expand_grid(theta = grid_theta, 
-                                               epsilon = grid_epsilon)
-                                 })
-    
-    last_t_for_last_stimulus = ifelse(stimulus_idx == 1, 1,
-                                      max((df_model[df_model$stimulus_idx == stimulus_idx-1,])$t, na.rm = TRUE)
-    )
-    prev_z_given_theta_last_stimulus <- ll_df_z_given_theta[[last_t_for_last_stimulus]][feature_occurence]
-    
-    # enumerate again over possible future observations
-    for (i in 1:n_poss_combination) {
-      all_hypothetical_observations_on_this_stimulus = c((unlist(all_poss_combos$unique_combination[[i]]))[last_t_for_last_stimulus:t], 
-                                                         all_poss_combos$hypothetical_observation[[i]])
-      
-      upcoming_post_df = upcoming_post_list[[i]]
-      
-      prev_observation_post = prev_post_list[[ceiling(i/2)]]
-      prev_observation_z_given_theta = prev_z_given_theta_list[[ceiling(i/2)]]
-      prev_last_stimulus_observation_z_given_theta = prev_z_given_theta_last_stimulus[[ceiling(i/2)]]
-      
-      upcoming_df_z_given_theta = eig_get_df_lp_z_given_theta(t,
-                                                              df_model,
-                                                              prev_last_stimulus_observation_z_given_theta,
-                                                              all_hypothetical_observations_on_this_stimulus, # contains unique combination + hypothetical scenarios 
-                                                              grid_theta, grid_epsilon, 
-                                                              df_lp_y_given_theta)
-      
-      upcoming_post_list[[i]]$unnormalized_log_post <- upcoming_df_z_given_theta$lp_z_given_theta +  df_lp_theta_epsilon$lp_theta + 
-        df_lp_theta_epsilon$lp_epsilon
-      
-      upcoming_post_list[[i]]$log_post <- upcoming_post_list[[i]]$unnormalized_log_post - matrixStats::logSumExp(upcoming_post_list[[i]]$unnormalized_log_post)
-      upcoming_post_list[[i]]$post <- exp(upcoming_post_list[[i]]$log_post)
-    
-      all_poss_combos$kl[i] <- get_kl(upcoming_post_list[[i]]$post, 
-                                      prev_post_list[[ceiling(i/2)]]$post)
-      all_poss_combos$upcoming_preds[i] <- noisy_post_pred(prev_post_list[[ceiling(i/2)]]$theta, 
-                                                           prev_post_list[[ceiling(i/2)]]$epsilon, 
-                                                           prev_post_list[[ceiling(i/2)]]$post, 
-                                                           all_poss_combos$hypothetical_observation[i]) 
-    } 
     
     # compute EIG
-    df_model$EIG[[t]] <- get_eig_with_combinationa(unique_combination_df = current_unique_poss_combos,
-                                                   all_possible_combinations = all_poss_combos,
-                                                   n_feature = feature_number)
+    df_model$EIG[[t]] <- get_eig_with_combos(unique_combination_df = current_unique_poss_combos,
+                                             all_possible_combinations = all_poss_combos,
+                                             n_feature = n_features)
     
     # luce choice probability whether to look away
     df_model$p_look_away[t] = params_df$eig_from_world / (df_model$EIG[t] + params_df$eig_from_world)

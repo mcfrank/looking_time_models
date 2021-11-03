@@ -216,9 +216,9 @@ get_unique_combination <- function(t,
 }
 
 # very confusing, may want to modularize this
-get_eig_with_combinationa <- function(unique_combination_df = current_all_possible_combinations,
-                                      all_possible_combinations = all_possible_combinations,
-                                      n_feature = feature_number){
+get_eig_with_combos <- function(unique_combination_df = current_all_possible_combinations,
+                                all_possible_combinations = all_possible_combinations,
+                                n_feature = feature_number){
   l_comb <- lapply(unique_combination_df$occurence, 
                    function(x){partitions::compositions(x, 2)}) 
   n_unique_combination <- nrow(unique_combination_df)
