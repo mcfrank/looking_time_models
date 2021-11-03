@@ -99,7 +99,15 @@ main_simulation <- function(params = df,
                                             lp_prior = lp_prior, 
                                             lp_post = lp_post_new[[t]][[f]])
         
+        # posterior predictive
+        p_post_new <- get_post_pred(lp_post[[t]][[f]], 
+                                      possible_observations[o,f]) 
+        
         # kl between old and new posteriors
+        kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
+                              lp_post[[t]][[f]]$posterior)
+                            
+        
       }
     }
     
