@@ -1,6 +1,6 @@
 # THIS SCRIPT CONTAINS THE ONE MAIN SIMULATION FUNCTION
 
-
+## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
@@ -13,7 +13,7 @@ main_simulation <- function(params = df,
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
   
   # df for keeping track of model behavior
-  model <-  initialize_model(params$eig_from_world, params$max_observation, 
+  model <-  initialize_model(params$world_EIG, params$max_observation, 
                              params$n_features)
   
   # list of lists of df for the posteriors and likelihoods
@@ -23,14 +23,18 @@ main_simulation <- function(params = df,
                                                   params$max_observation, 
                                                   params$n_features)
   
-  # possible observation df and book-keeping for likelihoods and posteriors for that
-  # AC: this version is enumerating all possible observations? 
-  possible_observations <- get_possible_observations(n_features = params$n_features)
+
+  #  book-keeping for likelihoods and posteriors for new observations
+  possible_observations <- c(TRUE, FALSE)
   lp_z_given_theta_new <- initialize_z_given_theta(grid_theta, grid_epsilon,
-                                                   nrow(possible_observations), 
+                                                   length(possible_observations), 
                                                    params$n_features)
   lp_post_new <- initialize_posterior(grid_theta, grid_epsilon, 
-                                   nrow(possible_observations), params$n_features)
+                                      2, params$n_features)
+  p_post_new <- matrix(data = NA, nrow = length(possible_observations), 
+                       ncol = params$n_features)
+  kl_new <- matrix(data = NA, nrow = length(possible_observations), 
+                   ncol = params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
 
@@ -65,7 +69,7 @@ main_simulation <- function(params = df,
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
     
     # steps in calculating EIG
-    # 1. compute current posterior grid
+    # - compute current posterior grid
     for (f in 1:params$n_features) {
       # update likelihood
       lp_z_given_theta[[t]][[f]] <- 
@@ -83,11 +87,11 @@ main_simulation <- function(params = df,
     # -compute new posterior grid over all possible outcomes
     
     # -compute KL between old and new posterior 
-    for (o in 1:nrow(possible_observations)) {
+    for (o in 1:length(possible_observations)) { # possible obserations
       for (f in 1:params$n_features) {
         # pretend that the possible observation has truly been observed
         # note that's observed from the same stimulus as the previous one
-        model[t+1, grepl("^f", names(model))] <- as.list(possible_observations[o,])
+        model[t+1, paste0("f", f)] <- as.list(possible_observations[o])
         model$stimulus_idx[t+1] <- stimulus_idx
         
         # get upcoming likelihood
@@ -100,41 +104,39 @@ main_simulation <- function(params = df,
         # upcoming posterior
         lp_post_new[[o]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta_new[[o]][[f]], 
                                             lp_prior = lp_prior, 
-                                            lp_post = lp_post_new[[t]][[f]])
+                                            lp_post = lp_post_new[[o]][[f]])
         
         # posterior predictive
-        p_post_new <- get_post_pred(lp_post[[t]][[f]], 
-                                      possible_observations[o,f]) 
+        p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
+                                         heads = possible_observations[o]) 
         
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
-                            
-        
       }
     }
     
     # compute EIG
-    model$EIG[[t]] <- get_eig_with_combos(unique_combination_df = current_unique_poss_combos,
-                                          possible_combinations = poss_combos,
-                                          n_feature = params$n_features)
+    model$EIG[t] <- sum(p_post_new * kl_new)
     
     # luce choice probability whether to look away
-    model$p_look_away[t] = params$eig_from_world / (model$EIG[t] + params$eig_from_world)
+    model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
+                                                 y = model$EIG[t])
     
     # consider forced exposure case
-    if (forced_exposure) {
-      if(stimulus_idx == 1 && t >= forced_sample){
-        model$look_away[t] = TRUE
-      } else if (stimulus_idx == 1 && t < forced_sample) {
-        model$look_away[t] = FALSE
-      } else {
-        model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
-      }
-    } else {
-      # actual choice of whether to look away is sampled here
-      model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
-    }
+    # if (forced_exposure) {
+    #   if(stimulus_idx == 1 && t >= forced_sample){
+    #     model$look_away[t] = TRUE
+    #   } else if (stimulus_idx == 1 && t < forced_sample) {
+    #     model$look_away[t] = FALSE
+    #   } else {
+    #     model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
+    #   }
+    # } else {
+    # }
+
+    # actual choice of whether to look away is sampled here
+    model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
     
     # if look away, increment
     if (model$look_away[t] == TRUE) {
@@ -148,3 +150,17 @@ main_simulation <- function(params = df,
   return(model)  
 }
 
+
+## ----------------- plot_posterior -------------------
+plot_posterior <- function(p) {
+  df <- map_df(1:3, 
+         function(x) {
+           p[[x]]$feature <- x
+           return(p[[x]])
+         })
+  
+  ggplot(df, aes(x = theta, y = epsilon, fill = posterior)) + 
+    geom_tile() + 
+    facet_wrap(~feature) + 
+    viridis:::scale_fill_viridis()
+}
