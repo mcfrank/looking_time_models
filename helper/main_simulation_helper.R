@@ -40,9 +40,9 @@ main_simulation <- function(params = df,
                                   params$alpha_prior,  params$beta_prior, 
                                   params$alpha_epsilon, params$beta_epsilon)
   lp_y_given_theta = tibble(theta = grid_theta, 
-                            lp_y_ONE_given_theta = lp_yi_given_theta(yi = 1, 
+                            lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, 
                                                                      theta = grid_theta), 
-                            lp_y_ZERO_given_theta = lp_yi_given_theta(yi = 0, 
+                            lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
   ### MAIN MODEL LOOP

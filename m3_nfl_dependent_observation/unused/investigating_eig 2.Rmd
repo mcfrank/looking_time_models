@@ -1,0 +1,1317 @@
+---
+title: "dependent observation"
+author: "anjie"
+date: "7/22/2021"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(profvis)
+
+source(here("helper/get_eig_faster.R"))
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/main_simulation_under_construction.r"))
+source(here("helper/main_simulation_testing.r"))
+
+source(here("helper/params_helper_experiment.r"))
+
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 1
+trials_per_block = 6
+deviant_positions = c()
+feature_theta = 0.9
+dissimilarity_ratio = 0.2
+noise_parameter = 0.001
+
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 1 
+beta_epsilon = 1
+
+## eig related 
+env_eig = 0.008
+max_obs = 500
+
+## experiment related 
+subject_n = 10
+
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+complex_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_feature_complex, 
+  dissimilar_ratio = dissimilarity_ratio)
+```
+
+
+
+
+```{r}
+grid_theta <- seq(0.001, 1, 0.02)
+grid_epsilon <- seq(0.001, 1, 0.02)
+res_flat <- main_simulation_testing(subject = 1,
+                simple_stimuli %>% filter(trial_number == 1), 
+                noise_parameter = 0, 
+                eig_from_world =  env_eig/10,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+
+res_false_focus <- main_simulation_testing(subject = 1,
+                  simple_stimuli %>% filter(trial_number == 1), 
+                noise_parameter = 0, 
+                eig_from_world = env_eig/10,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 3,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+res_true_focus <- main_simulation_testing(subject = 1,
+                simple_stimuli %>% filter(trial_number == 1), 
+                noise_parameter = 0, 
+                eig_from_world =  env_eig/10,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 3, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+f_res_flat <- main_simulation_testing(subject = 1,
+                simple_stimuli %>% mutate(V1 = as.logical(1-V1)) %>% filter(trial_number == 1), 
+                noise_parameter = 0, 
+                eig_from_world =  env_eig/10,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+
+f_res_false_focus <- main_simulation_testing(subject = 1,
+                 simple_stimuli %>% mutate(V1 = as.logical(1-V1)) %>% filter(trial_number == 1), 
+                noise_parameter = 0, 
+                eig_from_world =  env_eig/10,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 3,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+f_res_true_focus <- main_simulation_testing(subject = 1,
+                 simple_stimuli %>% mutate(V1 = as.logical(1-V1)) %>% filter(trial_number == 1), 
+                noise_parameter = 0, 
+                eig_from_world =  env_eig/10,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 3, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+
+
+plot_posterior(res_false_focus, 1, 30)
+plot_posterior(f_res_false_focus, 1, 30)
+
+plot_posterior(res_flat, 1, 30)
+plot_posterior(f_res_flat, 1, 30)
+
+plot_posterior(res_true_focus, 1, 30)
+plot_posterior(f_res_true_focus, 1, 30)
+
+
+plot_kl_materials(get_eig_materials(res_false_focus))
+plot_kl_materials(get_eig_materials(f_res_false_focus))
+
+plot_kl_materials(get_eig_materials(res_flat))
+plot_kl_materials(get_eig_materials(f_res_flat))
+
+plot_kl_materials(get_eig_materials(res_true_focus))
+plot_kl_materials(get_eig_materials(f_res_true_focus))
+
+```
+
+```{r}
+calculate_posteriror(res_false_focus, 10)
+calculate_posteriror(f_res_false_focus, 10)
+calculate_posteriror(res_flat, 10)
+calculate_posteriror(f_res_flat,  10)
+
+calculate_posteriror(res_true_focus,  10)
+calculate_posteriror(f_res_true_focus, 10)
+
+```
+
+
+```{r}
+
+bind_rows(res_flat[[1]] %>% mutate(prior = "a1b1_true"), 
+          res_false_focus[[1]] %>% mutate(prior = "a1b10_true"), 
+          res_true_focus[[1]] %>% mutate(prior = "a10b1_true"), 
+          f_res_flat[[1]] %>%  mutate(prior = "a1b1_false"), 
+          f_res_false_focus[[1]] %>% mutate(prior = "a1b10_false"), 
+          f_res_true_focus[[1]] %>% mutate(prior = "a10b1_false"), )%>% 
+  mutate(stimulus_idx = as.factor(stimulus_idx)) %>% 
+  ggplot(aes(x = t, y = EIG, color = stimulus_idx, shape = V1)) + 
+  geom_point() + 
+  facet_wrap(~prior) 
+
+
+res[[1]] %>% 
+  mutate(stimulus_idx = as.factor(stimulus_idx)) %>% 
+  ggplot(aes(x = t, y = p_look_away, color = stimulus_idx)) + 
+  geom_point() + 
+  facet_wrap(~subject_id)
+```
+```{r}
+res[[1]]  %>% 
+  filter(V1 == FALSE)
+```
+
+#0.01539623 0.10661700
+
+the second dropped, and the thirteenth dropped, why? 
+```{r}
+
+# get kl if true 
+get_kl_with_obs <- function(res, obs = TRUE){
+  eig_materials <- res[[4]]
+  kl_list = list()
+  
+  for (i in seq(1:length(eig_materials))){
+    if (length(eig_materials[[i]]) != 0){
+    
+    if(obs == TRUE){
+      kl_list[[i]] <- eig_materials[[i]][[1]][[1]]
+    }else{
+       kl_list[[i]] <- eig_materials[[i]][[1]][[2]]
+    }
+    }
+  }
+  return (kl_list)
+}
+
+get_pp_with_obs <- function(res, obs = TRUE){
+  eig_materials <- res[[4]]
+  pp_list = list()
+  
+  for (i in seq(1:length(eig_materials))){
+    if (length(eig_materials[[i]]) != 0){
+    
+    if(obs == TRUE){
+      pp_list[[i]] <- eig_materials[[i]][[2]][[1]]
+    }else{
+       pp_list[[i]] <- eig_materials[[i]][[2]][[2]]
+    }
+    }
+  }
+  return (pp_list)
+}
+
+get_eig_materials <- function(res){
+  res[[1]]$kl_if_true <- tibble("kl_if_true" = get_kl_with_obs(res) %>% 
+  unlist())
+
+res[[1]]$kl_if_false <- tibble("kl_if_false" = get_kl_with_obs(res, FALSE) %>% 
+  unlist())
+
+res[[1]]$pp_if_true <- tibble("pp_if_true" = get_pp_with_obs(res) %>% 
+  unlist())
+
+res[[1]]$pp_if_false <- tibble("pp_if_false" = get_pp_with_obs(res, FALSE) %>% 
+  unlist())
+
+
+}
+
+get_eig_materials <- function(res){
+  res[[1]]$kl_if_true <- get_kl_with_obs(res) %>% 
+  unlist()
+
+res[[1]]$kl_if_false <- get_kl_with_obs(res, FALSE) %>% 
+  unlist()
+
+res[[1]]$pp_if_true <- get_pp_with_obs(res) %>% 
+  unlist()
+
+res[[1]]$pp_if_false <- get_pp_with_obs(res, FALSE) %>% 
+  unlist()
+
+return(res[[1]])
+
+}
+
+
+plot_kl_materials <- function(res_with_kl){
+  plot_kl_if_true <- res_with_kl %>% 
+  #filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = kl_if_true, color = stimulus_idx)) + 
+  geom_point() + 
+  theme(legend.position = "none") +
+  labs(subtitle = "kl when hypothetical obs is TRUE")
+
+plot_pp_if_true <- res_with_kl %>% 
+  #filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = pp_if_true, color = stimulus_idx)) + 
+  geom_point() + 
+    theme(legend.position = "none") +
+  labs(subtitle = "pp when hypothetical obs is TRUE")
+
+
+
+plot_eig_from_both_sides <- res_with_kl %>% 
+  mutate(eig_true_side = kl_if_true * pp_if_true, 
+         eig_false_side = kl_if_false * pp_if_false, 
+         sum_sides = eig_true_side + eig_false_side) %>% 
+  pivot_longer(c(eig_true_side, eig_false_side, sum_sides), 
+               names_to = "hypothetical_obs", 
+               values_to = "value") %>% 
+ #filter(stimulus_idx == 1) %>% 
+  #filter(hypothetical_obs != "eig_true_side") %>% 
+  ggplot(aes(x = t, y = value, color = hypothetical_obs)) + 
+  geom_point() + 
+  labs(title = "eig trajectory")
+
+plot_kl_if_false <- res_with_kl %>% 
+  #filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = kl_if_false, color = stimulus_idx)) + 
+  geom_point() + 
+    theme(legend.position = "none") +
+
+  labs(subtitle = "kl when hypothetical obs is FALSE")
+
+plot_pp_if_false <- res_with_kl %>% 
+ # filter(stimulus_idx == 1) %>% 
+  ggplot(aes(x = t, y = pp_if_false, color = stimulus_idx)) + 
+  geom_point() + 
+    theme(legend.position = "none") +
+
+  labs(subtitle = "pp when hypothetical obs is FALSE")
+
+plots <- cowplot::plot_grid(plot_kl_if_true, plot_pp_if_true, 
+                              plot_kl_if_false, plot_pp_if_false, 
+                            ncol = 2)
+cowplot::plot_grid(plots, plot_eig_from_both_sides, ncol = 1)
+  
+}
+
+```
+
+```{r}
+
+plot_kl_materials(get_eig_materials(res_flat))
+plot_kl_materials(get_eig_materials(f_res_false_focus))# all false, a1b10
+plot_kl_materials(get_eig_materials(f_res_true_focus))# all false, a10b1
+
+
+plot_kl_materials(get_eig_materials(res_true_focus)) # all true, a10b1 
+
+plot_kl_materials(get_eig_materials(res_false_focus))# all true, a1b10
+
+
+```
+
+```{r}
+plot_posterior <- function(res, start_time, end_time){
+  for (t in seq(start_time:end_time)){
+    for (f in seq(1:length(res[[2]][[t]]))){
+      res[[2]][[t]][[f]]$t <- t  
+    }
+  }
+  bind_rows(res[[2]][start_time:end_time]) %>% 
+    filter(epsilon == 0.001) %>% 
+    ggplot(aes(x = theta, y = posterior, color = t,group = t)) + 
+    geom_point()+
+    geom_line()
+   
+}
+
+calculate_posteriror <- function(res, max_t){
+  posteiror_for_t <- c()
+  
+   for (t in length(1:max_t)){
+    
+    posterior_at_t <- c()
+    
+    for (f in seq(1:length(res[[2]][[t]]))){
+      res[[2]][[t]][[f]]$t <- t 
+      posterior_at_t <-  c(posterior_at_t, sum(res[[2]][[t]][[f]]$posterior))
+    }
+    
+    posteiror_for_t <- c(posteiror_for_t, sum(posterior_at_t))
+
+   }
+  return(posteiror_for_t)
+  
+  
+  
+}
+
+plot_hypothetical_posterior <- function(res, start_time, end_time){
+  
+  l_hypothetical_posterior <- list()
+  for (t in seq(start_time:end_time)){
+    true_hypothetical_posterior <- res[[3]][[t]][[1]]
+    true_hypothetical_posterior$t <- t 
+    true_hypothetical_posterior$obs <- TRUE
+    
+    false_hypothetical_posterior <- res[[3]][[t]][[2]]
+    false_hypothetical_posterior$t <- t 
+    false_hypothetical_posterior$obs <- FALSE
+    
+    hypothetical_posterior_for_t <- bind_rows(true_hypothetical_posterior, false_hypothetical_posterior)
+    l_hypothetical_posterior[[t]] <- hypothetical_posterior_for_t
+  }
+  
+  
+  bind_rows(l_hypothetical_posterior) %>% 
+    #filter(epsilon == 0.001) %>% 
+    ggplot(aes(x = theta, y = posterior, color = t,group = t)) + 
+    geom_point()+
+    geom_line() + 
+    facet_wrap(~obs)
+   
+}
+
+```
+
+
+```{r}
+plot_hypothetical_posterior(res_false_focus, 1, 10)
+plot_hypothetical_posterior(res_true_focus, 1, 10)
+
+```
+
+
+```{r}
+plot_posterior_all_epsilon <- function(res, time_step, max_time){
+  for (t in seq(1:max_time)){
+    for (f in seq(1:length(res[[2]][[t]]))){
+      res[[2]][[t]][[f]]$t <- t  
+    }
+  }
+  
+  bind_rows(res[[2]]) %>% 
+    filter(t %in% time_step) %>% 
+    filter(epsilon == 0.1) %>% 
+    ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+    geom_point()+
+    #geom_line() + 
+    facet_wrap(~t)
+  
+  
+   
+}
+
+plot_posterior_all_epsilon(res_false_focus, c(1, 10), 30)
+
+sum(res_false_focus[[2]][[1]][[1]]$posterior)
+sum(res_false_focus[[2]][[10]][[1]]$posterior)
+
+```
+
+
+```{r}
+```
+
+
+
+
+
+why does the false side have such a big drop in kl? 
+```{r}
+#res[[2]][[10]]
+t10 <- res[[2]][[10]]
+
+t10_true <- res[[3]][[10]][[1]]
+t10_false <- res[[3]][[10]][[2]]
+
+
+t9 <- res[[2]][[9]]
+t9_true <- res[[3]][[9]][[1]]
+t9_false <- res[[3]][[9]][[2]]
+
+t10_false_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, false")
+
+t10_true_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, true")
+
+
+t9_false_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t9_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, false")
+
+t9_true_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t9_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = theta, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, true")
+
+get_kl <- function (post_posterior,prev_posterior) {
+  sum(post_posterior * log(post_posterior / prev_posterior)) 
+}
+noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
+  p_1 <- sum(((1 - epsilon) * theta * posterior) + 
+               (epsilon * (1-theta) * posterior))
+  
+  ifelse(heads, p_1, 1 - p_1)
+  
+}
+
+
+cowplot::plot_grid(t10_false_plot, t10_true_plot, 
+                   t9_false_plot, t9_true_plot, ncol = 2)
+
+#prev_posterior 
+#t10[[1]]$posterior
+#post_posterior 
+#t10_true$posterior 
+
+
+# KL when TRUE 
+print("When there's a misobservation:")
+print("kl when true")
+sum(t10_true$posterior * log( t10_true$posterior / t10[[1]]$posterior
+))
+print("pp when true")
+noisy_post_pred(t10[[1]]$theta, t10[[1]]$epsilon, t10[[1]]$posterior, TRUE)
+
+# KL when false 
+print("kl when false")
+sum(t10_false$posterior * log(t10_false$posterior / t10[[1]]$posterior
+))
+print("pp when false")
+noisy_post_pred(t10[[1]]$theta, t10[[1]]$epsilon, t10[[1]]$posterior, FALSE)
+
+
+print("When there's no misobservation:")
+print("kl when true")
+sum(t9_true$posterior * log( t9_true$posterior / t9[[1]]$posterior
+))
+print("pp when true")
+noisy_post_pred(t9[[1]]$theta, t9[[1]]$epsilon, t9[[1]]$posterior, TRUE)
+
+# KL when false 
+print("kl when false")
+sum(t9_false$posterior * log(t9_false$posterior / t9[[1]]$posterior
+))
+print("pp when false")
+noisy_post_pred(t9[[1]]$theta, t9[[1]]$epsilon, t9[[1]]$posterior, FALSE)
+
+
+
+```
+
+
+```{r}
+t10_false_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, false")
+
+t10_true_plot <- t10[[1]] %>% 
+  mutate(type = "t10_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "after misobservation, true")
+
+
+t9_false_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  #bind_rows(t10_true %>% mutate(type = "t10_eig_true")) %>% 
+  bind_rows(t10_false %>% mutate(type = "t9_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, false")
+
+t9_true_plot <- t9[[1]] %>% 
+  mutate(type = "t9_real_posterior") %>% 
+  bind_rows(t10_true %>% mutate(type = "t9_eig_true")) %>% 
+  #bind_rows(t10_false %>% mutate(type = "t10_eig_false")) %>% 
+  ggplot(aes(x = epsilon, y = posterior, color = type)) + 
+  geom_point()+ 
+  labs(subtitle = "before misobservation, true")
+
+
+cowplot::plot_grid(t10_false_plot, t10_true_plot, 
+                   t9_false_plot, t9_true_plot, ncol = 2)
+```
+
+
+
+```{r}
+obs  %>% 
+  #mutate(type = "t") %>% 
+  #bind_rows(obs_f %>% mutate(type = "t+1_false")) %>%
+  #bind_rows(obs_t %>% mutate(type = "t+1_true" )) %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+
+obs_t %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+obs_f %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+```
+
+```{r}
+# the posterior at first time point (FALSE)
+obs_f <- res[[2]][[1]]
+# the posterior for (FALSE TRUE)
+obs_ft <- res[[3]][[1]][[1]] 
+# the posterior for (FALSE FALSE)
+obs_ff <- res[[3]][[1]][[2]]
+
+
+```
+
+```{r}
+obs_f[[1]] %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+obs_ft %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+obs_ff %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# THE TEST
+the posterior produced for EIG at t should be the same with one of the real observation 
+```{r}
+subject = 1
+stimuli_sequence = simple_stimuli
+noise_parameter = noise_parameter 
+eig_from_world = env_eig
+max_observation = max_obs # should this be per trial or in total? currently per trial 
+grid_theta = seq(0.01, 1, 0.3) 
+grid_epsilon = seq(0.01, 1, 0.3) 
+alpha_prior = 1 
+beta_prior = 1
+alpha_epsilon = 1 
+beta_epsilon = 1 
+```
+
+
+```{r}
+
+  feature_number <- ncol(stimuli_sequence[startsWith(names(stimuli_sequence), 
+                                                     "V")])
+  total_trial_number = max(stimuli_sequence$trial_number)
+  
+  # df for keeping track of model behavior, 
+  df_model <-  initialize_model(subject, eig_from_world, max_observation)
+  m_observation <- initialize_m_observation(feature_number, max_observation, stimuli_sequence)
+  ll_df_posterior <- initialize_ll_df_posterior(grid_theta, grid_epsilon, max_observation, feature_number)
+  ll_df_z_given_theta <- initialize_ll_df_z_given_theta(grid_theta, grid_epsilon, max_observation, feature_number)
+  
+  
+  
+  
+
+  
+  # material for calculating df_posterior 
+  df_lp_theta_epsilon <- get_df_lp_theta_epsilon(grid_theta, grid_epsilon, 
+                                                 alpha_prior, beta_prior, 
+                                                 alpha_epsilon, beta_epsilon)
+  df_lp_y_given_theta = tibble(
+    "theta" = grid_theta, 
+    "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta ), 
+    "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta )
+  )
+
+  
+  stimulus_idx <- 1
+  t <- 1
+  
+    
+for(t in seq(1, 2)){
+ 
+  print(t)
+   df_model$t[[t]] = t
+    df_model$stimulus_idx[[t]] = stimulus_idx
+  
+    
+    #get stimulus
+    current_stimulus <- stimuli_sequence[stimulus_idx,]
+    
+    #get observation 
+    # SET RANDOM SEED TO SEE IF IT IS RIGHT
+
+    current_observation <- noisy_observation_creature(
+      creature = current_stimulus[,str_detect(names(current_stimulus), "V")], 
+      n_sample = 1, 
+      epsilon = noise_parameter
+    )
+  
+    # add to current observation 
+    m_observation[t, ] <- current_observation
+  
+    
+   
+     ## need to update posterior df here 
+    
+    current_unique_possible_combinations <- get_unique_combination(t, 
+                                                                m_observation, 
+                                                                feature_number)
+  
+    feature_pos <- current_unique_possible_combinations$feature_pos
+    
+    all_possible_combinations <- expand_grid(
+      current_unique_possible_combinations, 
+      hypothetical_observation = c(TRUE, FALSE)
+      
+    ) 
+    
+    n_possible_combination <- nrow(all_possible_combinations)
+    all_possible_combinations$kl <- rep(NA_real_, n_possible_combination)
+    all_possible_combinations$post_predictives <- rep(NA_real_, n_possible_combination)
+    
+    feature_occurence <- na.omit(as.vector(sapply(feature_pos, function(x){first(na.omit(x))})))
+    for (index in feature_occurence){
+      
+      # this needs to be changed! we need to take into account of whether sth is taken from a new stimulus or not
+    
+      
+      ll_df_z_given_theta[[t]][[index]] <- get_df_lp_z_given_theta(t, 
+                                                                   df_lp_y_given_theta,
+                                                                   ll_df_z_given_theta, 
+                                                                   stimulus_idx,   # needs to be about each observation, not each stimulus  
+                                                                   index, 
+                                                                   df_model, 
+                                                                   m_observation,
+                                                                   current_observation, 
+                                                                   grid_theta, grid_epsilon, 
+                                                                   alpha_prior, beta_prior)
+      
+      
+      
+     
+        unnormalized_log_posterior <- ll_df_z_given_theta[[t]][[index]]$lp_z_given_theta + 
+          df_lp_theta_epsilon$lp_theta + 
+          df_lp_theta_epsilon$lp_epsilon
+
+      
+      ll_df_posterior[[t]][[index]]$unnormalized_log_posterior <- unnormalized_log_posterior
+      ll_df_posterior[[t]][[index]]$log_posterior <-  ll_df_posterior[[t]][[index]]$unnormalized_log_posterior - matrixStats::logSumExp( ll_df_posterior[[t]][[index]]$unnormalized_log_posterior)
+      ll_df_posterior[[t]][[index]]$posterior <- exp(ll_df_posterior[[t]][[index]]$log_posterior)
+      
+      print("real occurence")
+      print("real observation:")
+      print(m_observation %>% janitor::remove_empty())
+     print(ll_df_posterior[[t]][[index]]$posterior)
+    }
+    
+    for (i in 1:feature_number){
+      
+      # find corresponding calculated value 
+      calculated_value_index <- match(TRUE, sapply(feature_pos, function(x){i %in% x}))
+      calculated_value_index_in_ll <- feature_occurence[[calculated_value_index]]
+      ll_df_posterior[[t]][[i]] <- ll_df_posterior[[t]][[calculated_value_index_in_ll]]
+      ll_df_z_given_theta[[t]][[i]] <- ll_df_z_given_theta[[t]][[calculated_value_index_in_ll]]
+    }
+    
+    
+    prev_posterior_list <- ll_df_posterior[[t]][feature_occurence]
+    prev_z_given_theta_list <- ll_df_z_given_theta[[t]][feature_occurence]
+    
+    post_posterior_list <- lapply(seq(1, n_possible_combination),
+                                  function(x){
+                                    expand_grid(theta = grid_theta, 
+                                                epsilon = grid_epsilon)
+                                  })
+    
+    last_t_for_last_stimulus = ifelse(stimulus_idx == 1, 1,
+                                      max((df_model[df_model$stimulus_idx == stimulus_idx-1,])$t, na.rm = TRUE)
+    )
+    prev_z_given_theta_last_stimulus <- ll_df_z_given_theta[[last_t_for_last_stimulus]][feature_occurence]
+    
+    
+    for (i in 1:n_possible_combination){
+      
+      
+      all_hypothetical_observations_on_this_stimulus = c((unlist(all_possible_combinations$unique_combination[[i]]))[last_t_for_last_stimulus:t], 
+                             all_possible_combinations$hypothetical_observation[[i]])
+      
+      
+      post_posterior_df = post_posterior_list[[i]]
+      
+      prev_observation_posterior = prev_posterior_list[[ceiling(i/2)]]
+      prev_observation_z_given_theta = prev_z_given_theta_list[[ceiling(i/2)]]
+      prev_last_stimulus_observation_z_given_theta = prev_z_given_theta_last_stimulus[[ceiling(i/2)]]
+      
+      print("in eig calculation")
+      post_df_z_given_theta = eig_get_df_lp_z_given_theta(t,
+                                                       df_model,
+                                                       prev_last_stimulus_observation_z_given_theta,
+                                                       all_hypothetical_observations_on_this_stimulus, # contains unique combination + hypothetical scenarios 
+                                                       grid_theta, grid_epsilon, 
+                                                       df_lp_y_given_theta)
+      print("hypothetical observation:")
+      print(all_hypothetical_observations_on_this_stimulus)
+
+      
+      post_posterior_list[[i]]$unnormalized_log_posterior <- post_df_z_given_theta$lp_z_given_theta +  df_lp_theta_epsilon$lp_theta + 
+        df_lp_theta_epsilon$lp_epsilon
+      
+      post_posterior_list[[i]]$log_posterior <-   post_posterior_list[[i]]$unnormalized_log_posterior - matrixStats::logSumExp(post_posterior_list[[i]]$unnormalized_log_posterior)
+      post_posterior_list[[i]]$posterior <- exp(post_posterior_list[[i]]$log_posterior)
+      print(post_posterior_list[[i]]$posterior)
+    
+    }
+    
+    
+     for (s in 1:n_possible_combination){
+      
+      all_possible_combinations$kl[s] <- get_kl(post_posterior_list[[s]]$posterior, 
+                                                prev_posterior_list[[ceiling(s/2)]]$posterior)
+      all_possible_combinations$post_predictives[s] <- noisy_post_pred(prev_posterior_list[[ceiling(s/2)]]$theta, 
+                                                                       prev_posterior_list[[ceiling(s/2)]]$epsilon, 
+                                                                       prev_posterior_list[[ceiling(s/2)]]$posterior, 
+                                                                       all_possible_combinations$hypothetical_observation[s]) 
+      
+      
+    }
+    print("post preditives")
+    print(all_possible_combinations$post_predictives)
+    
+    t = t + 1 
+    stimulus_idx <- stimulus_idx + 1
+}
+```
+
+
+
+```{r}
+all_hypothetical_observations_on_this_stimulus
+post_posterior_list
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+sim_res %>% 
+  group_by(subject_id, stimulus_idx) %>% 
+  mutate()
+
+sim_res %>% 
+  get_sim_res
+```
+
+```{r}
+sim_res %>% 
+  ggplot(aes(x = t, y = EIG, color = stimulus_idx)) + 
+  geom_point()  + 
+  facet_wrap(~subject_id)
+```
+
+
+
+```{r}
+all_false <- simple_stimuli %>% 
+  mutate(V1 = rep(FALSE, 6))
+
+
+mix_test_stim_posterior_ll <- main_simulation_uc(subject = 1,
+                all_false, 
+                noise_parameter = noise_parameter, 
+                eig_from_world = env_eig ,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL, 
+                show_posterior = TRUE) 
+
+for (t in seq(1: length(mix_test_stim_posterior_ll))){
+  for (f in seq(1:length(mix_test_stim_posterior_ll[[t]]))){
+    mix_test_stim_posterior_ll[[t]][[f]]$t <- t  
+  }
+}
+
+bind_rows(mix_test_stim_posterior_ll) %>% 
+  filter(!is.na(posterior)) %>% 
+  #filter(t%%2 == 0) %>% 
+  ggplot(aes(x  = theta, y = posterior)) + 
+  geom_point() + 
+  facet_wrap(~t)
+```
+
+
+
+```{r}
+env_eig <- 0.001
+simple_sim <- main_simulations(subject_n = 50,
+                simple_stimuli, 
+                noise_parameter = noise_parameter, 
+                eig_from_world = env_eig,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 1,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL) %>% 
+  mutate(type = "simple_stimuli")
+
+complex_sim <- main_simulations(subject_n = 50,
+                complex_stimuli, 
+                noise_parameter = noise_parameter, 
+                eig_from_world = env_eig,
+                max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = 1, 
+                beta_prior = 12,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = FALSE,
+                forced_sample = NULL) %>% 
+  mutate(type = "complex_stimuli")
+
+
+```
+
+
+
+```{r}
+cm_sim <- bind_rows(simple_sim %>% get_sim_res() %>% mutate(complexity = "complex"), complex_sim %>% get_sim_res() %>% mutate(complexity = "simple"))
+
+cm_eig <- bind_rows(simple_sim, complex_sim) %>% 
+  group_by(subject_id, type, stimulus_idx) %>% 
+  summarise(total_eig = sum(EIG))
+
+
+cm_sim %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  geom_jitter(alpha = .1) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  ylim(0, 50) 
+
+bind_rows(simple_sim, complex_sim) %>% 
+   ggplot(aes(x = t, y = p_look_away, color = type, alpha = .3))  + 
+  stat_summary(fun.data = "mean_cl_boot")  
+
+cm_sim %>% 
+  left_join(cm_eig, by = c("subject_id", "stimulus_idx")) %>% 
+  ggplot(aes(x = total_eig, y = sample_n, color = type)) + 
+  geom_point() + 
+  facet_wrap(~type) + 
+  ylim(0, 100)
+cm_eig
+
+
+bind_rows(simple_sim, complex_sim) %>% 
+  ggplot(aes(x = t, y = EIG, color = type, alpha = .3))  + 
+  stat_summary(fun.data = "mean_cl_boot") 
+ # facet_wrap(~type)
+```
+
+
+
+
+
+
+i'm going to systematically vary: 
+
+- forced sample 
+- noise parameter 
+- eig_envrs 
+- alpha_prior 
+- beta_prior 
+
+```{r}
+
+
+subject_n <- 40
+stimuli_sequence <- test_background
+noise_parameter <- 0.001
+eig_from_world <- seq(0.001, 0.02, 0.002)
+max_observation <- 100
+
+alpha_prior <- 5
+beta_prior <- 4
+forced_sample = seq(1, 30, 2)
+
+background_params <- expand_grid(
+  subject_n,
+  #stimuli_sequence = nest(test_background), 
+  noise_parameter,
+  eig_from_world, 
+  max_observation,
+  alpha_prior, 
+  beta_prior, 
+  forced_sample
+) %>%
+  mutate(
+    sim_id = row_number(),
+    type = "background"
+  )
+
+deviant_params <- expand_grid(
+  subject_n,
+  #timuli_sequence = nest(test_deviant), 
+  noise_parameter,
+  eig_from_world, 
+  max_observation,
+  alpha_prior, 
+  beta_prior, 
+  forced_sample
+) %>%
+  mutate(
+    sim_id = row_number(),
+    type = "deviant"
+  )
+  
+
+params <- bind_rows(background_params, deviant_params) 
+
+params
+params %>% data.frame() 
+  
+test_background
+test_deviant
+params
+```
+
+
+with the same parameter i'm going to feed them the two stimuli
+the end table i wants (each row is a column)
+
+- forced_sample_n 
+- noise_parameter 
+- eig_envrs 
+- alpha_prior 
+- beta_prior 
+- mean_sample_n_background 
+- mean_sample_n_deviant
+- sd_sample_n_background 
+- sd_sample_n_deviant 
+
+
+
+
+```{r}
+
+
+simulation_wrappter <- function(subject_n, noise_parameter, 
+                                eig_from_world, max_observation, alpha_prior, beta_prior, forced_sample, sim_id, 
+                                type){
+  
+  b_sim_df <- main_simulations(subject_n, 
+                             test_background, 
+                             noise_parameter, 
+                             eig_from_world,
+                             max_observation, # should this be per trial or in total? currently per trial 
+                             grid_theta = grid_theta, 
+                             grid_epsilon = grid_epsilon, 
+                             alpha_prior, 
+                             beta_prior,
+                             alpha_epsilon = alpha_epsilon, 
+                             beta_epsilon = beta_epsilon, 
+                             forced_exposure = TRUE,
+                             forced_sample) %>% 
+    get_sim_res() %>% 
+    get_sim_eva() 
+
+    b_sim_df$sim_id <- sim_id
+    b_sim_df$type <- "background"
+    
+     d_sim_df <- main_simulations(subject_n, 
+                             test_deviant, 
+                             noise_parameter, 
+                             eig_from_world,
+                             max_observation, # should this be per trial or in total? currently per trial 
+                             grid_theta = grid_theta, 
+                             grid_epsilon = grid_epsilon, 
+                             alpha_prior, 
+                             beta_prior,
+                             alpha_epsilon = alpha_epsilon, 
+                             beta_epsilon = beta_epsilon, 
+                             forced_exposure = TRUE,
+                             forced_sample) %>% 
+    get_sim_res() %>% 
+    get_sim_eva() 
+     
+    d_sim_df$sim_id <- sim_id
+    d_sim_df$type <- "deviant"
+      
+    print(sim_id)
+    return(bind_rows(b_sim_df, d_sim_df))  
+  }
+
+
+noise_sim_res_redux <- pmap_dfr(params, 
+     simulation_wrappter
+     )
+
+saveRDS(noise_sim_res_redux, file = "noise_sim_res.rds")
+
+#saveRDS(sim_res, file = "sim_res.rds")
+```
+
+```{r}
+noise_sim_res
+```
+```{r}
+forced_exposure_df <- noise_sim_res_redux %>% 
+  filter(stimulus_idx == 1) %>% 
+  distinct(n, sim_id, mean_lt, stimulus_idx) %>% 
+  pivot_wider(names_from = stimulus_idx, 
+              values_from = mean_lt) %>%
+  rename(forced_exposure_n = "1") %>% 
+  select(sim_id, forced_exposure_n)
+ 
+
+fam_df <- noise_sim_res_redux %>% 
+  filter(stimulus_idx == 2) %>% 
+  left_join(forced_exposure_df, by = "sim_id") %>% 
+  mutate(ci.upper = mean_lt + (1.96 * sd_lt)/sqrt(n), 
+         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n)) 
+  
+fam_df %>% 
+  ggplot(aes(x = forced_exposure_n, y = mean_lt, color = type)) + 
+  geom_jitter(alpha = .5) + 
+  geom_smooth(method = "lm") + 
+  theme_classic()
+```
+
+```{r}
+
+params_df <- params %>% 
+  mutate(temp_id = paste0(sim_id, type)) %>% 
+  select(forced_sample,
+      noise_parameter, 
+         eig_from_world, 
+         alpha_prior, 
+         beta_prior, 
+         temp_id) %>% 
+  left_join(noise_sim_res_redux %>%  filter(stimulus_idx == 2) %>% mutate(temp_id = paste0(sim_id, type)), 
+            by = "temp_id") %>% 
+  select(-temp_id)
+```
+
+```{r}
+params_df %>% 
+  ggplot(aes(x = mean_lt, fill = type)) + 
+  geom_density(alpha = .3) + 
+  facet_wrap(~forced_sample)
+```
+
+
+
+```{r}
+params_df %>% 
+  mutate(ci.upper = mean_lt + (1.96 * sd_lt)/sqrt(n), 
+         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n)) %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = forced_sample, y = mean_lt, ymax = ci.upper, ymin = ci.lower, 
+                      color = type), position = position_jitter(width = .5)) + 
+  facet_wrap(~eig_from_world)
+
+
+params_df %>% 
+  mutate(ci.upper = mean_lt + (1.96 * sd_lt)/sqrt(n), 
+         ci.lower = mean_lt - (1.96 * sd_lt)/sqrt(n)) %>% 
+  filter(eig_from_world == 0.001) %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = forced_sample, y = mean_lt, ymax = ci.upper, ymin = ci.lower, 
+                      color = type), position = position_jitter(width = .5)) + 
+  facet_wrap(~sim_id)
+  
+```
+
+
+
+```{r}
+params_df %>% 
+  mutate(prior_print = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
+  ggplot(aes(x = forced_exposure_n, y = mean_lt, color = type)) + 
+  geom_jitter(alpha = .5) + 
+  geom_smooth(method = "lm") + 
+  theme_classic()+ 
+  facet_wrap(~forced_exposure_n)
+```
+
+
+```{r}
+bckgrd_df <- params_df %>% 
+  filter(type == "background") %>% 
+ pivot_wider(names_from = type, 
+             values_from = mean_lt) %>% 
+  select(sim_id, background, forced_exposure_n)
+  
+deviant_df <- params_df %>% 
+  filter(type == "deviant") %>% 
+ pivot_wider(names_from = type, 
+             values_from = mean_lt) %>% 
+  select(sim_id, deviant)
+
+
+sim_res_df <- bckgrd_df %>% 
+  left_join(deviant_df, by = "sim_id") 
+
+
+sim_res_df %>% 
+  ggplot(aes(x =bckgrd_minus_deviant, fill = forced_exposure_n)) + 
+  geom_density(alpha = .1)  +
+  geom_vline(xintercept = 0) + 
+  theme_classic() + 
+  facet_wrap(~as.numeric(forced_exposure_n))
+
+```
+
+
+
+
+
+
+```{r}
+saveRDS(params_df, file = "noise_sim_res.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
