@@ -1,0 +1,158 @@
+---
+title: "test function"
+author: "anjie"
+date: "10/28/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(matrixStats)
+
+
+source(here("helper/make_scheme_and_params.r"))
+source(here("helper/get_eig_faster.R"))
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/main_simulation_under_construction.r"))
+source(here("helper/params_helper_experiment.r"))
+
+
+d <- read_csv(here("data/processed_rt_task_data.csv"))
+
+
+```
+
+
+
+## this is the function to test 
+```{r}
+get_df_lp_z_y_raw <- function(t, stimulus_idx, last_t_for_last_stimulus, index, df_model, m_observation, current_observation, grid_epsilon, df_lp_y_given_theta){
+  
+
+  observations_on_this_stimulus_till_this_t = na.omit(m_observation[last_t_for_last_stimulus:t, index])
+                                                     
+  df_lp_z_given_y = tibble(
+    "epsilon" = grid_epsilon
+  )
+
+  if (t == 1 || stimulus_idx != df_model$stimulus_idx[[t-1]]){
+    df_lp_z_given_y$lp_z_given_y_ONE =  lp_z_ij_given_y(zij = current_observation[[index]], yi = 1, epsilon = grid_epsilon)
+    df_lp_z_given_y$lp_z_given_y_ZERO = lp_z_ij_given_y(zij = current_observation[[index]], yi = 0, epsilon = grid_epsilon)
+  }else{
+    df_lp_z_given_y$lp_z_given_y_ONE = rowSums(sapply(observations_on_this_stimulus_till_this_t, 
+                                                     function(x){lp_z_ij_given_y(x, 1, grid_epsilon)}))
+    df_lp_z_given_y$lp_z_given_y_ZERO = rowSums(sapply(observations_on_this_stimulus_till_this_t, 
+                                                       function(x){lp_z_ij_given_y(x, 0, grid_epsilon)}))
+  }
+  
+  df_lp_z_y_raw <- expand_grid(df_lp_y_given_theta, df_lp_z_given_y)
+  return(df_lp_z_y_raw)
+}
+
+```
+
+## now we need to write a test function for this 
+```{r}
+test_get_df_lp_z_y_raw <- function(){
+  # initialize a bunch of things 
+  
+  ## case 1: 
+  ## the first observation! 
+  
+  stimulus_idx = 1 
+  index = 1 
+  subject = 1
+  eig_from_world <- 0.002
+  max_observation = 500
+  stimuli_sequence <- tibble(
+    "V1" = c(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE), 
+    "trial_number" = c(1, 2, 3, 4, 5, 6)
+  )
+  
+  
+  df_model <-  initialize_model(subject, eig_from_world, max_observation)
+  df_model$t[[1]] <- 1
+  df_model$stimulus_idx[[1]] <- 1
+  m_observation <- initialize_m_observation(feature_number = 1, max_observation, stimuli_sequence = stimuli_sequence)
+  
+  current_observation = TRUE 
+  grid_epsilon <- c(0, 0.5, 1)
+  grid_theta <- c(0, 0.5, 1)
+  
+  df_lp_y_given_theta = tibble(
+    "theta" = grid_theta, 
+    "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta), 
+    "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta)
+  )
+  
+  get_df_lp_z_y_raw(t = 1, 
+                    stimulus_idx = 1, 
+                    last_t_for_last_stimulus = 1, 
+                    index= 1, 
+                    df_model = df_model, 
+                    m_observation = m_observation, 
+                    current_observation = current_observation, 
+                    grid_epsilon = grid_epsilon,
+                    df_lp_y_given_theta = df_lp_y_given_theta)
+
+  
+  ## hands calculating results 
+  
+  
+  ## case 2: 
+  ## second observation on the same stimulus 
+  
+  stimulus_idx = 1 
+  index = 1 
+  subject = 1
+  eig_from_world <- 0.002
+  max_observation = 500
+  stimuli_sequence <- tibble(
+    "V1" = c(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE), 
+    "trial_number" = c(1, 2, 3, 4, 5, 6)
+  )
+  
+  
+  df_model <-  initialize_model(subject, eig_from_world, max_observation)
+  df_model$t[[1]] <- 1
+  df_model$stimulus_idx[[1]] <- 1
+  m_observation <- initialize_m_observation(feature_number = 1, max_observation, stimuli_sequence = stimuli_sequence)
+  m_observation[[1]] <- TRUE 
+  
+  current_observation = TRUE 
+  grid_epsilon <- c(0, 0.5, 1)
+  grid_theta <- c(0, 0.5, 1)
+  
+  df_lp_y_given_theta = tibble(
+    "theta" = grid_theta, 
+    "lp_y_ONE_given_theta" =  lp_yi_given_theta(yi = 1, theta = grid_theta), 
+    "lp_y_ZERO_given_theta" = lp_yi_given_theta(yi = 0, theta = grid_theta)
+  )
+  
+  # very weird, doesn't make sense yet 
+  get_df_lp_z_y_raw(t = 2, 
+                    stimulus_idx = 1, 
+                    last_t_for_last_stimulus = 1, 
+                    index= 1, 
+                    df_model = df_model, 
+                    m_observation = m_observation, 
+                    current_observation = current_observation, 
+                    grid_epsilon = grid_epsilon,
+                    df_lp_y_given_theta = df_lp_y_given_theta)
+
+  
+  
+  ## case 3: 
+  ## first observation on the second stimulus 
+  
+  
+  
+  
+  
+  
+  
+}
+```
+
