@@ -1,0 +1,641 @@
+---
+title: "tidy up infrastructure"
+author: "anjie"
+date: "6/9/2021"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+
+```
+
+```{r}
+source(here("helper/new_get_stimuli.R"))
+source(here("helper/new_get_observation.R"))
+source(here("helper/new_grid_approximation.R"))
+```
+
+```{r}
+num_features = 5
+num_features_simple = 3
+# num_features_complex = 8
+trials_per_block = 8
+deviant_positions = c(3, 5)
+dissimilarity_ratio = 0.2
+epsilon = 0.1
+
+```
+
+```{r}
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = 0.8, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+simple_stimuli
+```
+
+```{r}
+o1 <- noisy_observation_creature(
+  stimuli_df = simple_stimuli,
+  trial_index  = 1, 
+  n_sample = 1, 
+  epsilon = 0.01
+)
+
+o1
+o2 <- bind_rows(o1, o1)
+
+o2
+```
+
+```{r}
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+# currently not tracking: 
+# actual observation and timestep. might not be relevant yet. 
+grid_apprxoimation_with_observation(
+  noisy_observation = o2, 
+  track_epsilon = TRUE, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
+
+grid_apprxoimation_with_observation(
+  noisy_observation = o1, 
+  track_epsilon = TRUE, 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+```
+# currently looking at one single block only
+
+```{r}
+
+
+
+
+make_possible_scenario <- function(observation_df, 
+                                                scenario){
+  
+  alternative_df <- observation_df
+  last_observation <- observation_df %>%
+    # get the last row
+    filter(row_number()==n())
+  
+  if (scenario == "same"){
+    new_observation <- last_observation %>% 
+      # the trial number will be wrong as we are switching but maybe we don't need to track it here in the end 
+      mutate(t = t + 1, 
+             trial_number = last_observation$trial_number, 
+             trial_type = last_observation$trial_type)
+    
+    same_observation_df <- bind_rows(alternative_df, 
+                              new_observation)
+    
+    return(same_observation_df)
+    
+  }else{
+    
+    new_observation <- as.logical(1 - (last_observation %>% 
+                                    select(starts_with("V")) %>% 
+                                    as.logical())) %>% 
+                      as.vector() %>% 
+                      as_tibble_row(.name_repair = ~ names(last_observation %>% select(starts_with("V")))) %>% 
+                      mutate(t = t + 1, 
+                             trial_number = last_observation$trial_number, 
+                             trial_type = last_observation$trial_type
+                             )
+    
+    diff_observation_df <- bind_rows(alternative_df, 
+                              new_observation)
+    
+    return(diff_observation_df)
+      
+    
+  }
+  
+  }
+```
+
+
+
+```{r}
+set.seed(42)
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+
+dkl <- function (x,y) {
+  sum(x * log(x / y)) 
+}
+
+noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
+  # probability of a head is:
+  # (didn't get flipped * it's a head) + (got flipped + it was a tail)
+  p_1 <- sum(((1 - epsilon) * theta * posterior) + 
+               (epsilon * (1-theta) * posterior))
+  
+  # the alternative:
+  # (didn't get flipped * it's a tail) + (got flipped + it's a head)
+  # p_0 <- sum(((1 - epsilon) * (1 - theta) * posterior) + 
+  #                 (epsilon * theta * posterior))
+  
+  # flip if you are asking for 0 probability
+  ifelse(heads, p_1, 1 - p_1)
+  
+}
+
+main_simulation <- function(
+                          subject, 
+                          stimuli_sequence, 
+                          noise_parameter, 
+                          eig_from_world = .005,
+                          max_observation = 500, # should this be per trial or in total? currently in total 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                          ){
+  
+  # set up the df that tracks eig  
+  df <- tibble(t = rep(NA,max_observation),
+             stimulus_idx = rep(NA,max_observation), 
+             # also currently aggregating everything
+             dkl_if_same = rep(NA,max_observation), 
+             dkl_if_different = rep(NA,max_observation),
+             post_pred = rep(NA,max_observation), 
+             EIG = rep(NA,max_observation), 
+             # the bottom two rows are calculated by aggregating across all features 
+             p_look_away = rep(NA,max_observation), 
+             look_away = rep(NA,max_observation))
+
+  
+  # set up the df that keep trakc of observation 
+  observations <-  stimuli_sequence %>% 
+    # create an empty dataframe with all the info needed to be tracked 
+    filter(is.na(.)) %>% 
+    mutate(t = NA_integer_) 
+  
+  
+  # the total number of stimuli 
+  total_trial_number = nrow(stimuli_sequence)
+  total_feature_number = stimuli_sequence %>% 
+    select(starts_with("V")) %>% 
+    ncol()
+  
+
+
+  # which stimulus are we looking at
+    stimulus_idx <- 1
+    t <- 1
+  
+  
+  while(stimulus_idx <= total_trial_number){
+    
+    current_stimulus <- stimuli_sequence %>% 
+      filter(trial_number == stimulus_idx)
+    
+    current_observation <- noisy_observation_creature(
+                                stimuli_df = stimuli_sequence,
+                                trial_index  = stimulus_idx, 
+                                n_sample = 1, 
+                                epsilon = noise_parameter
+                              )
+    
+    # add to current observation 
+    observations <- bind_rows(observations, 
+                              current_observation %>% mutate(
+                                trial_number = stimulus_idx, 
+                                trial_type = current_stimulus$trial_type,
+                                t = t))
+    
+    # calculate posterior at t 
+    # optimization possible!
+    posterior_at_t <- grid_apprxoimation_with_observation(
+                          noisy_observation = observations, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+    
+    # make two alternative possibilities 
+    # Q: the independence of feature still holds?
+    # this might be a serious issue 
+    # approach 1(simplest): either same with current observed, or completley flipped 
+    # approach 2(simplest): either same with the next observed, or completely flipped 
+    # approach 3(moderate): set a parameter on the creature level to determine how many are flipped and how many are not
+    # appraoch 4(wacky): make the parameter change throughout the experiment 
+    # approach 5(wacky but simple): democratic approach 
+    obs_t_plus_1_same <- make_possible_scenario(observation_df = observations, 
+                                                scenario = "same") 
+    
+    
+    obs_t_plus_1_different <- make_possible_scenario(
+                                                observation_df = observations, 
+                                                scenario = "different") 
+    
+    posterior_at_t_plus_1_same <- grid_apprxoimation_with_observation(
+                          noisy_observation = obs_t_plus_1_same, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+    
+    posterior_at_t_plus_1_diff <- grid_apprxoimation_with_observation(
+                          noisy_observation = obs_t_plus_1_different, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+    
+    # maybe needs scaling?
+    
+    df$t[t] = t
+    df$stimulus_idx[t] = stimulus_idx
+    df$dkl_if_same[t] <- dkl(posterior_at_t_plus_1_same$posterior, 
+                          posterior_at_t$posterior) #/ total_feature_number
+    df$dkl_if_different[t] <- dkl(posterior_at_t_plus_1_diff$posterior, 
+                          posterior_at_t$posterior) #/ total_feature_number
+    
+    df$post_pred[t] <- noisy_post_pred(posterior_at_t$theta, 
+                                       posterior_at_t$epsilon,
+                                       posterior_at_t$posterior) / total_feature_number
+    
+    df$EIG[t] = (1-df$post_pred[t]) * df$dkl_if_same[t] + df$post_pred[t] * df$dkl_if_different[t] 
+    
+    # flip a coin with p_keep_looking weight
+    df$p_look_away[t] = C / (df$EIG[t] + C)
+    df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+
+    if (df$look_away[t]==TRUE) {
+      stimulus_idx <- stimulus_idx + 1
+    }
+    
+    t <- t + 1 
+      
+      
+  }
+    
+  df <- df %>% mutate(id = subject)
+  
+  
+  return(df)
+}
+```
+
+## brute force 
+```{r}
+
+  
+
+```
+
+```{r}
+kls <- get_possible_kls(observations = observations, 
+                 all_possible_outcomes = all_possible_outcomes, 
+                         posterior_at_t = posterior_at_t, 
+                         grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+```
+
+
+## calculating post predictives deluxe 
+```{r}
+noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
+  # probability of a head is:
+  # (didn't get flipped * it's a head) + (got flipped + it was a tail)
+  p_1 <- sum(((1 - epsilon) * theta * posterior) + 
+               (epsilon * (1-theta) * posterior))
+  
+  # the alternative:
+  # (didn't get flipped * it's a tail) + (got flipped + it's a head)
+  # p_0 <- sum(((1 - epsilon) * (1 - theta) * posterior) + 
+  #                 (epsilon * theta * posterior))
+  
+  # flip if you are asking for 0 probability
+  ifelse(heads, p_1, 1 - p_1)
+  
+}
+
+creature_noisy_post_pred <- function(
+  outcome_index, 
+  all_possible_outcomes, 
+  posterior_at_t){
+  
+  observation_at_t_plus_one <- all_possible_outcomes %>% 
+    filter(index == outcome_index)
+  
+  feature_n <- observation_at_t_plus_one %>% 
+    select(starts_with("V")) %>% 
+    ncol()
+  
+  
+    
+  # calculate post predctive for each feature
+  feature_predictive <- lapply(seq(1, feature_n, 1), 
+         function(x,
+                  observation = observation_at_t_plus_one,
+                  posterior = posterior_at_t){
+         
+           f_posterior <- posterior %>% 
+             filter(feature_index == x)
+           
+           f_observation <- observation[x] %>% 
+             pull()
+           
+           noisy_post_pred(f_posterior$theta, 
+                           f_posterior$epsilon, 
+                           f_posterior$posterior, 
+                           f_observation)
+           
+         }) 
+  
+    return(feature_predictive %>% unlist() %>% prod())
+  
+  
+}
+
+
+```
+
+```{r}
+((kls$kl %*% all_preds) %>% as.vector()) %>% as.numeric()
+
+```
+
+# UPDATED MAIN
+```{r}
+main_simulation <- function(
+                          subject, 
+                          stimuli_sequence, 
+                          noise_parameter, 
+                          eig_from_world = .005,
+                          max_observation = 500, # should this be per trial or in total? currently in total 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                          ){
+  
+  # set up the df that tracks eig  
+  df <- tibble(t = rep(NA,max_observation),
+             stimulus_idx = rep(NA,max_observation), 
+             post_pred = rep(NA,max_observation), 
+             EIG = rep(NA,max_observation), 
+             # the bottom two rows are calculated by aggregating across all features 
+             p_look_away = rep(NA,max_observation), 
+             look_away = rep(NA,max_observation))
+
+  
+  # set up the df that keep trakc of observation 
+  observations <-  stimuli_sequence %>% 
+    # create an empty dataframe with all the info needed to be tracked 
+    filter(is.na(.)) %>% 
+    mutate(t = NA_integer_) 
+  
+  
+  # the total number of stimuli 
+  total_trial_number = nrow(stimuli_sequence)
+  total_feature_number = stimuli_sequence %>% 
+    select(starts_with("V")) %>% 
+    ncol()
+  
+
+
+  # which stimulus are we looking at
+    stimulus_idx <- 1
+    t <- 1
+  
+  
+  while(stimulus_idx <= total_trial_number){
+    
+    current_stimulus <- stimuli_sequence %>% 
+      filter(trial_number == stimulus_idx)
+    
+    current_observation <- noisy_observation_creature(
+                                stimuli_df = stimuli_sequence,
+                                trial_index  = stimulus_idx, 
+                                n_sample = 1, 
+                                epsilon = noise_parameter
+                              )
+    
+    # add to current observation 
+    observations <- bind_rows(observations, 
+                              current_observation %>% mutate(
+                                trial_number = stimulus_idx, 
+                                trial_type = current_stimulus$trial_type,
+                                t = t))
+    
+    # calculate posterior at t 
+    # optimization possible!
+    posterior_at_t <- grid_apprxoimation_with_observation(
+                          noisy_observation = observations, 
+                          track_epsilon = TRUE, 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon
+                        )
+    
+
+    
+    # maybe needs scaling?
+    
+    df$t[t] = t
+    df$stimulus_idx[t] = stimulus_idx
+    
+    df$EIG[t] = get_eig(current_observation, 
+                    observations, 
+                    posterior_at_t, 
+                    grid_theta = grid_theta, 
+                    grid_epsilon = grid_epsilon, 
+                    alpha_prior = alpha_prior, 
+                    beta_prior = beta_prior,
+                    alpha_epsilon = alpha_epsilon, 
+                    beta_epsilon = beta_epsilon)
+    
+    # flip a coin with p_keep_looking weight
+    df$p_look_away[t] = C / (df$EIG[t] + C)
+    df$look_away[t] = rbinom(1, 1, prob = df$p_look_away[t]) == 1
+
+    if (df$look_away[t]==TRUE) {
+      stimulus_idx <- stimulus_idx + 1
+    }
+    
+    t <- t + 1 
+      
+      
+  }
+    
+  df <- df %>% mutate(id = subject)
+  
+  
+  return(df)
+}
+```
+
+
+
+
+
+
+
+```{r}
+sim <- main_simulation(subject = 1,
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter, 
+                          eig_from_world = .005,
+                          max_observation = 500, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+```
+
+
+
+```{r}
+sim %>% 
+  ggplot(aes(x = t, y = EIG)) + 
+  geom_line()
+
+sim %>% 
+  ggplot(aes(x = t, y = p_look_away)) + 
+  geom_line()
+
+sim %>% 
+  group_by(stimulus_idx) %>% 
+  summarise(samps_n = n()) %>% 
+  ggplot(aes(stimulus_idx, y = samps_n)) + 
+  geom_line()
+
+```
+
+
+# now running simulation on multiple ppl 
+```{r}
+subject_n = 100
+
+
+sims <- lapply(seq(1, subject_n, 1), 
+         function(x){
+           main_simulation(subject = x,
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = epsilon, 
+                          eig_from_world = .005,
+                          max_observation = 500, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+         }
+  ) %>% 
+    bind_rows()
+```
+
+
+ 
+```{r}
+sims %>% 
+  group_by(id, stimulus_idx) %>% 
+  drop_na() %>% 
+  summarise(n_samps = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = n_samps)) + 
+  geom_point() + 
+  geom_vline(xintercept = c(3, 5)) #+
+  #facet_wrap(~id)
+```
+
+```{r}
+sims %>% 
+  ggplot(aes(x = t, y = EIG, group = id)) + 
+  geom_line(alpha = .3)
+
+sims %>% 
+  ggplot(aes(x = t, y = EIG, group = id)) + 
+  geom_line(alpha = .3) + 
+  facet_wrap(~stimulus_idx)
+
+sims %>% 
+  ggplot(aes(x = t, y = EIG)) + 
+  geom_line(alpha = .3) + 
+  facet_wrap(~id)
+
+# trial level eig doesn't make sense?
+sims %>% 
+  group_by(id, stimulus_idx) %>% 
+  summarise(trial_EIG = sum(EIG)) %>% 
+  ggplot(aes(x = stimulus_idx, 
+             y = trial_EIG, 
+             group = id)) + 
+  geom_line(alpha = .3)
+```
+
+
+```{r}
+sims %>% 
+  group_by(id, stimulus_idx) %>% 
+  summarise(
+    trial_length = n(), 
+    trial_EIG = sum(EIG)) %>% 
+  ggplot(aes(x = trial_EIG, 
+             y = trial_length)) + 
+  geom_point(alpha = .3) + 
+  ylim(0, 10) + 
+  xlim(0, 2)
+```
+
+
+
+
+

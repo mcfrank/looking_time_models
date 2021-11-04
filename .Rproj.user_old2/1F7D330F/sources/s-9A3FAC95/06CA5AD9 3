@@ -1,0 +1,26 @@
+{
+    "id": "06CA5AD9",
+    "path": "~/Desktop/projects/looking_time_models/helper/get_eig_faster.R",
+    "project_path": "helper/get_eig_faster.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1626133735202.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "31,44",
+        "scrollLine": "20"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1626132027,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1626132027,
+    "read_only": false,
+    "read_only_alternatives": []
+}

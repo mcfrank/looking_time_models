@@ -1,0 +1,1236 @@
+---
+title: "noisy_bb_cleaner"
+author: "anjie"
+date: "5/5/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(matrixStats)
+library(here)
+library(reshape2)
+
+source(here("adult_modeling/scripts/grid_approximation.R"))
+source(here("adult_modeling/scripts/noisy_update.R"))
+source(here("adult_modeling/scripts/get_stimuli_and_observations.R"))
+```
+
+# some parameters
+
+```{r}
+max_feature_num = 100
+num_features_simple = 30
+num_features_complex = 80
+trials_per_block = 8
+deviant_positions = c(3,5)
+dissimilarity_ratio = 0.2
+
+```
+
+# generate creature sequence 
+```{r}
+b_1 <- make_creature(total_feature = 2, 
+                     feature_theta = 0.8,   # currently assuming all situations where there are features the theta are the same 
+                     feature_number = 2  #complexity controls for the proportion of the features 
+                     )
+
+
+
+
+# must satisfy: total feature > (1 + dissimilar ratio) * featureOnumber
+
+t_simple <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = max_feature_num, 
+  feature_theta = 0.8, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+t_complex <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = max_feature_num, 
+  feature_theta = 0.8, 
+  feature_number = num_features_complex, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+obs_1 <- generate_noisy_observations(
+                            block = t_simple, 
+                            exposure_type = "self_paced", 
+                            short_exposure_samps = 1, 
+                            long_exposure_samps = 10, 
+                            normal_exposure_samps = 10, 
+                            epsilon = 0.02)    
+
+obs_2 <- generate_noisy_observations(
+                            block = t_complex, 
+                            exposure_type = "self_paced", 
+                            short_exposure_samps = 1, 
+                            long_exposure_samps = 10, 
+                            normal_exposure_samps = 10, 
+                            epsilon = 0.02)    
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 5
+beta_prior = 1
+alpha_epsilon = 1 
+beta_epsilon = 10
+
+obs_1_sequential_update <- update_posterior_distribution(grid_theta = grid_theta, 
+                              grid_epsilon = grid_epsilon, 
+                              observations = obs_1, 
+                              alpha_prior = alpha_prior, 
+                              beta_prior = beta_prior , 
+                              alpha_epsilon = alpha_epsilon, 
+                              beta_epsilon = beta_epsilon
+                              )
+
+# add observations to dataframe
+obs_1_sequential_update$z <- obs_1 %>% pivot_longer(., 1:max_feature_num) %>% select(value) %>% as.matrix() %>% rep(., each=length(grid_theta))
+
+obs_1_sequential_update_kl <- get_kl_for_creature(obs_1_sequential_update) 
+
+
+obs_2_sequential_update <- update_posterior_distribution(grid_theta = grid_theta, 
+                              grid_epsilon = grid_epsilon, 
+                              observations = obs_2, 
+                              alpha_prior = alpha_prior, 
+                              beta_prior = beta_prior, 
+                              alpha_epsilon = alpha_epsilon, 
+                              beta_epsilon = beta_epsilon
+                              )
+
+obs_2_sequential_update_kl <- get_kl_for_creature(obs_2_sequential_update) 
+
+obs_2_sequential_update$z <- obs_2 %>% pivot_longer(., 1:max_feature_num) %>% select(value) %>% as.matrix() %>% rep(., each=length(grid_theta))
+
+```
+
+```{r}
+obs_1_sequential_update_kl <- obs_1_sequential_update_kl %>% 
+  mutate(complexity = "simple") 
+  
+obs_2_sequential_update_kl <- obs_2_sequential_update_kl %>% 
+  mutate(complexity = "complex")
+
+obs <- bind_rows(obs_1_sequential_update_kl, 
+                 obs_2_sequential_update_kl)
+
+  
+obs %>% 
+  group_by(update_step, complexity) %>% 
+  summarise(kl_creature = sum(kl)) %>% 
+  ggplot(aes(x = update_step, 
+             y = kl_creature, 
+             color = complexity)) + 
+  geom_line() #+ 
+  #facet_wrap(~feature_index)
+  
+
+obs %>% 
+  group_by(trial_num, complexity) %>% 
+  summarise(kl_creature = sum(kl)) %>% 
+  ggplot(aes(x = trial_num, 
+             y = kl_creature, 
+             color = complexity)) + 
+  geom_line()
+```
+
+```{r}
+obs_1_sequential_update_kl %>% 
+  group_by(update_step) %>% 
+  summarise(kl_creature = sum(kl)) %>% 
+  ggplot(aes(x = update_step, 
+             y = kl_creature)) + 
+  geom_line()
+```
+
+
+
+```{r}
+saveRDS(obs_1_sequential_update, 
+        file = here("adult_modeling/obs_1_a1b5_sequential_update.rds"))
+
+saveRDS(obs_2_sequential_update, 
+        file = here("adult_modeling/obs_2_a1b5_sequential_update.rds"))
+
+
+saveRDS(obs_1_sequential_update_kl, 
+        file = here("adult_modeling/obs_1_a1b5_sequential_update_kl.rds"))
+
+saveRDS(obs_2_sequential_update_kl, 
+        file = here("adult_modeling/obs_2_a5b1_update_kl.rds"))
+
+
+
+```
+
+# try calculating surprise 
+
+
+entropy of a random variable X is defined as 
+
+$$H(X) = - \sum_{x}p(x)logp(x)$$
+
+in our case we want to calculate the entropy of an observation given the theta 
+
+for a specific \theta 
+
+$$H(z_i|\theta = \theta_1) = - \sum_{z_i}p(z_i|\theta)logp(z_i|\theta)$$
+then we sum across all \theta 
+
+$$H(z_i|\theta) = \sum_{\theta_n}p(\theta_n)H(z_i|\theta_n)$$
+but above is notion taken from information theory, what abt the more cognitive science related version? 
+
+we start with the concept of prior 
+$$g_0 = H(\theta) = -\sum_{\theta}p(\theta)logp(\theta)$$
+and when we make some observations $$z = z_{i}$$, and then we will have an updated posterior uncertainty 
+
+$$g_{1}(z_i) = H(\theta|z_i) = -\sum_{\theta}p(\theta|z_i)logp(\theta|z_i)$$
+so information gain is basically (IG): 
+
+$$IG(\theta; z_i) = g_{0} - g_1(z_i)$$
+
+maybe we will want to consider each individual trial as an "experiment" and all observations from that trial as data from that experiment? but maybe math will work differently? maybe we can't simply sum them up because of the noise parameters? 
+
+
+but let's do it baby step! simple case 
+
+
+```{r}
+get_entropy_for_feature_one_update <- function(lps){
+  -sum(lps * exp(lps))
+}
+
+get_entropy_for_feature_updates <- function(feature_i, updates_df){
+  
+  feature_df <- updates_df %>% 
+    filter(feature_index == feature_i)
+  
+  thetas <- feature_df %>% 
+    distinct(theta) %>% 
+    pull()
+  
+  all_updates <- feature_df %>% 
+  distinct(update_number) %>% 
+  pull()
+  
+  
+  # FIXME: currently not including the prior's entropy
+  all_entropy <- c()
+  
+  for (i in all_updates){
+    
+    current_lps <- feature_df %>% 
+        filter(update_number == i) %>% 
+        pull(log_posterior) 
+    current_ep <- get_entropy(current_lps)
+    all_entropy <- c(all_entropy, current_ep)
+  }
+    
+  entropy_df <- tibble(e = all_entropy, 
+                       predictability = -all_entropy,
+                       update_number = seq(1, length(all_entropy), 1)) %>% 
+    mutate(feature_index = feature_i)
+  
+  return(entropy_df)
+  
+}
+
+get_entropy_for_creature_udpates <- function(updates_df){
+  all_features <- updates_df %>% 
+    distinct(feature_index) %>% 
+    pull()
+  
+  lapply(all_features, function(x){
+    get_entropy_for_feature_updates(x, updates_df)
+  }) %>% 
+    bind_rows()
+  
+}
+
+obs_1_entropy <- get_entropy_for_creature_udpates(obs_1_sequential_update) 
+obs_2_entropy <- get_entropy_for_creature_udpates(obs_2_sequential_update) 
+```
+
+
+
+
+
+```{r}
+obs_1_entropy <- obs_1_entropy %>% 
+  mutate(complexity = "simple") 
+
+obs_2_entropy <- obs_2_entropy %>% 
+  mutate(complexity = "complex")
+
+obs_entropy <- bind_rows(obs_1_entropy, obs_2_entropy)
+
+obs_entropy %>% 
+  group_by(update_number, complexity) %>% 
+  summarise(sum_p = sum(predictability)) %>% 
+  ggplot(aes(x = update_number, y = sum_p, color = complexity)) + 
+  geom_line()
+```
+## surprise 
+
+```{r}
+get_surprise_for_feature_updates <- function(feature_i, updates_df){
+  
+  feature_df <- updates_df %>% 
+    filter(feature_index == feature_i)
+  
+  thetas <- feature_df %>% 
+    distinct(theta) %>% 
+    pull()
+  
+  all_updates <- feature_df %>% 
+  distinct(update_number) %>% 
+  pull()
+  
+  
+  # FIXME: currently not including the prior's surprise(?)
+  all_surprise <- c()
+  
+  for (i in all_updates){
+    
+    current_lps <- feature_df %>% 
+        filter(update_number == i) %>% 
+        pull(log_posterior) 
+    
+    current_s <-weighted.mean(x = -current_lps, w = exp(current_lps)) 
+    all_surprise <- c(all_surprise, current_s)
+  
+  }
+    
+  surprise_df <- tibble(surprise = all_surprise, 
+                       update_number = seq(1, length(all_surprise), 1)) %>% 
+    mutate(feature_index = feature_i)
+  
+  return(surprise_df)
+  
+}
+
+
+get_surprise_for_creature_updates <- function(updates_df){
+  
+  all_features <- updates_df %>% 
+    distinct(feature_index) %>% 
+    pull()
+  
+  lapply(all_features, function(x){
+    get_surprise_for_feature_updates(x, updates_df)
+  }) %>% 
+    bind_rows()
+  
+  
+}
+
+obs_1_surprise <- get_surprise_for_creature_updates(obs_1_sequential_update) 
+obs_2_surprise <- get_surprise_for_creature_updates(obs_2_sequential_update) 
+```
+
+
+```{r}
+obs_1_surprise <- obs_1_surprise %>% 
+  mutate(complexity = "simple") 
+
+obs_2_surprise <- obs_2_surprise %>% 
+  mutate(complexity = "complex")
+
+obs_surprise <- bind_rows(obs_1_surprise, obs_2_surprise)
+
+obs_surprise %>% 
+  group_by(update_number, complexity) %>% 
+  summarise(sum_surprise = sum(surprise)) %>% 
+  ggplot(aes(x = update_number, y = sum_surprise, color = complexity)) + 
+  geom_line()
+```
+
+
+
+```{r}
+thetas <- obs_1_sequential_update %>% 
+  distinct(theta) %>% 
+  pull()
+alpha_theta = 1
+beta_theta = 1
+
+prior_theta <- thetas
+prior_lp <- dbeta(x = thetas, shape1 = alpha_theta, shape2 = beta_theta, log = TRUE)
+
+prior_theta
+prior_lp
+
+g0 <- get_entropy(prior_lp)
+
+
+```
+
+g_1z is basically calculating from this: 
+```{r}
+obs1_lps <- obs_1_sequential_update %>% 
+  filter(update_number == 1) %>% 
+  filter(feature_index == 1) %>% 
+  pull(log_posterior) 
+
+g1 = get_entropy(obs1_lps)
+
+IG_1 = g0 - g1
+
+obs2_lps <- obs_1_sequential_update %>% 
+  filter(update_number == 2) %>% 
+  filter(feature_index == 1) %>% 
+  pull(log_posterior) 
+
+g2 = get_entropy(obs2_lps)
+
+IG_2 = g1 - g2
+
+obs3_lps <- obs_1_sequential_update %>% 
+  filter(update_number == 3) %>% 
+  filter(feature_index == 1) %>% 
+  pull(log_posterior) 
+
+g3 = get_entropy(obs3_lps)
+
+IG_3 = g2 - g3
+
+IG_1
+IG_2
+IG_3
+
+```
+
+ok this looks very sketchy, but it would be nice to see the curve 
+```{r}
+obs_f1_df <- obs_1_sequential_update %>% 
+  filter(feature_index == 1)
+
+all_updates <- obs_1_sequential_update %>% 
+  distinct(update_number) %>% 
+  pull()
+
+all_e <- c(g0)
+surprise <- c()
+all_IG <- c()
+for (i in all_updates){
+  
+  current_lps <- obs_f1_df %>% 
+  filter(update_number == i) %>% 
+  pull(log_posterior) 
+  current_ep <- get_entropy(current_lps)
+  all_e <- c(all_e, current_ep)
+
+  
+  ig = current_ep - all_e[i]
+  
+  all_IG <- c(all_IG, ig)
+  
+  current_s <- -current_lps
+  s<-weighted.mean(x = current_s, w = exp(current_lps)) 
+  surprise <- c(surprise, s)
+  
+}
+
+tibble("neg_entropy" = -all_e, 
+       "trial" = seq(0, length(all_e)-1,1)) %>% 
+  filter(trial > 1) %>% 
+  ggplot(aes(x = trial, y = neg_entropy)) + 
+  geom_line()
+
+tibble("ig" = all_IG, 
+       "trial" = seq(0, length(all_IG)-1,1)) %>% 
+  ggplot(aes(x = trial, y = ig)) + 
+  geom_line()
+
+tibble("surprise" = surprise, 
+       "trial" = seq(0, length(all_IG)-1,1)) %>% 
+  ggplot(aes(x = trial, y = surprise)) + 
+  geom_line()
+
+
+
+```
+
+oh well that's an epic fail
+
+let's give surprise a shot: 
+
+$$I(z_i) = -logp(z_i | \theta)$$
+
+$$-logp(z_i = 1| \theta) = -log(p(z_{i}|y_{i})p(y_{i} | \theta)p(\theta))$$
+
+```{r}
+f1_obs <- obs_1 %>% 
+  pull(V1)
+
+lp_z_ij_given_theta(zij = ??,
+                    theta = ??, 
+                    episolon = 0.02)
+
+```
+
+
+
+
+
+```{r}
+b_1 <- make_creature(total_feature = 10, 
+                     
+                     feature_theta = 0.8,   # currently assuming all situations where there are features the theta are the same 
+
+                     feature_number= 5  #complexity controls for the proportion of the features 
+                     )
+
+d_1 <- make_dissimilar_creature(creature = b_1, 
+                                dissimilar_ratio = .8)
+
+
+
+t_simple <- generate_creature_sequence(
+  block_length = 8, 
+  deviant_positions = c(3, 5),  # takes a vector, 
+  total_feature = 10, 
+  feature_theta = 0.8, 
+  feature_number = 3, 
+  dissimilar_ratio = 0.8)
+
+t_complex <- generate_creature_sequence(
+  block_length = 8, 
+  deviant_positions = c(3, 5),  # takes a vector, 
+  total_feature = 10, 
+  feature_theta = 0.8, 
+  feature_number = 5, 
+  dissimilar_ratio = 0.8)
+
+
+
+obs_1<-generate_noisy_observations(
+                            block = t_simple, 
+                            exposure_type = "self_paced", 
+                            short_exposure_samps = 1, 
+                            long_exposure_samps = 10, 
+                            normal_exposure_samps = 10, 
+                            epsilon = 0.02)    
+
+obs_2<-generate_noisy_observations(
+                            block = t_complex, 
+                            exposure_type = "self_paced", 
+                            short_exposure_samps = 1, 
+                            long_exposure_samps = 10, 
+                            normal_exposure_samps = 10, 
+                            epsilon = 0.02)    
+
+```
+
+```{r}
+
+```
+
+
+```{r}
+
+grid_theta <- seq(0.1, 0.9, 0.2)
+grid_epsilon <- seq(0.1, 0.9, 0.2)
+alpha_prior = 1
+beta_prior = 1 
+alpha_epsilon = 1 
+beta_epsilon = 10
+
+
+# i should specify the trial number 
+obs_1_sequential_update <- update_posterior_distribution(grid_theta = grid_theta, 
+                              grid_epsilon = grid_epsilon, 
+                              observations = obs_1, 
+                              alpha_prior = alpha_prior, 
+                              beta_prior = beta_prior, 
+                              alpha_epsilon = alpha_epsilon, 
+                              beta_epsilon = beta_epsilon
+                              )
+
+obs_1_sequential_update_kl <- get_kl_for_creature(obs_1_sequential_update) 
+
+
+obs_2_sequential_update <- update_posterior_distribution(grid_theta = grid_theta, 
+                              grid_epsilon = grid_epsilon, 
+                              observations = obs_2, 
+                              alpha_prior = alpha_prior, 
+                              beta_prior = beta_prior, 
+                              alpha_epsilon = alpha_epsilon, 
+                              beta_epsilon = beta_epsilon
+                              )
+
+obs_2_sequential_update_kl <- get_kl_for_creature(obs_2_sequential_update) 
+
+
+
+```
+
+```{r}
+obs_1_sequential_update_kl <- obs_1_sequential_update_kl %>% 
+  mutate(complexity = "simple") 
+  
+obs_2_sequential_update_kl <- obs_2_sequential_update_kl %>% 
+  mutate(complexity = "complex")
+
+obs <- bind_rows(obs_1_sequential_update_kl, 
+                 obs_2_sequential_update_kl)
+
+  
+obs %>% 
+  group_by(update_step, complexity) %>% 
+  summarise(kl_creature = sum(kl)) %>% 
+  ggplot(aes(x = update_step, 
+             y = kl_creature, 
+             color = complexity)) + 
+  geom_line() #+ 
+  #facet_wrap(~feature_index)
+  
+
+obs %>% 
+  group_by(update_step, complexity) %>% 
+  ggplot(aes(x = update_step, 
+             y = kl, 
+             color = complexity)) + 
+  geom_line() + 
+  facet_wrap(~feature_index)
+
+
+```
+
+```{r}
+#grid_theta <- seq(0.01, 0.99, 0.05)
+#grid_epsilon <- seq(0.01, 0.99, 0.05)
+
+grid_theta <- seq(0.1, 0.9, 0.2)
+grid_epsilon <- seq(0.1, 0.9, 0.2)
+
+all_observaion <- do.call(rbind, obs)
+
+updates = nrow(all_observaion)
+
+
+# let's just look at 10 updates first
+
+datalist = list()
+for (i in seq(1, updates, 1)){
+  
+  
+  post_first_update_theta_epsilon_approx <- grid_approximate_creature_with_theta_and_epsilon(grid_theta = grid_theta, 
+                         grid_epsilon = grid_epsilon, 
+                         noisy_creature_observation = all_observaion[1:i, ], 
+                         alpha_prior = 1, 
+                         beta_prior= 1, 
+                         alpha_epsilon = 1, beta_epsilon = 10) %>% 
+    mutate(update_number = i) 
+
+  
+#   post_first_update_theta_epsilon_approx <- grid_approximate_creature_with_theta_and_epsilon(
+#   grid_theta = grid_theta, 
+#   grid_epsilon = grid_epsilon, 
+#   noisy_creature_observation = three_observations[1:i, ], 
+#   alpha_prior = 1, 
+#   beta_prior = 1,
+#   alpha_epsilon = 10, 
+#   beta_epsilon = 1
+# ) %>% 
+#     mutate(update_number = i)
+  
+   datalist[[i]] <-  post_first_update_theta_epsilon_approx
+  
+  
+  
+}
+all_updates <- dplyr::bind_rows(datalist)
+all_updates_kl <- get_kl_for_creature(all_updates)
+
+```
+
+```{r}
+test %>% 
+  #filter(update_number %in% seq(1, 10, 1)) %>% 
+  ggplot(aes(x = theta, y = posterior, color = update_number)) + 
+  geom_point()+ 
+  facet_wrap(~feature_index) + 
+  labs(title = "theta + epislon")
+
+all_updates_kl %>% 
+  group_by(update_step) %>% 
+  summarise(kl_creature = sum(kl)) %>% 
+  ggplot(aes(x = update_step, 
+             y = kl_creature)) + 
+  geom_line() #+ 
+  #facet_wrap(~feature_index)
+
+all_updates_kl %>% 
+   ggplot(aes(x = update_step, 
+             y = kl)) + 
+  geom_line() + 
+  facet_wrap(~feature_index)
+
+```
+
+
+
+
+## test creature 
+```{r}
+test_creature_background_theta <- c(0.01, 0.01, 0.01, 0.99, 0.99, 0.8)
+test_creature_deviant_theta <- c(0.2, 0.8, 0.8, 0.2, 0.2, 0.9)
+#test creature
+# these will be a block [y_1, y_2, y_3, y_4, z_1, y_5]
+y_1 <- sapply(test_creature_background_theta, function(x){rbernoulli(p = x, n = 1)})
+y_2 <- sapply(test_creature_background_theta, function(x){rbernoulli(p = x, n = 1)})
+y_3 <- sapply(test_creature_background_theta, function(x){rbernoulli(p = x, n = 1)})
+y_4 <- sapply(test_creature_background_theta, function(x){rbernoulli(p = x, n = 1)})
+z_1 <-  sapply(test_creature_deviant_theta, function(x){rbernoulli(p = x, n = 1)})
+#y_5 <- sapply(test_creature_background_theta, function(x){rbernoulli(p = x, n = 1)})
+
+# in each trial collects like 100 times
+y_1_noisy_observation <- rbind(noisy_observation_creature(y_1, 20, 0.02))
+y_2_noisy_observation <- rbind(noisy_observation_creature(y_2, 20, 0.02))
+y_3_noisy_observation <-  rbind(noisy_observation_creature(y_3, 20, 0.02))
+y_4_noisy_observation <-  rbind(noisy_observation_creature(y_4, 30, 0.2))
+z_1_noisy_observation <-  rbind(noisy_observation_creature(z_1, 30, 0.2))
+
+
+```
+
+## sequential update 
+```{r}
+noisy_update <- function(observations,
+                         grid_theta, grid_epsilon, 
+                         alpha_prior = 1, beta_prior = 1, 
+                         alpha_epsilon = 10, beta_epsilon = 1){
+  
+  observation_length
+  
+  
+  
+}
+```
+
+```{r}
+theta_only <- first_update_grid_approximate_with_theta(feature_index = 1,
+                                                                 thetas = seq(0.01, .99, .02),                                                                                 z_bar = z_bar, 
+                                                       epsilon = .01,
+                                                                   
+                                                                                                                                                  alpha_theta = alpha_theta, beta_theta = beta_theta, alpha_epsilon = alpha_epsilon, beta_epsilon = beta_epsilon)
+theta_and_epsilon <- first_update_grid_approximate_with_theta_and_epsilon(feature_index = 1,
+                                                                                                                                                 z_bar = z_bar, 
+                                                                                                                                                  alpha_theta = alpha_theta, beta_theta = beta_theta, alpha_epsilon = alpha_epsilon, beta_epsilon = beta_epsilon)
+```
+
+```{r}
+theta_only
+
+
+epsilon_normalized <- theta_and_epsilon %>% 
+  group_by(theta, .drop = FALSE) %>% 
+  summarize(normalized_log_posterior = unnormalized_log_posterior - logSumExp(unnormalized_log_posterior)) 
+
+
+# #
+# samps$log_posterior = samps$unnormalized_log_posterior - matrixStats::logSumExp(samps$unnormalized_log_posterior)
+# 
+# theta_posterior <- samps %>%
+#   group_by(theta) %>%
+#   summarise(log_posterior = matrixStats::logSumExp(log_posterior) + 
+#               log(1/length(log_posterior))) %>%
+#   mutate(posterior = exp(log_posterior))
+
+
+theta_and_epsilon$log_posterior <- theta_and_epsilon$unnormalized_log_posterior - matrixStats::logSumExp(theta_and_epsilon$unnormalized_log_posterior)
+
+new_theta_posterior <- theta_and_epsilon %>% 
+  filter(epsilon == 0.03) %>%
+  group_by(theta) %>% 
+  summarise(log_posterior = matrixStats::logSumExp(log_posterior) +
+              log(1/length(log_posterior))) 
+
+  
+  
+new_theta_and_epsilon <- theta_and_epsilon %>% 
+  filter(epsilon == 0.5) %>% 
+  group_by(theta, .drop = FALSE) %>% 
+  summarise(
+    
+    normalized_log_posterior = unnormalized_log_posterior - logSumExp(unnormalized_log_posterior), 
+     log_posterior = matrixStats::logSumExp(normalized_log_posterior) + 
+          log(1/length(normalized_log_posterior))
+  ) 
+```
+
+```{r}
+theta_and_epsilon %>% 
+  group_by(theta) %>% 
+     summarise(
+   #     #unnormalized_log_posterior = matrixStats::logSumExp(unnormalized_log_posterior) + 
+   #     #     log(1/length(unnormalized_log_posterior)), 
+        log_posterior = matrixStats::logSumExp(normalized_log_posterior) + 
+          log(1/length(normalized_log_posterior))
+   #     
+   #     #unnormalized_log_posterior = matrixStats::logSumExp(unnormalized_log_posterior) + 
+   #    #   log(1/length(unnormalized_log_posterior)), 
+   #    # log_posterior = matrixStats::logSumExp(normalized_log_posterior) + 
+   #     #          log(1/length(normalized_log_posterior))
+      ) 
+```
+
+
+```{r}
+theta <- first_update_grid_approximate_with_theta(feature_index, 
+                                                  )
+```
+
+
+
+```{r}
+z_bar 
+
+theta_only %>% 
+  ggplot(aes(x = theta, y = exp(normalized_log_posterior))) + 
+  geom_point()
+
+new_theta_posterior %>% 
+  ggplot(aes(x = theta, y = exp(log_posterior))) + 
+  geom_point()
+```
+
+# continuous update 
+
+```{r}
+three_observations
+all_observaion
+```
+
+
+```{r}
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+
+three_observations <- rbind(y_1_noisy_observation, 
+                            y_2_noisy_observation, 
+                            y_3_noisy_observation)
+
+updates = nrow(three_observations)
+
+
+# let's just look at 10 updates first
+
+datalist = list()
+for (i in seq(1, updates, 1)){
+  
+  
+  post_first_update_theta_epsilon_approx <- grid_approximate_creature_with_theta_and_epsilon(grid_theta = grid_theta, 
+                         grid_epsilon = grid_epsilon, 
+                         noisy_creature_observation = three_observations[1:i, ], 
+                         alpha_prior = 1, 
+                         beta_prior= 1, 
+                         alpha_epsilon = 1, beta_epsilon = 10) %>% 
+    mutate(update_number = i) 
+
+  
+#   post_first_update_theta_epsilon_approx <- grid_approximate_creature_with_theta_and_epsilon(
+#   grid_theta = grid_theta, 
+#   grid_epsilon = grid_epsilon, 
+#   noisy_creature_observation = three_observations[1:i, ], 
+#   alpha_prior = 1, 
+#   beta_prior = 1,
+#   alpha_epsilon = 10, 
+#   beta_epsilon = 1
+# ) %>% 
+#     mutate(update_number = i)
+  
+   datalist[[i]] <-  post_first_update_theta_epsilon_approx
+  
+  
+  
+}
+all_updates <- dplyr::bind_rows(datalist)
+
+all_updates %>% group_by(update_number, 
+                         feature_index) %>% 
+  summarise(sum = sum(posterior))
+
+```
+
+is it something wrong with doing grid appproximation on epsilon? 
+
+```{r}
+datalist = list()
+for (i in seq(1, updates, 1)){
+  
+
+  
+   post_first_update_theta_approx <- grid_approximate_creature_with_theta(
+   grid_theta = grid_theta, 
+   epsilon = 0.2, 
+   noisy_creature_observation = three_observations[1:i, ], 
+   alpha_prior = 1, 
+   beta_prior = 1,
+   alpha_epsilon = 10, 
+   beta_epsilon = 1
+ ) %>% 
+     mutate(update_number = i) %>% 
+     rename(log_posterior = normalized_log_posterior)
+  
+   datalist[[i]] <-  post_first_update_theta_approx
+  
+  
+  
+}
+all_updates_theta <- dplyr::bind_rows(datalist)
+
+
+```
+
+
+
+```{r}
+all_updates_theta_with_epsilon %>% 
+ group_by(update_number, feature_index) %>% 
+  summarise(posterior_total = sum(posterior))
+
+all_updates_theta %>% 
+ group_by(update_number, feature_index) %>% 
+  summarise(posterior_total = sum(exp(log_posterior)))
+```
+
+```{r}
+
+```
+
+
+
+# it looks a little reversed to me but will worry abt it later 
+```{r}
+y_1
+y_2
+y_3
+y_1
+all_updates %>% 
+  #filter(update_number %in% seq(1, 10, 1)) %>% 
+  ggplot(aes(x = theta, y = posterior, color = update_number)) + 
+  geom_point()+ 
+  facet_wrap(~feature_index) + 
+  labs(title = "theta + epislon")
+
+all_updates_theta %>% 
+   ggplot(aes(x = theta, y = exp(log_posterior), color = update_number)) + 
+  geom_point()+ 
+  facet_wrap(~feature_index) + 
+  labs(title = "theta only")
+```
+
+
+#KL divergence starts here 
+
+
+$$EIG(y) = \sum_{y'_{t+1}} { D_{KL} ( p(\theta | y_{1..y_{t+1}}) || p(\theta | y_{1..y_{t}})  ) p(y_{t+1} | \theta) }$$
+actually not so sure if it makes sense to calculate EIG based on y because we don't really know anythinga bt it 
+
+what about just doing it based on z? 
+
+http://todd.gureckislab.org/2021/05/05/negative-information
+
+so if the formula was: 
+
+$$D_{KL}(p(x) || q(x)) = \sum_{x \in X} p(x) log\frac{p(x)}{q(x)}$$
+
+
+in our case it will be 
+
+$$D_{KL}(p(\theta|z_{i+1}) || p(\theta|z_{i})) = \sum_{x \in X} p(\theta|z_{i+1})  log\frac{p(\theta|z_{i+1})}{p(\theta|z_{i}))}$$
+maybe we can pretend theta is concrete like we've been doing? so effectively we will have 
+
+$$D_{KL}(p(\theta|z_{i+1}) || p(\theta|z_{i})) = \sum_{\theta \in [\theta_{1}, \theta_{2}...\theta_{n}]} p(\theta|z_{i+1})  log\frac{p(\theta|z_{i+1})}{p(\theta|z_{i})}$$
+
+```{r}
+source("scripts/get_KL_measurement.R")
+
+kl_df_theta_only <- get_kl_for_feature(feature = 3, 
+                  distribution_df = all_updates_theta) 
+
+
+kl_df_theta_espilon <- get_kl_for_feature(feature = 3, 
+                  distribution_df = all_updates) 
+
+kl_df_theta_only
+kl_df_theta_espilon
+```
+
+```{r}
+kl_df_theta_espilon %>% 
+  ggplot(aes(x = update_step, y = kl), 
+        ) + 
+  geom_line() +
+  labs(title = "theta and epsilon")
+  #geom_point(aes(x = kl_df$udpate_step, y = three_observations[,3][2:length(three_observations[,3])]))
+
+kl_df_theta_only %>% 
+  ggplot(aes(x = update_step, y = kl), 
+        ) + 
+  geom_line() + 
+  labs(title = "theta only")
+
+```
+
+```{r}
+y_1
+y_2
+y_3
+all_updates_kl <- get_kl_for_creature(all_updates)
+
+all_updates_kl %>% 
+  group_by(update_step) %>% 
+  summarise(kl_creature = sum(kl)) %>% 
+  ggplot(aes(x = update_step, 
+             y = kl_creature)) + 
+  geom_line() #+ 
+  #facet_wrap(~feature_index)
+
+all_updates_kl %>% 
+   ggplot(aes(x = update_step, 
+             y = kl)) + 
+  geom_line() + 
+  facet_wrap(~feature_index)
+
+  
+```
+
+
+```{r}
+y_1
+y_2
+y_3
+```
+
+```{r}
+all_updates
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+grid_theta <- seq(0.01, 0.9, 0.05)
+grid_epsilon <- seq(0.01, 0.9, 0.05)
+
+
+post_first_update_theta_approx <- grid_approximate_creature_with_theta_initial(
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  noisy_creature_observation = y_1_noisy_observation, 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
+
+post_first_update_theta_epsilon_approx <- grid_approximate_creature_with_theta_and_epsilon_initial(
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  noisy_creature_observation = y_1_noisy_observation, 
+  alpha_prior = 1, 
+  beta_prior = 1,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
+post_first_update_theta_approx
+post_first_update_theta_epsilon_approx
+```
+
+
+
+
+
+
+```{r}
+post_second_update_theta_approx <- grid_approximate_creature_with_theta_continuous(
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  noisy_creature_observation = y_2_noisy_observation,  
+  updated_posterior_df = post_first_update_theta_approx,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+
+# current having weird issue around 0.1; R refuses to recognize it is there
+# leading to weird issue related to log probablity having numeric(0) and problem with normalizing 
+post_second_update_theta_epsilon_approx <- grid_approximate_creature_with_theta_and_epsilon_continuous(
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  noisy_creature_observation = y_2_noisy_observation,  
+  updated_posterior_df = post_first_update_theta_approx,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)
+```
+
+check if we are actually doing anything meaningful: 
+
+```{r}
+test_creature_background_theta <- c(0.2, 0.2, 0.2, 0.8, 0.8, 0.3)
+
+first_update <- post_first_update_theta_approx %>% 
+  mutate(update_number = 1)
+second_update <- post_second_update_theta_approx %>% 
+  mutate(update_number = 2)
+
+two_updates <- bind_rows(first_update, second_update)
+
+two_updates %>% 
+  ggplot(aes(x = theta, 
+             y = normalized_log_posterior, 
+             color = update_number)) + 
+  geom_point()+
+  facet_wrap(~feature_index)
+```
+actually not entirely sure. probably because we are not approximating over epsilon as well? anyway we can try to do this one more time
+
+```{r}
+
+
+post_third_update_theta_approx <- grid_approximate_creature_with_theta_continuous(
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  noisy_creature_observation = y_3_noisy_observation,  
+  updated_posterior_df = post_second_update_theta_approx,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+) %>% 
+  mutate(update_number = 3)
+
+
+post_third_update_theta_epsilon_approx <- grid_approximate_creature_with_theta_and_epsilon_continuous(
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  noisy_creature_observation = y_3_noisy_observation,  
+  updated_posterior_df = post_first_update_theta_approx,
+  alpha_epsilon = 10, 
+  beta_epsilon = 1
+)%>% 
+  mutate(update_number = 3)
+
+
+
+
+three_updates <- bind_rows(two_updates, post_third_update_theta_approx)
+
+
+three_updates %>% 
+  ggplot(aes(x = theta, 
+             y = normalized_log_posterior, 
+             color = update_number)) + 
+  geom_point()+
+  facet_wrap(~feature_index)
+
+```
+
+maybe? not entirely sure. 
+
+look at grid over the epsilon's too
+```{r}
+two_updates <- bind_rows(post_first_update_theta_epsilon_approx %>% mutate(update_num = 1), 
+                          post_second_update_theta_epsilon_approx %>% 
+                            mutate(update_num = 2))
+                          
+two_updates %>% 
+  ggplot(aes(x = theta, 
+             y = exp(log_posterior), 
+             color = update_num)) + 
+  geom_point()+
+  facet_wrap(~feature_index)
+```
+
+ugh might be right? not sure, but let's do the surprisal 
+
+gal: take the surprisal for each value of theta, and take the average of those surprisals weighed by p(theta = this_particular_value_of_theta|z) (
+
+$$p(\theta = \theta_{k} | z) $$
+
+KL(P || Q)
+Where the “||” operator indicates “divergence” or Ps divergence from Q.
+
+
+
+https://machinelearningmastery.com/divergence-between-probability-distributions/#:~:text=KL%20divergence%20can%20be%20calculated,of%20the%20event%20in%20P.&text=The%20value%20within%20the%20sum%20is%20the%20divergence%20for%20a%20given%20event.
+
+```{r}
+
+```
+
+
+
+```{r}
+post_first_update_theta_approx
+post_second_update_theta_approx
+
+# we will use 
+y_2_noisy_observation
+# to calculate based on
+y_1
+post_first_update_theta_approx %>% 
+  mutate(probability = exp(normalized_log_posterior)) %>% 
+  ggplot(aes(x = theta, y = probability)) + 
+  geom_line() +
+  facet_wrap(~feature_index)
+```
+
+```{r}
+
+calculate_surprise_from_trial <- function(observations, 
+                                          posterior_df){
+  
+  
+}
+
+calculate_feature_suprirse_from_observation <- function(observation, new_prior_df){
+  
+  thetas <- new_prior_df$theta 
+  lp_thetas <- new_prior_df$normalized_log_posterior 
+  if (observation == 1){
+    surprise <- -lp_thetas  #negative log probability
+    weighted_mean_surprise <- weighted.mean(x = surprise, w = lp_thetas) 
+  }else {
+    # 1 - p(theta) 
+    # we have log(p(theta))
+    # this might cause underflow problem 
+    surprise <- -log(1- exp(lp_thetas))
+    
+  }
+  
+}
+```
+

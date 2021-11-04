@@ -1,0 +1,689 @@
+---
+title: "fam preference"
+author: "anjie"
+date: "6/24/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(profvis)
+
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/grid_approximation.R"))
+source(here("helper/noisy_update.R"))
+source(here("helper/main_simulation.R"))
+source(here("helper/get_kl_eig.R"))
+```
+
+```{r parameter}
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 6
+trials_per_block = 3
+deviant_positions = 2
+feature_theta = 0.9
+dissimilarity_ratio = 0.2
+noise_parameter = 0.1
+
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+## eig related 
+env_eig = 0.005
+max_obs = 500
+
+## experiment related 
+subject_n = 10
+
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+simple_stimuli$V1 <- c(TRUE, FALSE, TRUE)
+simple_stimuli
+```
+
+# Relationships between EIG of environment and the looking time curves 
+```{r}
+env_eigs <- seq(0, 0.01, 0.001) 
+
+  
+  
+eigs_sims <- lapply(env_eigs, 
+       function(x){
+         main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = simple_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = x,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon)
+       }
+) %>% 
+  bind_rows()
+
+
+
+```
+
+```{r}
+saveRDS(eigs_sims, file = "varying_eigs.RDS")
+
+
+```
+
+```{r}
+eigs_sims %>% 
+  drop_na() %>% 
+  group_by(stimulus_idx, id, EIG_from_world) %>% 
+  summarise(n = n()) %>% 
+  filter(n < 500) %>% 
+  ggplot(aes(x = stimulus_idx, y = n, group = EIG_from_world, color = EIG_from_world)) + 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  facet_wrap(~EIG_from_world) + 
+  scale_x_continuous(breaks = seq(1, 3, 1))
+
+
+eigs_sims %>% 
+  drop_na() %>%
+  group_by(stimulus_idx, id, EIG_from_world) %>% 
+  summarise(n = n()) %>% 
+    filter(n < 500) %>% 
+  mutate(stimulus_idx = as.factor(stimulus_idx)) %>% 
+  ggplot(aes(x = EIG_from_world, y = n, color = stimulus_idx)) + 
+  geom_point(position = "jitter") + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~stimulus_idx)
+  #scale_x_continuous(breaks = seq(1, 3, 1))
+
+```
+
+
+
+# Forced short exposure duration 
+trying out the eig = 0.001, forced short exposure = 5 samples, eyeballed from graph above 
+
+```{r}
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 6
+trials_per_block = 3
+deviant_positions = NULL
+feature_theta = 0.9
+dissimilarity_ratio = 0.2
+noise_parameter = 0.1
+
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+alpha_prior = 1
+beta_prior = 1
+alpha_epsilon = 10 
+beta_epsilon = 1
+
+## eig related 
+env_eig = 0.001
+max_obs = 100
+
+## experiment related 
+subject_n = 400
+rep_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+
+rep_stimuli
+diff_stimuli <- rep_stimuli %>% mutate(V1 = c("TRUE", "FALSE", "TRUE"))
+diff_stimuli
+```
+
+
+```{r}
+subject_n = 200
+fs_sim_same <- main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = rep_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short")
+
+
+fs_sim_diff <-  main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = diff_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = env_eig,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short")
+
+
+```
+
+```{r}
+
+saveRDS(fs_sim_same, file = "fs_sim_same_200.Rds")
+saveRDS(fs_sim_diff, file = "fs_sim_diff_200.Rds")
+
+
+tidy_sims_df <- function(sims_df){
+  sims_df %>% 
+    drop_na() %>% 
+    group_by(stimulus_idx, id) %>% 
+    summarise(sample_n = n()) 
+  
+}
+
+tidy_same_sim_df <- fs_sim_same %>% 
+  tidy_sims_df() %>% 
+  mutate(type = "second_background")
+
+tidy_diff_sim_df <- fs_sim_diff %>% 
+  tidy_sims_df() %>% 
+  mutate(type = "second_deviant")
+
+comparison_Df <- bind_rows(tidy_same_sim_df, 
+                           tidy_diff_sim_df)
+```
+
+```{r}
+comparison_Df %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) +
+  geom_jitter(width = .1, alpha = .1) + 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  theme_classic()
+  
+```
+
+
+
+```{r}
+#saveRDS(fs_sims, file = "fs_sims_400.Rds")
+fs_sims_400 <- readRDS(here("m2_noisy_feature_learning/fs_sims_400.Rds"))
+fs_sims_400 %>% 
+  group_by(stimulus_idx, id) %>% 
+  drop_na() %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = n)) + 
+  geom_jitter(width = .3, alpha = .2, color = "blue")+ 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  theme_classic()
+```
+
+## different combination of forced short sample n and the expected environment gain 
+
+```{r}
+subject_n = 10
+env_eigs <- seq(0.001, 0.005, 0.001)
+forced_samples <- seq(1, 8, 1)
+
+
+params <- expand_grid(env_eig = env_eigs, forced_sample = forced_samples)
+
+eig_fs_sims <- map2_dfr(params$env_eig, 
+    params$forced_sample, 
+    function(x, y){
+      main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = rep_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = x,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short",
+                          forced_sample = y)
+    })
+
+
+```
+
+```{r}
+saveRDS(eig_fs_sims, file = "eig_fs_sims_10.Rds")
+
+```
+
+```{r}
+eig_fs_sims_10 <- readRDS("eig_fs_sims_10.Rds")
+
+eig_fs_sims_10 %>% 
+   drop_na() %>% 
+    group_by(stimulus_idx, id, forced_sample_n, EIG_from_world) %>%  
+  summarise(sample_n = n()) %>% 
+  #filter(EIG_from_world ==  0.001) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) +
+  geom_jitter(width = .3, alpha = .3) + 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  theme_classic() + 
+  scale_x_continuous(breaks = seq(1, 3,1)) + 
+  facet_grid(EIG_from_world ~ forced_sample_n)
+
+eig_fs_sims %>% 
+   drop_na() %>% 
+    group_by(stimulus_idx, id, forced_sample_n, EIG_from_world) %>%  
+  summarise(sample_n = n()) %>% 
+  filter(EIG_from_world ==  0.005) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) +
+  geom_jitter(width = .3, alpha = .3) + 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  theme_classic() + 
+  facet_wrap(~forced_sample_n)
+  
+```
+
+## compare how different parameters influence deviant vs background at the second trial 
+```{r}
+
+subject_n = 10
+env_eigs <- seq(0.001, 0.005, 0.001)
+forced_samples <- seq(1, 8, 1)
+
+
+params <- expand_grid(env_eig = env_eigs, forced_sample = forced_samples)
+
+compare_similar_different <- function(eig_from_world, forced_sample){
+  fs_sim_same <- main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = rep_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short", 
+                          forced_sample = forced_sample) %>% 
+    #tidy_sims_df() %>% 
+    mutate(type = "second_background")
+
+
+fs_sim_diff <-  main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = diff_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_short", 
+                          forced_sample = forced_sample) %>% 
+  #tidy_sims_df() %>% 
+    mutate(type = "second_deviant")
+
+bind_rows(fs_sim_diff, 
+          fs_sim_same)
+  
+}
+
+eig_fs_compare_sims <- map2_dfr(params$env_eig, 
+    params$forced_sample, 
+    function(x, y){
+      compare_similar_different(x, y)
+    })
+
+```
+
+```{r}
+saveRDS(eig_fs_compare_sims, "eig_fs_compare_sims.RDS")
+```
+
+
+
+
+
+```{r}
+eig_fs_compare_sims %>% 
+  drop_na() %>% 
+  group_by(type, stimulus_idx, EIG_from_world) %>% 
+  summarise(count = n())
+```
+
+
+
+
+
+```{r}
+
+eig_fs_compare_sims <- readRDS("eig_fs_compare_sims.RDS")
+
+
+
+sum_sims <- eig_fs_compare_sims %>% 
+  drop_na() %>% 
+  group_by(stimulus_idx, id,forced_sample_n, EIG_from_world, type) %>% 
+  summarise(sample_n = n()) %>% 
+  mutate(params = paste0(forced_sample_n, EIG_from_world)) 
+  
+
+
+sum_sims %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) +
+  geom_jitter(width = .1, alpha = .1) + 
+   stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  scale_x_continuous(breaks = seq(1, 3, 1))+
+  facet_wrap(~params)
+  
+  
+```
+
+hypothesis: the shorter the initial exposure, the more significant the familiarity preference is (aka the increase in looking time at the background vs the deviant). facet by the EIG of the environments 
+
+```{r}
+sum_sims %>% 
+   filter(stimulus_idx == 2 ) %>% 
+  pivot_wider(names_from = "type", values_from = sample_n) %>% 
+  mutate(familiarity_preference = second_background - second_deviant) %>% 
+  ggplot(aes(x = forced_sample_n, y = second_background))+ 
+  geom_smooth(method = "lm") + 
+  ylab("second background n")+
+  geom_point(alpha = .5) + 
+  facet_wrap(~EIG_from_world)
+```
+
+what about comparing the second look and the first trial. would we see the shorter the first trial's samples, the higher the recovery? 
+```{r}
+# some mishaps in the code, forced_sample is technically forced_sample + 1
+sum_sims %>% 
+   filter(stimulus_idx == 2 | stimulus_idx == 1) %>% 
+  group_by(id, EIG_from_world, forced_sample_n) %>% 
+  pivot_wider(names_from = "stimulus_idx", values_from = "sample_n") %>% 
+  mutate(recovery = `2` - `1`) %>% 
+  ggplot(aes(x = forced_sample_n, y = recovery, color = type)) + 
+  geom_point(alpha = .3) + 
+  geom_smooth(method = "lm") 
+```
+
+# forced long 
+```{r}
+subject_n = 10
+env_eigs <- seq(0.001, 0.005, 0.001)
+forced_samples <- seq(12, 20, 1)
+
+
+params <- expand_grid(env_eig = env_eigs, forced_sample = forced_samples)
+
+compare_similar_different <- function(eig_from_world, forced_sample){
+  fs_sim_same <- main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = rep_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_long", 
+                          forced_sample = forced_sample) %>% 
+    #tidy_sims_df() %>% 
+    mutate(type = "second_background")
+
+
+fs_sim_diff <-  main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = diff_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "forced_long", 
+                          forced_sample = forced_sample) %>% 
+  #tidy_sims_df() %>% 
+    mutate(type = "second_deviant")
+
+bind_rows(fs_sim_diff, 
+          fs_sim_same)
+  
+}
+
+eig_fs_compare_sims_forced_long <- map2_dfr(params$env_eig, 
+    params$forced_sample, 
+    function(x, y){
+      compare_similar_different(x, y)
+    })
+
+saveRDS(eig_fs_compare_sims_forced_long, "eig_fs_compare_sims_forced_long.RDS")
+
+
+compare_similar_different <- function(eig_from_world, forced_sample){
+  fs_sim_same <- main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = rep_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "self_paced", 
+                          forced_sample = NULL) %>% 
+    #tidy_sims_df() %>% 
+    mutate(type = "second_background")
+
+
+fs_sim_diff <-  main_simulations(
+                          subject_n, 
+                          observation_assumption = "independent",
+                          stimuli_sequence = diff_stimuli, 
+                          noise_parameter = noise_parameter, 
+                          eig_from_world = eig_from_world,
+                          max_observation = max_obs, # should this be per trial or in total? currently per trial 
+                          grid_theta = grid_theta, 
+                          grid_epsilon = grid_epsilon, 
+                          alpha_prior = alpha_prior, 
+                          beta_prior = beta_prior,
+                          alpha_epsilon = alpha_epsilon, 
+                          beta_epsilon = beta_epsilon, 
+                          exposure_type = "self_paced", 
+                          forced_sample = NULL) %>% 
+  #tidy_sims_df() %>% 
+    mutate(type = "second_deviant")
+
+bind_rows(fs_sim_diff, 
+          fs_sim_same)
+  
+}
+
+eig_fs_compare_sims_self_paced <- map2_dfr(params$env_eig, 
+    params$forced_sample,  
+    function(x, y){
+      compare_similar_different(x, y)
+    })
+
+saveRDS(eig_fs_compare_sims_self_paced, "eig_fs_compare_sims_self_paced.RDS")
+
+```
+
+
+
+
+
+# Compare forced long, forced short, and self paced 
+```{r}
+
+sum_sims_forced_long <- eig_fs_compare_sims_forced_long %>% 
+  drop_na() %>% 
+  group_by(stimulus_idx, id,forced_sample_n, EIG_from_world, type) %>% 
+  summarise(sample_n = n()) %>% 
+  mutate(params = paste0(forced_sample_n, EIG_from_world))
+
+sum_sims_forced_long %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) +
+  geom_jitter(width = .1, alpha = .1) + 
+   stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") 
+
+sum_sis_self_paced <- eig_fs_compare_sims_self_paced %>% 
+  drop_na() %>% 
+  group_by(stimulus_idx, id, EIG_from_world, type) %>% 
+  summarise(sample_n = n()) %>% 
+  mutate(params = paste0(EIG_from_world))
+
+sum_sis_self_paced %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) +
+  geom_jitter(width = .1, alpha = .1) + 
+   stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") 
+
+```
+
+
+```{r}
+compare_three_expsoures <- function(forced_short_sims, forced_long_sims, self_paced_sims){
+  
+  sum_sims_forced_long <- forced_long_sims %>% 
+    drop_na() %>% 
+    group_by(stimulus_idx, id,forced_sample_n, EIG_from_world, type) %>% 
+    summarise(sample_n = n()) %>% 
+    mutate(params = paste0(forced_sample_n, EIG_from_world), 
+           exposure_type = "forced_long")
+  
+  sum_sims_forced_short <- forced_short_sims %>% 
+    drop_na() %>% 
+    group_by(stimulus_idx, id,forced_sample_n, EIG_from_world, type) %>% 
+    summarise(sample_n = n()) %>% 
+    mutate(params = paste0(forced_sample_n, EIG_from_world), 
+           exposure_type = "forced_short")
+  
+  sum_sis_self_paced <- self_paced_sims %>% 
+    drop_na() %>% 
+    group_by(stimulus_idx, id, EIG_from_world, type) %>% 
+    summarise(sample_n = n()/length(env_eigs)) %>% # a bug running the first simulation  
+    mutate(exposure_type = "self_paced") 
+  
+  
+  all_sims <- bind_rows(sum_sims_forced_long, 
+                        sum_sims_forced_short, 
+                        sum_sis_self_paced)
+  return(all_sims)
+}
+
+
+```
+
+```{r}
+all_sims <- compare_three_expsoures(eig_fs_compare_sims, # forced short
+                                    eig_fs_compare_sims_forced_long, 
+                                    eig_fs_compare_sims_self_paced)
+```
+
+```{r}
+all_sims %>% 
+  filter(stimulus_idx == 2) %>% 
+  ggplot(aes(x = exposure_type, y = sample_n, color = type)) + 
+  #geom_jitter(width = 0.1) + 
+   stat_summary(fun.data = "mean_cl_boot", geom = "pointrange", position = position_dodge(width = .3)) + 
+  facet_wrap(~EIG_from_world)+ 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+```{r}
+all_sims %>% 
+  select(exposure_type == "forced_short") %>% 
+  geom
+```
+```{r}
+all_sims %>% 
+  filter(is.na(forced_sample_n))
+
+all_sims %>% 
+  filter(!(exposure_type == "forced_long" & forced_sample_n == 12)) %>% 
+  group_by(exposure_type, EIG_from_world) %>% 
+  summarise(n = n())
+```
+
+
+```{r}
+all_sims %>% 
+  filter(stimulus_idx == 2|stimulus_idx == 1) %>% 
+  filter(!(exposure_type == "forced_long" && forced_sample_n < 20)) %>%
+   filter(!(exposure_type == "forced_short" && forced_sample_n > 1)) %>% 
+  filter(type == "second_deviant") %>% 
+ # filter(!exposure_type == "self_paced") %>%  # another simulation mistake 
+   ggplot(aes(x = stimulus_idx, y = sample_n, colour = exposure_type))+ 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1))  + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange", position = position_dodge(width = .1)) + 
+  scale_x_continuous(breaks = seq(1, 2, 1)) + 
+  facet_wrap(~EIG_from_world)
+```
+
+```{r}
+all_sims %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) + 
+  geom_jitter(width = .1, alpha = .3) + 
+  stat_summary(fun.data = "mean_cl_boot") +  
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  facet_wrap(~exposure_type) + 
+   scale_x_continuous(breaks = seq(1,3, 1)) + 
+  theme_classic()
+```
+
