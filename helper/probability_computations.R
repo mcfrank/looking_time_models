@@ -35,9 +35,9 @@ score_z_given_theta <- function(t, # timestep
   
   # compute probabilities over all observations of this stimulus
   lp_z_given_y$z_given_y_ONE = rowSums(sapply(observations_this_stimulus, 
-                                              function(x){ lp_z_ij_given_y(x, 1, grid_epsilon)}))
+                                              function(x){ score_z_ij_given_y(x, 1, grid_epsilon)}))
   lp_z_given_y$z_given_y_ZERO = rowSums(sapply(observations_this_stimulus, 
-                                               function(x){ lp_z_ij_given_y(x, 0, grid_epsilon)}))
+                                               function(x){ score_z_ij_given_y(x, 0, grid_epsilon)}))
   
   # clever expansion with cached likelihoods
   lp_z_y_theta <- expand_grid(lp_y_given_theta, lp_z_given_y)
@@ -63,11 +63,11 @@ score_z_given_theta <- function(t, # timestep
 # ---------------- score_post ---------------------
 # update posterior
 # rolls in likelihood and prior, does logsumexp
-score_post <- function(lp_z_given_theta, lp_prior, lp_post) {
+score_post <- function(lp_z_given_theta,  lp_prior, lp_post) {
   
   lp_post$unnormalized_log_posterior <- lp_z_given_theta$lp_z_given_theta + 
-    lp_theta_epsilon$lp_theta + 
-    lp_theta_epsilon$lp_epsilon
+    lp_prior$lp_theta + 
+    lp_prior$lp_epsilon
   lp_post$log_posterior <- lp_post$unnormalized_log_posterior - matrixStats::logSumExp(lp_post$unnormalized_log_posterior)
   lp_post$posterior <- exp(lp_post$log_posterior)
   
@@ -92,12 +92,12 @@ score_prior <- function(grid_theta, grid_epsilon,
                         alpha_epsilon, beta_epsilon) {
   
   thetas = tibble(theta = grid_theta, 
-                  lp_theta = lp_theta(grid_theta, alpha_prior, beta_prior))
+                  lp_theta = score_theta(grid_theta, alpha_prior, beta_prior))
   epsilons = tibble(epsilon = grid_epsilon, 
-                    lp_epsilon = lp_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
+                    lp_epsilon = score_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
   
-  lp_theta_epsilon = expand_grid(thetas, epsilons)
-  return(lp_theta_epsilon) 
+  lp_prior = expand_grid(thetas, epsilons)
+  return(lp_prior) 
 }
 
 
