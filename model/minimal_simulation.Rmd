@@ -11,6 +11,7 @@ library(tidyverse)
 library(here)
 library(matrixStats)
 library(partitions)
+library(tictoc)
 
 source(here("helper/make_scheme_and_params.R"))
 source(here("helper/initialization.R"))
@@ -28,7 +29,7 @@ beta_epsilon = c(1)
 alpha_priors = c(1)
 beta_priors = c(1)
 noise_parameters = c(0.05)
-eigs_from_world = c(0.001)
+world_EIG = c(0.001)
 max_observation = 500
 fixed_length_complexity = FALSE 
 feature_space_n = 7
@@ -36,8 +37,8 @@ simple_feature_n = 1
 complex_feature_n = 3
 dissimilar_ratio = 1
 sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
-complexity = c("complex", "simple")
-n <- 2
+complexity = c("simple") #"complex", 
+n <- 10
 
 full_params_df <- make_simulation_params(n = n,
                                          sequence_scheme, 
@@ -47,13 +48,13 @@ full_params_df <- make_simulation_params(n = n,
                                          alpha_epsilon, 
                                          beta_epsilon, 
                                          noise_parameters, 
-                                         eig_from_world, 
+                                         world_EIG, 
                                          max_observation, 
                                          fixed_length_complexity, 
                                          feature_space_n, 
                                          simple_feature_n, 
                                          complex_feature_n, 
-                                         dissimilar_ratio) 
+                                         dissimilar_ratio)
 
 # note that this should happen in make_simulation_params
 full_params_df <- full_params_df %>%
@@ -65,24 +66,27 @@ full_params_df <- full_params_df %>%
 Running the simulation. 
 
 ```{r}
+tic()
 all_sims_res <- full_params_df %>%
   group_by(params_id, sim_id, sub_id) %>%
   nest() %>%
   mutate(results = map(data, 
                        function(df) main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
+toc()
 ```
 
 Clean and visualize. 
 
 ```{r}
 complete_sim_res <- all_sims_res %>% 
-  group_by(params_id, sim_id, subject_id, stimulus_idx) %>% 
+  group_by(params_id, sim_id, sub_id, stimulus_idx) %>% 
   summarise(sample_n = n()) %>% 
   filter(!is.na(stimulus_idx)) %>% 
-  left_join(full_params_df %>% select(-n), by = c("params_id", "sim_id")) %>% 
+  left_join(full_params_df %>% select(-n), 
+            by = c("params_id", "sim_id")) %>% 
   mutate(prior_info = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
-  mutate(eig_info = paste("np", noise_parameter, "ee", eig_from_world))
+  mutate(eig_info = paste("np", noise_parameter, "ee", world_EIG))
 
 ggplot(complete_sim_res, 
        aes(x = stimulus_idx, y = sample_n)) + 
