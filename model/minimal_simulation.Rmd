@@ -11,6 +11,7 @@ library(tidyverse)
 library(here)
 library(matrixStats)
 library(partitions)
+library(tictoc)
 
 source(here("helper/make_scheme_and_params.R"))
 source(here("helper/initialization.R"))
@@ -24,7 +25,7 @@ Figuring out the sequence and generate the stimuli sequence with all the paramet
 
 ```{r}
 alpha_epsilon = c(1)
-beta_epsilon = c(10)
+beta_epsilon = c(1)
 alpha_priors = c(1)
 beta_priors = c(1)
 noise_parameters = c(0.05)
@@ -36,8 +37,8 @@ simple_feature_n = 1
 complex_feature_n = 3
 dissimilar_ratio = 1
 sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
-complexity = c("complex", "simple")
-n <- 2
+complexity = c("simple") #"complex", 
+n <- 10
 
 full_params_df <- make_simulation_params(n = n,
                                          sequence_scheme, 
@@ -65,12 +66,14 @@ full_params_df <- full_params_df %>%
 Running the simulation. 
 
 ```{r}
+tic()
 all_sims_res <- full_params_df %>%
   group_by(params_id, sim_id, sub_id) %>%
   nest() %>%
   mutate(results = map(data, 
                        function(df) main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
+toc()
 ```
 
 Clean and visualize. 
@@ -80,7 +83,8 @@ complete_sim_res <- all_sims_res %>%
   group_by(params_id, sim_id, sub_id, stimulus_idx) %>% 
   summarise(sample_n = n()) %>% 
   filter(!is.na(stimulus_idx)) %>% 
-  left_join(full_params_df %>% select(-n), by = c("params_id", "sim_id")) %>% 
+  left_join(full_params_df %>% select(-n), 
+            by = c("params_id", "sim_id")) %>% 
   mutate(prior_info = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
   mutate(eig_info = paste("np", noise_parameter, "ee", world_EIG))
 
