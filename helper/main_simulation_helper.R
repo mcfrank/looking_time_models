@@ -23,7 +23,6 @@ main_simulation <- function(params = df,
                                                   params$max_observation, 
                                                   params$n_features)
   
-
   #  book-keeping for likelihoods and posteriors for new observations
   possible_observations <- c(TRUE, FALSE)
   lp_z_given_theta_new <- initialize_z_given_theta(grid_theta, grid_epsilon,
@@ -37,14 +36,13 @@ main_simulation <- function(params = df,
                    ncol = params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
-
   lp_prior <- score_prior(grid_theta, grid_epsilon, 
                                   params$alpha_prior,  params$beta_prior, 
                                   params$alpha_epsilon, params$beta_epsilon)
   lp_y_given_theta = tibble(theta = grid_theta, 
-                            lp_y_ONE_given_theta = lp_yi_given_theta(yi = 1, 
+                            lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, 
                                                                      theta = grid_theta), 
-                            lp_y_ZERO_given_theta = lp_yi_given_theta(yi = 0, 
+                            lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
   ### MAIN MODEL LOOP
@@ -85,7 +83,6 @@ main_simulation <- function(params = df,
     }
     
     # -compute new posterior grid over all possible outcomes
-    
     # -compute KL between old and new posterior 
     for (o in 1:length(possible_observations)) { # possible obserations
       for (f in 1:params$n_features) {
