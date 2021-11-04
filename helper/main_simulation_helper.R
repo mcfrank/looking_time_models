@@ -5,9 +5,7 @@
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
                             grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2),
-                            forced_exposure = FALSE,
-                            forced_sample = NULL) {
+                            grid_epsilon = seq(0.1, 1, 0.2)) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -40,9 +38,9 @@ main_simulation <- function(params = df,
                                   params$alpha_prior,  params$beta_prior, 
                                   params$alpha_epsilon, params$beta_epsilon)
   lp_y_given_theta = tibble(theta = grid_theta, 
-                            lp_y_ONE_given_theta = lp_yi_given_theta(yi = 1, 
+                            lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, 
                                                                      theta = grid_theta), 
-                            lp_y_ZERO_given_theta = lp_yi_given_theta(yi = 0, 
+                            lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
   ### MAIN MODEL LOOP
@@ -84,7 +82,7 @@ main_simulation <- function(params = df,
     
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
-    for (o in 1:length(possible_observations)) { # possible obserations
+    for (o in 1:length(possible_observations)) { 
       for (f in 1:params$n_features) {
         # pretend that the possible observation has truly been observed
         # note that's observed from the same stimulus as the previous one
@@ -119,18 +117,6 @@ main_simulation <- function(params = df,
     # luce choice probability whether to look away
     model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
                                                  y = model$EIG[t])
-    
-    # consider forced exposure case
-    # if (forced_exposure) {
-    #   if(stimulus_idx == 1 && t >= forced_sample){
-    #     model$look_away[t] = TRUE
-    #   } else if (stimulus_idx == 1 && t < forced_sample) {
-    #     model$look_away[t] = FALSE
-    #   } else {
-    #     model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
-    #   }
-    # } else {
-    # }
 
     # actual choice of whether to look away is sampled here
     model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
