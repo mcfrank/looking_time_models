@@ -52,7 +52,7 @@ score_z_given_theta <- function(t, # timestep
   
   # add in likelihood for last sample from last stimulus, which includes all prior obs
   if (stimulus_idx > 1) {
-    last_stim_last_t <- max(model$t[stimulus_idx == stimulus_idx - 1])
+    last_stim_last_t <- max(model$t[model$stimulus_idx == stimulus_idx - 1], na.rm=TRUE)
     this_lp_z_given_theta$lp_z_given_theta <- this_lp_z_given_theta$lp_z_given_theta + 
       lp_z_given_theta[[last_stim_last_t]][[f]]$lp_z_given_theta
   }
@@ -100,6 +100,13 @@ score_prior <- function(grid_theta, grid_epsilon,
   return(lp_theta_epsilon) 
 }
 
+
+# ---------------- rectified_luce_choice ----------------
+# this crazy function is necessary because if the values get too close to 0, 
+# this can be > 1 or < 0
+rectified_luce_choice <- function(x, y) {
+  max(min(x / (x + y), 1), 0)
+}
 
 # # ---------------- score_z_given_theta ---------------------
 # score_z_given_theta <- function(observation, 
@@ -185,13 +192,15 @@ score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
 
 
 # ---------------- compute KL divergence ---------------------
-# note this could be replaced with something native? 
+# TODO: this could be replaced with something native? 
 # this is untested and has no input checking etc. 
 kl_div <- function (x, y) {
   sum(x * log(x / y)) 
 }
 
-# ---------------- compute KL divergence ---------------------
+# ---------------- get_post_pred ---------------------
+# get posterior predictive
+# TODO: this is not done in log space and could have underflow errors!
 get_post_pred <- function(lp_post, heads = TRUE) {
   p_1 <- sum(((1 - lp_post$epsilon) * lp_post$theta * lp_post$posterior) + 
                (lp_post$epsilon * (1-lp_post$theta) * lp_post$posterior))
@@ -401,58 +410,58 @@ get_post_pred <- function(lp_post, heads = TRUE) {
 #   return(unique_combination_df)
 #   
 # }
-
-# very confusing, may want to modularize this
-get_eig_with_combos <- function(unique_combination_df = current_all_possible_combinations,
-                                all_possible_combinations = all_possible_combinations,
-                                n_feature = feature_number){
-  l_comb <- lapply(unique_combination_df$occurence, 
-                   function(x){partitions::compositions(x, 2)}) 
-  n_unique_combination <- nrow(unique_combination_df)
-  
-  list_combination <- lapply(seq(1, length(l_comb)), 
-                             function(x){as.list(data.frame(as.matrix(l_comb[[x]])))}) %>% 
-    cross()
-  
-  matrix_combination <- sapply(list_combination, function(x){unlist(x)})
-  
-  
-  
-  number_of_unique_combinations = prod(sapply( unique_combination_df$occurence, 
-                                               function(x){choose(x+1, 1)}))
-  
-  assertthat::are_equal(length(list_combination), number_of_unique_combinations)
-  
-  
-  # figure out all the possible combinations 
-  list_all_possible_combination <- lapply(seq(1,  number_of_unique_combinations , 1), 
-                                          function(x){all_possible_combinations})
-  
-  for (i in 1:number_of_unique_combinations){
-    list_all_possible_combination[[i]]$n <- matrix_combination[, i]
-    
-  }
-  # calculate how many times the unique combination appears in the all possible scenarios
-  repetition_list <- sapply(list_all_possible_combination, 
-                            function(df){
-                              calculate_repetition_of_combination(df, n_unique_combination)
-                            })
-  assertthat::are_equal(sum((repetition_list)), 2^n_feature)
-  #unique(old_kls$kl)
-  eig_list <- sapply(list_all_possible_combination, 
-                     function(df){
-                       creature_kl <- sum(df$n * df$kl) 
-                       creature_post_pred <- prod(df$post_predictives ^ df$n)
-                       (creature_kl %*% creature_post_pred)[[1]]
-                     })
-  
-  total_eig <- sum(repetition_list * eig_list)
-  
-  
-  return (total_eig)
-  
-  
-  
-}
-
-
+# 
+# # very confusing, may want to modularize this
+# get_eig_with_combos <- function(unique_combination_df = current_all_possible_combinations,
+#                                 all_possible_combinations = all_possible_combinations,
+#                                 n_feature = feature_number){
+#   l_comb <- lapply(unique_combination_df$occurence, 
+#                    function(x){partitions::compositions(x, 2)}) 
+#   n_unique_combination <- nrow(unique_combination_df)
+#   
+#   list_combination <- lapply(seq(1, length(l_comb)), 
+#                              function(x){as.list(data.frame(as.matrix(l_comb[[x]])))}) %>% 
+#     cross()
+#   
+#   matrix_combination <- sapply(list_combination, function(x){unlist(x)})
+#   
+#   
+#   
+#   number_of_unique_combinations = prod(sapply( unique_combination_df$occurence, 
+#                                                function(x){choose(x+1, 1)}))
+#   
+#   assertthat::are_equal(length(list_combination), number_of_unique_combinations)
+#   
+#   
+#   # figure out all the possible combinations 
+#   list_all_possible_combination <- lapply(seq(1,  number_of_unique_combinations , 1), 
+#                                           function(x){all_possible_combinations})
+#   
+#   for (i in 1:number_of_unique_combinations){
+#     list_all_possible_combination[[i]]$n <- matrix_combination[, i]
+#     
+#   }
+#   # calculate how many times the unique combination appears in the all possible scenarios
+#   repetition_list <- sapply(list_all_possible_combination, 
+#                             function(df){
+#                               calculate_repetition_of_combination(df, n_unique_combination)
+#                             })
+#   assertthat::are_equal(sum((repetition_list)), 2^n_feature)
+#   #unique(old_kls$kl)
+#   eig_list <- sapply(list_all_possible_combination, 
+#                      function(df){
+#                        creature_kl <- sum(df$n * df$kl) 
+#                        creature_post_pred <- prod(df$post_predictives ^ df$n)
+#                        (creature_kl %*% creature_post_pred)[[1]]
+#                      })
+#   
+#   total_eig <- sum(repetition_list * eig_list)
+#   
+#   
+#   return (total_eig)
+#   
+#   
+#   
+# }
+# 
+# 
