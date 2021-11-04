@@ -25,7 +25,7 @@ Figuring out the sequence and generate the stimuli sequence with all the paramet
 
 ```{r}
 alpha_epsilon = c(1)
-beta_epsilon = c(1)
+beta_epsilon = c(20)
 alpha_priors = c(1)
 beta_priors = c(1)
 noise_parameters = c(0.05)
@@ -37,8 +37,8 @@ simple_feature_n = 1
 complex_feature_n = 3
 dissimilar_ratio = 1
 sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
-complexity = c("simple") #"complex", 
-n <- 10
+complexity = c("complex") #"complex", 
+n <- 2
 
 full_params_df <- make_simulation_params(n = n,
                                          sequence_scheme, 
