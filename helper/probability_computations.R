@@ -51,7 +51,7 @@ score_z_given_theta <- function(t, # timestep
   
   # add in likelihood for last sample from last stimulus, which includes all prior obs
   if (this_stimulus_idx > 1) {
-    last_stim_last_t <- max(model$t[model$stimulus_idx == stimulus_idx - 1], na.rm=TRUE)
+    last_stim_last_t <- max(model$t[model$stimulus_idx == this_stimulus_idx - 1], na.rm=TRUE)
     this_lp_z_given_theta$lp_z_given_theta <- this_lp_z_given_theta$lp_z_given_theta + 
       lp_z_given_theta[[last_stim_last_t]][[f]]$lp_z_given_theta
   }

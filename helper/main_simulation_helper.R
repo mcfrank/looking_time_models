@@ -62,7 +62,9 @@ main_simulation <- function(params = df,
       n_sample = 1, 
       epsilon = params$noise_parameter
     )
+    
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
+    
     
     # steps in calculating EIG
     # - compute current posterior grid
@@ -128,7 +130,8 @@ main_simulation <- function(params = df,
     
     # update books
     t <- t+1
-  } # FINISH HUGE WHILE LOOP
+ 
+    } # FINISH HUGE WHILE LOOP
   
   return(model)  
 }

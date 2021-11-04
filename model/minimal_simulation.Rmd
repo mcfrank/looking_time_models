@@ -38,7 +38,7 @@ complex_feature_n = 3
 dissimilar_ratio = 1
 sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 complexity = c("complex") #"complex", 
-n <- 2
+n <- 20
 
 full_params_df <- make_simulation_params(n = n,
                                          sequence_scheme, 
@@ -91,7 +91,8 @@ complete_sim_res <- all_sims_res %>%
 ggplot(complete_sim_res, 
        aes(x = stimulus_idx, y = sample_n)) + 
   geom_point() +
-  geom_smooth() + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1)) + 
+ # geom_smooth() + 
   facet_wrap(~sequence_scheme)
 ```
 
