@@ -1,0 +1,296 @@
+---
+title: "debugging_mainsim"
+author: "anjie"
+date: "7/12/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(profvis)
+library(microbenchmark)
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/grid_approximation.R"))
+source(here("helper/noisy_update.R"))
+source(here("helper/main_simulation_under_construction.R"))
+source(here("helper/get_eig_faster.R"))
+
+```
+
+```{r}
+num_features = 1
+num_features_simple = 1
+num_feature_complex = 6
+trials_per_block = 5
+deviant_positions = c(2, 5)
+feature_theta = 0.9
+dissimilarity_ratio = 0.9
+noise_parameter = 0.1
+## grid approximation related 
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+
+#grid_theta <- seq(0.01, 1, 0.02)
+#grid_theta <- seq(0.01, 1, 0.02)
+
+alpha_theta = 1
+beta_theta = 1
+alpha_prior = 1
+beta_prior = 5
+alpha_epsilon = 10 
+beta_epsilon = 1
+## eig related 
+env_eig = 0.005
+max_obs = 500
+
+simple_stimuli <- generate_creature_sequence(
+  block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = num_features, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+multifeature_stimuli <- generate_creature_sequence(block_length = trials_per_block, 
+  deviant_positions = deviant_positions,  # takes a vector, 
+  total_feature = 5, 
+  feature_theta = feature_theta, 
+  feature_number = num_features_simple, 
+  dissimilar_ratio = dissimilarity_ratio)
+```
+
+
+```{r}
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/grid_approximation.R"))
+source(here("helper/noisy_update.R"))
+source(here("helper/main_simulation_under_construction.R"))
+source(here("helper/get_eig_faster.R"))
+
+ptm <- proc.time()
+
+new_main_sims <- main_simulation_uc(subject = 1,
+                stimuli_sequence = multifeature_stimuli, 
+                noise_parameter = noise_parameter, 
+                eig_from_world = 0.001,
+                max_observation = 500, # should this be per trial or in total? currently per trial 
+                grid_theta = grid_theta, 
+                grid_epsilon = grid_epsilon, 
+                alpha_prior = alpha_prior, 
+                beta_prior = beta_prior,
+                alpha_epsilon = alpha_epsilon, 
+                beta_epsilon = beta_epsilon, 
+                forced_exposure = TRUE,
+                forced_sample = 5)
+
+proc.time() - ptm
+
+```
+
+# complexity effect 
+
+```{r}
+subject_n  = 50
+complexity_type <- rep(c("simple_stimuli_sequence", "complex_stimuli_sequence"), subject_n/2)
+simple_stimuli_sequence <- generate_creature_sequence(block_length = trials_per_block, 
+                                                        deviant_positions = deviant_positions,  # takes a vector, 
+                                                        total_feature = 5, 
+                                                        feature_theta = feature_theta, 
+                                                        feature_number = 1, 
+                                                        dissimilar_ratio = dissimilarity_ratio)
+complex_stimuli_sequence <- generate_creature_sequence(block_length = trials_per_block, 
+                                                        deviant_positions = deviant_positions,  # takes a vector, 
+                                                        total_feature = 5, 
+                                                        feature_theta = feature_theta, 
+                                                        feature_number = 3, 
+                                                        dissimilar_ratio = dissimilarity_ratio)
+
+exp_info <- tibble(subject_n = seq(1, subject_n), 
+                   stimuli_complexity = complexity_type) %>% 
+  mutate(stimuli_sequence = nest(eval(as.name(stimuli_complexity))))
+
+
+run_simulations <- function(exp_info){
+  
+  simple_sims = map_df(exp_info$subject_n, 
+         main_simulation_uc,
+          simple_stimuli_sequence, 
+          noise_parameter, 
+          0.001,
+          500, # should this be per trial or in total? currently per trial 
+          grid_theta, 
+          grid_epsilon, 
+          alpha_prior, 
+          beta_prior,
+          alpha_epsilon, 
+          beta_epsilon, 
+          TRUE,
+          5) %>% 
+    mutate(complexity_type = "simple")
+  
+  complex_sims = map_df(exp_info$subject_n, 
+         main_simulation_uc,
+          complex_stimuli_sequence, 
+          noise_parameter, 
+          0.001,
+          500, # should this be per trial or in total? currently per trial 
+          grid_theta, 
+          grid_epsilon, 
+          alpha_prior, 
+          beta_prior,
+          alpha_epsilon, 
+          beta_epsilon, 
+          TRUE,
+          5) %>% 
+    mutate(complexity_type = "complex")
+  
+  return(bind_rows(simple_sims, 
+            complex_sims))
+  
+  
+}
+
+complex_sims <- run_simulations(exp_info)
+```
+
+```{r}
+complex_sims %>% 
+  group_by(subject_id, stimulus_idx, complexity_type) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity_type)) + 
+  geom_point(alpha = .3) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange") + 
+stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+ylim(0, 110)  + 
+  theme_classic()
+```
+
+# changing prior 
+
+```{r}
+alpha_prior = seq(1, 3)
+beta_prior = seq(1, 3)
+subject_n  = seq(1, 10)
+parameter_info <- expand_grid(
+  subject_n, 
+  alpha_prior, 
+  beta_prior)
+simple_stimuli_sequence
+
+run_prior_sims <- function(parameter_info){
+
+  prior_sim <- lapply(subject_n, 
+         function(s){
+           lapply(alpha_prior, 
+                  function(a){
+                    lapply(beta_prior, 
+                           function(b){
+                             
+                            
+                             
+                             
+                             simple <- main_simulation_uc(subject = s,
+                                  stimuli_sequence = simple_stimuli_sequence, 
+                                  noise_parameter = noise_parameter, 
+                                  eig_from_world = 0.001,
+                                  max_observation = 500, # should this be per trial or in total? currently per trial 
+                                  grid_theta = grid_theta, 
+                                  grid_epsilon = grid_epsilon, 
+                                  alpha_prior = a, 
+                                  beta_prior = b,
+                                  alpha_epsilon = alpha_epsilon, 
+                                  beta_epsilon = beta_epsilon, 
+                                  forced_exposure = TRUE,
+                                  forced_sample = 5) %>% 
+                               mutate(beta_p = b, 
+                                      complexity_type = "simple")
+                             
+                              complex <- main_simulation_uc(subject = s,
+                                  stimuli_sequence = complex_stimuli_sequence, 
+                                  noise_parameter = noise_parameter, 
+                                  eig_from_world = 0.001,
+                                  max_observation = 500, # should this be per trial or in total? currently per trial 
+                                  grid_theta = grid_theta, 
+                                  grid_epsilon = grid_epsilon, 
+                                  alpha_prior = a, 
+                                  beta_prior = b,
+                                  alpha_epsilon = alpha_epsilon, 
+                                  beta_epsilon = beta_epsilon, 
+                                  forced_exposure = TRUE,
+                                  forced_sample = 5) %>% 
+                               mutate(beta_p = b, 
+                                      complexity_type = "complex")
+                             
+                             return(bind_rows(simple, complex))
+                             
+                           }) %>% 
+                      bind_rows() %>% 
+                      mutate(alpha_p = a)
+                    
+                  }) %>% 
+             bind_rows() 
+           
+         }) %>% 
+    bind_rows()
+  
+  return(prior_sim)
+  
+  
+}
+
+run_prior_sims(parameter_info)
+```
+
+```{r}
+prior_sim %>% 
+  mutate(prior_info = paste0("a", 
+                             alpha_p, 
+                             "b", 
+                             beta_p)) %>% 
+  group_by(subject_id, stimulus_idx, complexity_type, prior_info) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity_type)) + 
+  geom_jitter(alpha = .3) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange") + 
+stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+ylim(0, 110)  + 
+  theme_classic()+
+  facet_wrap(~prior_info)
+```
+
+
+
+
+
+```{r}
+source(here("helper/original_main_sim_for_testing.R"))
+old_main_sims <- main_simulation(
+  1, 
+  simple_stimuli, 
+  noise_parameter, 
+  eig_from_world = 0.001,
+  max_observation = 500, # should this be per trial or in total? currently in total 
+  grid_theta = grid_theta, 
+  grid_epsilon = grid_epsilon, 
+  alpha_prior = alpha_prior, 
+  beta_prior = beta_prior,
+  alpha_epsilon = alpha_epsilon, 
+  beta_epsilon = beta_epsilon, 
+  exposure_type = "forced_short", 
+  forced_exposure = TRUE,
+  forced_sample = 5,
+  optimize = TRUE 
+)
+```
+
+
+
+
+
+
+
+
+

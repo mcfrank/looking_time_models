@@ -1,0 +1,263 @@
+---
+title: "understanding patterns of sim"
+author: "anjie"
+date: "9/27/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(matrixStats)
+
+
+source(here("helper/make_scheme_and_params.r"))
+source(here("helper/main_simulation_testing.r"))
+
+source(here("helper/get_eig_faster.R"))
+source(here("helper/get_stimuli.R"))
+source(here("helper/get_observation.R"))
+source(here("helper/main_simulation_under_construction.r"))
+source(here("helper/params_helper_experiment.r"))
+```
+
+```{r}
+grid_theta <- seq(0.1, 1, 0.2)
+grid_epsilon <- seq(0.1, 1, 0.2)
+
+n = 100
+alpha_epsilon = c(1)
+beta_epsilon = c(1)
+alpha_priors = c(1)
+beta_priors = c(1)
+noise_parameters = c(0.03)
+eigs_from_world = c(0.001)
+max_observation = 500
+fixed_length_complexity = TRUE 
+feature_space_n = 10
+simple_feature_n = 1
+complex_feature_n = 5
+dissimilar_ratio = 1
+sequence_scheme = c("BBBBBD")
+complexity = c("complex", "simple")
+
+full_params_df <- make_simulation_params(n, 
+                                   sequence_scheme, 
+                                   complexity, 
+                                   alpha_priors, 
+                                   beta_priors, 
+                                   alpha_epsilon, 
+                                   beta_epsilon, 
+                                   noise_parameter, 
+                                   eig_from_world, 
+                                   max_observation, 
+                                   fixed_length_complexity, 
+                                   feature_space_n, 
+                                   simple_feature_n, 
+                                   complex_feature_n, 
+                                   dissimilar_ratio) 
+
+
+```
+
+
+
+
+```{r}
+S <- (full_params_df %>% 
+  filter(complexity == "complex") %>% 
+  select(stimuli_sequence) %>% 
+  pull())[[1]][[1]] %>% 
+  select(V2, V3) %>% 
+  rename(V1 = V2, V2 = V3) %>% 
+  mutate(trial_number = row_number()) %>% 
+  select(V2, trial_number) %>% 
+  rename(V1 = V2)
+S
+```
+
+if (show_posterior){
+    res_list <- list()
+    
+    obs_df <- as.data.frame(m_observation) %>% mutate(t = row_number())
+    df_model <- df_model %>% 
+      left_join(obs_df, by = "t")
+    res_list[[1]] <- df_model %>% filter(!is.na(EIG))
+    res_list[[2]] <- ll_df_posterior
+    res_list[[3]] <- ll_df_hypothetical_posterior
+    res_list[[4]] <- ll_eig_materials
+    names(res_list) <- c("df_model", "real posterior", "hypothetical_posterior", "eig_materials")
+    return (res_list)
+    
+    
+  }
+  
+   l_eig_materials[[1]] <- l_kl
+  l_eig_materials[[2]] <- l_pp
+  
+```{r}
+a1b50_res[[1]]
+```
+
+
+```{r}
+a1b50_res <- main_simulation_testing(subject = 1,
+                               stimuli_sequence = super_S, 
+                               noise_parameter = 0, 
+                               eig_from_world = 0.001,
+                               max_observation = 50, # should this be per trial or in total? currently per trial 
+                               grid_theta = grid_theta, 
+                               grid_epsilon = grid_epsilon, 
+                               alpha_prior = 1, 
+                               beta_prior = 50,
+                               alpha_epsilon = 1, 
+                               beta_epsilon = 1, 
+                               forced_exposure = FALSE,
+                               forced_sample = 5, 
+                               show_posterior = TRUE)
+```
+
+```{r}
+ S
+super_S <- bind_rows(S %>% filter(trial_number != 6), 
+                     S %>% filter(trial_number != 6),
+                     S %>% filter(trial_number != 6), 
+                     S %>% filter(trial_number != 6), 
+                     S %>% filter(trial_number != 6), 
+                     S) %>% 
+  mutate(trial_number = row_number())
+super_S
+```
+
+noisy_post_pred <- function(theta, epsilon, posterior, heads = TRUE) {
+  p_1 <- sum(((1 - epsilon) * theta * posterior) + 
+               (epsilon * (1-theta) * posterior))
+  
+  ifelse(heads, p_1, 1 - p_1)
+  
+}
+
+
+
+```{r}
+
+
+
+a50b1_res[[2]][[2]][[1]] %>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+a1b50_res[[2]][[2]][[1]]%>% 
+  ggplot(aes(x = theta, y = posterior, color = epsilon)) + 
+  geom_point()
+
+noisy_post_pred(a50b1_res[[2]][[2]][[1]]$theta, a50b1_res[[2]][[2]][[1]]$epsilon, a50b1_res[[2]][[2]][[1]]$posterior, TRUE)
+noisy_post_pred(a1b50_res[[2]][[2]][[1]]$theta, a1b50_res[[2]][[2]][[1]]$epsilon, a1b50_res[[2]][[2]][[1]]$posterior, TRUE)
+
+noisy_post_pred(a50b1_res[[2]][[1]]$theta, a50b1_res[[2]][[1]]$epsilon, a50b1_res[[2]][[1]]$posterior, FALSE)
+noisy_post_pred(a1b50_res[[2]][[1]]$theta, a1b50_res[[2]][[1]]$epsilon, a1b50_res[[2]][[1]]$posterior, FALSE)
+
+noisy_post_pred(a50b1_res[[3]][[1]]$theta, a50b1_res[[3]][[1]]$epsilon, a50b1_res[[3]][[1]]$posterior, TRUE)
+noisy_post_pred(a1b50_res[[3]][[1]]$theta, a1b50_res[[3]][[1]]$epsilon, a1b50_res[[3]][[1]]$posterior, TRUE)
+```
+
+
+```{r}
+a50b1_res <- main_simulation_testing(subject = 1,
+                               stimuli_sequence = super_S, 
+                               noise_parameter = 0, 
+                               eig_from_world = 0.001,
+                               max_observation = 50, # should this be per trial or in total? currently per trial 
+                               grid_theta = grid_theta, 
+                               grid_epsilon = grid_epsilon, 
+                               alpha_prior = 50, 
+                               beta_prior = 1,
+                               alpha_epsilon = 1, 
+                               beta_epsilon = 1, 
+                               forced_exposure = FALSE,
+                               forced_sample = 5, 
+                               show_posterior = TRUE)
+```
+
+```{r}
+a1b1_res <- main_simulation_testing(subject = 1,
+                               stimuli_sequence = super_S, 
+                               noise_parameter = 0, 
+                               eig_from_world = 0.001,
+                               max_observation = 50, # should this be per trial or in total? currently per trial 
+                               grid_theta = grid_theta, 
+                               grid_epsilon = grid_epsilon, 
+                               alpha_prior = 1, 
+                               beta_prior = 1,
+                               alpha_epsilon = 1, 
+                               beta_epsilon = 1, 
+                               forced_exposure = FALSE,
+                               forced_sample = 5, 
+                               show_posterior = TRUE)
+```
+
+```{r}
+a1b3_res <- main_simulation_testing(subject = 1,
+                               stimuli_sequence = S, 
+                               noise_parameter = 0, 
+                               eig_from_world = 0.001,
+                               max_observation = 50, # should this be per trial or in total? currently per trial 
+                               grid_theta = grid_theta, 
+                               grid_epsilon = grid_epsilon, 
+                               alpha_prior = 1, 
+                               beta_prior = 3,
+                               alpha_epsilon = 1, 
+                               beta_epsilon = 1, 
+                               forced_exposure = FALSE,
+                               forced_sample = 5, 
+                               show_posterior = TRUE)
+
+a3b1_res <- main_simulation_testing(subject = 1,
+                               stimuli_sequence = S, 
+                               noise_parameter = 0, 
+                               eig_from_world = 0.001,
+                               max_observation = 50, # should this be per trial or in total? currently per trial 
+                               grid_theta = grid_theta, 
+                               grid_epsilon = grid_epsilon, 
+                               alpha_prior = 3, 
+                               beta_prior = 1,
+                               alpha_epsilon = 1, 
+                               beta_epsilon = 1, 
+                               forced_exposure = FALSE,
+                               forced_sample = 5, 
+                               show_posterior = TRUE)
+```
+
+
+
+  
+```{r}
+S
+plot_kl_materials(get_eig_materials(a1b50_res))
+plot_kl_materials(get_eig_materials(a50b1_res))
+plot_kl_materials(get_eig_materials(a1b1_res))
+plot_kl_materials(get_eig_materials(a1b3_res))
+plot_kl_materials(get_eig_materials(a3b1_res))
+
+```
+
+```{r}
+
+
+```
+
+
+```{r}
+plot_posterior_all_epsilon(a1b3_res, seq(1, 50), 50)
+plot_posterior_all_epsilon(a3b1_res, seq(1, 50), 50)
+
+plot_posterior_all_epsilon(a1b50_res, seq(1, 50), 50)
+plot_posterior_all_epsilon(a50b1_res, seq(1, 50), 50)
+
+```
+
+
+
+```{r}
+a1b50_res[[4]][[1]]
+```
+
