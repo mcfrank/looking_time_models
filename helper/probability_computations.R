@@ -133,10 +133,16 @@ score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
 }
 
 # ---------------- compute KL divergence ---------------------
-# this is untested and has no input checking etc. 
+# throws error if one but not both distributions contain 0's at a certain spot
 kl_div <- function (x, y) {
-  sum(x * log(x / y)) 
+  sum(
+    ifelse(all( (x == 0) == (y == 0) ),  # check that all the 0's are in the same position, if there are any
+      x * log(x/y),
+      stop('found 0 in one but not both distributions')
+       )
+  )
 }
+
 
 # ---------------- get_post_pred ---------------------
 # get posterior predictive
