@@ -76,6 +76,18 @@ all_sims_res <- full_params_df %>%
 toc()
 ```
 
+
+```{r}
+tic()
+all_sims_res_combo <- full_params_df %>%
+  group_by(params_id, sim_id, sub_id) %>%
+  nest() %>%
+  mutate(results = map(data, 
+                       function(df) main_simulation(params = df, KL_combo = TRUE))) %>%
+  unnest(cols = c(data, results))
+toc()
+```
+
 Clean and visualize. 
 
 ```{r}
@@ -96,4 +108,23 @@ ggplot(complete_sim_res,
   facet_wrap(~sequence_scheme)
 ```
 
+```{r}
+
+
+complete_sim_res_combo <- all_sims_res_combo %>% 
+  group_by(params_id, sim_id, sub_id, stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  left_join(full_params_df %>% select(-n), 
+            by = c("params_id", "sim_id")) %>% 
+  mutate(prior_info = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
+  mutate(eig_info = paste("np", noise_parameter, "ee", world_EIG))
+
+ggplot(complete_sim_res_combo, 
+       aes(x = stimulus_idx, y = sample_n)) + 
+  geom_point() +
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1)) + 
+ # geom_smooth() + 
+  facet_wrap(~sequence_scheme)
+```
 
