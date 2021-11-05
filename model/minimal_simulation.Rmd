@@ -12,6 +12,7 @@ library(here)
 library(matrixStats)
 library(partitions)
 library(tictoc)
+library(LaplacesDemon)
 
 source(here("helper/make_scheme_and_params.R"))
 source(here("helper/initialization.R"))
@@ -109,7 +110,6 @@ ggplot(complete_sim_res,
 ```
 
 ```{r}
-
 
 complete_sim_res_combo <- all_sims_res_combo %>% 
   group_by(params_id, sim_id, sub_id, stimulus_idx) %>% 
