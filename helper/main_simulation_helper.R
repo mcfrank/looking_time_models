@@ -5,7 +5,8 @@
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
                             grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2)) {
+                            grid_epsilon = seq(0.1, 1, 0.2), 
+                            KL_combo = FALSE) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -114,6 +115,9 @@ main_simulation <- function(params = df,
     }
     
     # compute EIG
+    if(KL_combo){
+      model$EIG[t] <- (length(possible_observations) ^ (params$n_features)) * (1/2) * sum(p_post_new * kl_new)
+    }
     model$EIG[t] <- sum(p_post_new * kl_new)
     
     # luce choice probability whether to look away
