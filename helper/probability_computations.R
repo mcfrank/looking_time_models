@@ -138,12 +138,8 @@ score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
 # ---------------- compute KL divergence ---------------------
 # throws error if one but not both distributions contain 0's at a certain spot
 kl_div <- function (x, y) {
-  sum(
-    ifelse(all( (x == 0) == (y == 0) ),  # check that all the 0's are in the same position, if there are any
-      x * log(x/y),
-      stop('found lone 0 in distribution when calculating KL')
-       )
-  )
+      sum(x * log(x/y))
+
 }
 
 
