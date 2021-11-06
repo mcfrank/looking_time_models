@@ -39,7 +39,7 @@ complex_feature_n = 3
 dissimilar_ratio = 1
 sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 complexity = c("complex") #"complex", 
-n <- 20
+n <- 1
 
 full_params_df <- make_simulation_params(n = n,
                                          sequence_scheme, 
