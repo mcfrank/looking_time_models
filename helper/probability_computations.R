@@ -64,9 +64,12 @@ score_z_given_theta <- function(t, # timestep
 # rolls in likelihood and prior, does logsumexp
 score_post <- function(lp_z_given_theta, lp_prior, lp_post) {
   
+  # likelihood * prior
   lp_post$unnormalized_log_posterior <- lp_z_given_theta$lp_z_given_theta + 
     lp_prior$lp_theta + 
     lp_prior$lp_epsilon
+  
+  # normalize
   lp_post$log_posterior <- lp_post$unnormalized_log_posterior - matrixStats::logSumExp(lp_post$unnormalized_log_posterior)
   lp_post$posterior <- exp(lp_post$log_posterior)
   
@@ -138,7 +141,7 @@ kl_div <- function (x, y) {
   sum(
     ifelse(all( (x == 0) == (y == 0) ),  # check that all the 0's are in the same position, if there are any
       x * log(x/y),
-      stop('found 0 in one but not both distributions')
+      stop('found lone 0 in distribution when calculating KL')
        )
   )
 }
@@ -147,8 +150,12 @@ kl_div <- function (x, y) {
 # ---------------- get_post_pred ---------------------
 # get posterior predictive
 get_post_pred <- function(lp_post, heads = TRUE) {
-  p_1 <- sum(((1 - lp_post$epsilon) * lp_post$theta * lp_post$posterior) + 
-               (lp_post$epsilon * (1-lp_post$theta) * lp_post$posterior))
+
+  # equivalent to: sum(((1 - lp_post$epsilon) * lp_post$theta * lp_post$posterior) + 
+  #             (lp_post$epsilon * (1-lp_post$theta) * lp_post$posterior)) but avoiding underlfow
+  
+  p_1 = exp(matrixStats::logSumExp( log(1 - lp_post$epsilon) + log(lp_post$theta) + log(lp_post$posterior))) + 
+    +     exp(matrixStats::logSumExp((log(lp_post$epsilon) + log(1-lp_post$theta) + log(lp_post$posterior))))
   
   ifelse(heads, p_1, 1 - p_1)
 }
