@@ -61,22 +61,20 @@ initialize_m_observation <- function(feature_number, max_observation, stimuli_se
   return(m_observation)
 }
 
-# 
-# # helper function that gets you a df with features as columns and all possible 
-# # combinations
-# get_possible_observations <- function(n_features) {
-#   feature_list <- list()
-#   
-#   for (i in 1:n_features) {
-#     feature_list[[i]] <- c(FALSE, TRUE)
-#   }
-#   
-#   expand.grid(feature_list) %>%
-#     tibble() %>%
-#     rename_with(~gsub("Var", "V", .x)) # fix random naming thing 
-# }
-# 
-# 
+
+# helper function that gets you a df with features as columns and all possible
+# combinations
+get_possible_observations <- function(n_features) {
+  feature_list <- list()
+
+  for (i in 1:n_features) {
+    feature_list[[i]] <- c(FALSE, TRUE)
+  }
+
+  expand.grid(feature_list) %>%
+    tibble() %>%
+    rename_with(~gsub("Var", "V", .x)) # fix random naming thing
+}
 
 
 

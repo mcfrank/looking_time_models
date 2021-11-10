@@ -5,8 +5,7 @@
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
                             grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2), 
-                            KL_combo = FALSE) {
+                            grid_epsilon = seq(0.1, 1, 0.2)) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -23,15 +22,16 @@ main_simulation <- function(params = df,
                                                   params$n_features)
   
   #  book-keeping for likelihoods and posteriors for new observations
-  possible_observations <- c(TRUE, FALSE)
+  possible_observations <- get_possible_observations(params$n_features)
   lp_z_given_theta_new <- initialize_z_given_theta(grid_theta, grid_epsilon,
-                                                   length(possible_observations), 
+                                                   nrow(possible_observations), 
                                                    params$n_features)
   lp_post_new <- initialize_posterior(grid_theta, grid_epsilon, 
-                                      2, params$n_features)
-  p_post_new <- matrix(data = NA, nrow = length(possible_observations), 
+                                      nrow(possible_observations), 
+                                      params$n_features)
+  p_post_new <- matrix(data = NA, nrow = nrow(possible_observations), 
                        ncol = params$n_features)
-  kl_new <- matrix(data = NA, nrow = length(possible_observations), 
+  kl_new <- matrix(data = NA, nrow = nrow(possible_observations), 
                    ncol = params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
@@ -85,12 +85,12 @@ main_simulation <- function(params = df,
     
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
+    model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
     for (o in 1:length(possible_observations)) { 
       for (f in 1:params$n_features) {
         # pretend that the possible observation has truly been observed
         # note that's observed from the same stimulus as the previous one
-        model[t+1, paste0("f", f)] <- as.list(possible_observations[o])
-        model$stimulus_idx[t+1] <- stimulus_idx
+        model[t+1, paste0("f", f)] <- as.logical(possible_observations[o,f])
         
         # get upcoming likelihood
         lp_z_given_theta_new[[o]][[f]] <- 
@@ -106,7 +106,7 @@ main_simulation <- function(params = df,
         
         # posterior predictive
         p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
-                                         heads = possible_observations[o]) 
+                                         heads = possible_observations[o,f]) 
         
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
@@ -115,9 +115,7 @@ main_simulation <- function(params = df,
     }
     
     # compute EIG
-    if(KL_combo){
-      model$EIG[t] <- (length(possible_observations) ^ (params$n_features)) * (1/2) * sum(p_post_new * kl_new)
-    }
+      # model$EIG[t] <- (length(possible_observations) ^ (params$n_features)) * (1/2) * sum(p_post_new * kl_new)
     model$EIG[t] <- sum(p_post_new * kl_new)
     
     # luce choice probability whether to look away
