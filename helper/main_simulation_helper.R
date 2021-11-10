@@ -137,6 +137,8 @@ main_simulation <- function(params = df,
  
     } # FINISH HUGE WHILE LOOP
   
+  browser()
+  
   return(model)  
 }
 

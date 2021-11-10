@@ -73,6 +73,8 @@ score_post <- function(lp_z_given_theta, lp_prior, lp_post) {
   lp_post$log_posterior <- lp_post$unnormalized_log_posterior - matrixStats::logSumExp(lp_post$unnormalized_log_posterior)
   lp_post$posterior <- exp(lp_post$log_posterior)
   
+  
+  
   return(lp_post)
 }
 
@@ -139,20 +141,20 @@ score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
 # throws error if one but not both distributions contain 0's at a certain spot
 kl_div <- function (x, y) {
       sum(x * log(x/y))
-
 }
-
 
 # ---------------- get_post_pred ---------------------
 # get posterior predictive
 get_post_pred <- function(lp_post, heads = TRUE) {
-
-  # equivalent to: sum(((1 - lp_post$epsilon) * lp_post$theta * lp_post$posterior) + 
-  #             (lp_post$epsilon * (1-lp_post$theta) * lp_post$posterior)) but avoiding underlfow
   
   p_1 = exp(matrixStats::logSumExp( log(1 - lp_post$epsilon) + log(lp_post$theta) + log(lp_post$posterior))) + 
     +     exp(matrixStats::logSumExp((log(lp_post$epsilon) + log(1-lp_post$theta) + log(lp_post$posterior))))
+
   
+  # Currently we believe that the above version is equivalent to the non-log version below (since we're not running into actual underflow risk here):
+# p_1 = sum(((1 - lp_post$epsilon) * lp_post$theta * lp_post$posterior) + (lp_post$epsilon * (1-lp_post$theta) * lp_post$posterior)) 
+  
+
   ifelse(heads, p_1, 1 - p_1)
 }
 
