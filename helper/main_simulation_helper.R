@@ -86,7 +86,7 @@ main_simulation <- function(params = df,
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
     model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
-    for (o in 1:length(possible_observations)) { 
+    for (o in 1:nrow(possible_observations)) { 
       for (f in 1:params$n_features) {
         # pretend that the possible observation has truly been observed
         # note that's observed from the same stimulus as the previous one
