@@ -20,18 +20,21 @@ source(here("helper/probability_computations.R"))
 source(here("helper/main_simulation_helper.R"))
 
 d <- read_csv(here("data/processed_rt_task_data.csv"))
+
+# set up multicore sims
+future::plan(multicore)
 ```
 
 Figuring out the sequence and generate the stimuli sequence with all the parameters 
 
 ```{r}
 alpha_epsilon = c(1)
-beta_epsilon = c(20)
+beta_epsilon = c(10)
 alpha_priors = c(1)
 beta_priors = c(1)
 noise_parameters = c(0.05)
 world_EIG = c(0.001)
-max_observation = 500
+max_observation = 100
 fixed_length_complexity = FALSE 
 feature_space_n = 7
 simple_feature_n = 1
@@ -39,7 +42,7 @@ complex_feature_n = 3
 dissimilar_ratio = 1
 sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 complexity = c("complex") #"complex", 
-n <- 1
+n <- 80 # doesn't perform as expected
 
 full_params_df <- make_simulation_params(n = n,
                                          sequence_scheme, 
@@ -59,7 +62,7 @@ full_params_df <- make_simulation_params(n = n,
 
 # note that this should happen in make_simulation_params
 full_params_df <- full_params_df %>%
-  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:8)) %>%
+  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:80)) %>%
   mutate(n_features = 3)
 
 ```
@@ -71,20 +74,8 @@ tic()
 all_sims_res <- full_params_df %>%
   group_by(params_id, sim_id, sub_id) %>%
   nest() %>%
-  mutate(results = map(data, 
+  mutate(results = map(data,
                        function(df) main_simulation(params = df))) %>%
-  unnest(cols = c(data, results))
-toc()
-```
-
-
-```{r}
-tic()
-all_sims_res_combo <- full_params_df %>%
-  group_by(params_id, sim_id, sub_id) %>%
-  nest() %>%
-  mutate(results = map(data, 
-                       function(df) main_simulation(params = df, KL_combo = TRUE))) %>%
   unnest(cols = c(data, results))
 toc()
 ```
@@ -103,28 +94,8 @@ complete_sim_res <- all_sims_res %>%
 
 ggplot(complete_sim_res, 
        aes(x = stimulus_idx, y = sample_n)) + 
-  geom_point() +
-  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1)) + 
- # geom_smooth() + 
-  facet_wrap(~sequence_scheme)
-```
-
-```{r}
-
-complete_sim_res_combo <- all_sims_res_combo %>% 
-  group_by(params_id, sim_id, sub_id, stimulus_idx) %>% 
-  summarise(sample_n = n()) %>% 
-  filter(!is.na(stimulus_idx)) %>% 
-  left_join(full_params_df %>% select(-n), 
-            by = c("params_id", "sim_id")) %>% 
-  mutate(prior_info = paste("a", alpha_prior, "b", beta_prior, sep = "_")) %>% 
-  mutate(eig_info = paste("np", noise_parameter, "ee", world_EIG))
-
-ggplot(complete_sim_res_combo, 
-       aes(x = stimulus_idx, y = sample_n)) + 
-  geom_point() +
-  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1)) + 
- # geom_smooth() + 
-  facet_wrap(~sequence_scheme)
+  geom_line(alpha = .1, aes(group = sub_id.x)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1)) +
+  facet_grid(alpha_prior~sequence_scheme)
 ```
 
