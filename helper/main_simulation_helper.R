@@ -115,7 +115,7 @@ main_simulation <- function(params = df,
     }
     
     # compute EIG
-      # model$EIG[t] <- (length(possible_observations) ^ (params$n_features)) * (1/2) * sum(p_post_new * kl_new)
+    # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
     model$EIG[t] <- sum(p_post_new * kl_new)
     
     # luce choice probability whether to look away
