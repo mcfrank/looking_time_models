@@ -130,7 +130,7 @@ main_simulation <- function(params = df,
       stimulus_idx <- stimulus_idx + 1
     }
     
-    # update books
+    # update timestep
     t <- t+1
  
     } # FINISH HUGE WHILE LOOP
