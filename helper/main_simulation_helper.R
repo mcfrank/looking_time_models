@@ -17,6 +17,8 @@ main_simulation <- function(params = df,
   # list of lists of df for the posteriors and likelihoods
   lp_post <- initialize_posterior(grid_theta, grid_epsilon, 
                                   params$max_observation, params$n_features)
+  
+  
   lp_z_given_theta <- initialize_z_given_theta(grid_theta, grid_epsilon, 
                                                   params$max_observation, 
                                                   params$n_features)
@@ -81,6 +83,9 @@ main_simulation <- function(params = df,
       lp_post[[t]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta[[t]][[f]], 
                                       lp_prior = lp_prior, 
                                       lp_post = lp_post[[t]][[f]])
+      
+      
+      browser()
     }
     
     # -compute new posterior grid over all possible outcomes
@@ -99,10 +104,14 @@ main_simulation <- function(params = df,
                               lp_z_given_theta = lp_z_given_theta,
                               model = model)
         
+        browser()
+        
         # upcoming posterior
         lp_post_new[[o]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta_new[[o]][[f]], 
                                             lp_prior = lp_prior, 
                                             lp_post = lp_post_new[[o]][[f]])
+        
+        
         
         # posterior predictive
         p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
@@ -113,6 +122,7 @@ main_simulation <- function(params = df,
                               lp_post[[t]][[f]]$posterior)
       }
     }
+    
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
@@ -130,7 +140,7 @@ main_simulation <- function(params = df,
       stimulus_idx <- stimulus_idx + 1
     }
     
-    # update timestep
+
     t <- t+1
  
     } # FINISH HUGE WHILE LOOP
