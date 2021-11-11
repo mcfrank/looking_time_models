@@ -21,6 +21,7 @@ initialize_posterior <- function(grid_theta, grid_epsilon, max_observation, feat
 initialize_z_given_theta <- function(grid_theta, grid_epsilon, max_observation, feature_number){
   z_given_theta <- expand_grid(theta = grid_theta, 
                                   epsilon = grid_epsilon)
+  
   z_given_theta$lp_z_y_ONE <- NA_real_
   z_given_theta$lp_z_y_ZERO <-  NA_real_
   z_given_theta$lp_z_given_theta <- NA_real_

@@ -12,6 +12,29 @@ source(here("helper/make_scheme_and_params.R"))
 
 # what about when theta = 0
 
+
+### TEST score_theta
+# score_theta <- function(theta, alpha_theta, beta_theta){}
+# this function should return the log probability of theta for a given beta distribution
+# test output value returned using: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html
+
+assert_that(score_theta(1, 1, 1) == 0)
+assert_that(round(score_theta(.3, 3, 2), 3) == -.280)
+assert_that(score_theta(10, 1, 1) == -Inf)
+assert_that(score_theta(-1, 1, 1) == -Inf)
+
+
+# TEST score_epsilon 
+# score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){}
+# this function should return the log probability of epsilon for a given beta distribution 
+# test output value returned using: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html
+
+assert_that(score_epsilon(1, 1, 1) == 0)
+assert_that(round(score_epsilon(.5, 5, 10), 3) == .200)
+assert_that(score_epsilon(10, 1, 1) == -Inf)
+assert_that(score_epsilon(-1, 1, 1) == -Inf)
+
+
 ### TEST score_z_ij_given_y
 # score_z_ij_given_y <- function(zij, yi, epsilon){}
 # this function return the log probability of perceiving or misperceiving the feature; 
@@ -34,26 +57,24 @@ assert_that(score_yi_given_theta(.5, .8) == -Inf)
 assert_that(is.nan(score_yi_given_theta(1, 10)))
 
 
-### TEST score_theta
-# score_theta <- function(theta, alpha_theta, beta_theta){}
-# this function should return the log probability of theta for a given beta distribution
-# test output value returned using: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html
+### TEST score_zij_given_theta
 
-assert_that(score_theta(1, 1, 1) == 0)
-assert_that(round(score_theta(.3, 3, 2), 3) == -.280)
-assert_that(score_theta(10, 1, 1) == -Inf)
-assert_that(score_theta(-1, 1, 1) == -Inf)
+score_z_ij_given_theta <- function(zij, theta, epsilon) logSumExp(
+  c(lp_z_ij_given_y(zij = zij, yi = 1, epsilon = epsilon) + lp_yi_given_theta(yi = 1, theta = theta ), 
+    lp_z_ij_given_y(zij = zij, yi = 0, epsilon = epsilon) + lp_yi_given_theta(yi = 0, theta = theta))
+)
 
 
-# TEST score_epsilon 
-# score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){}
-# this function should return the log probability of epsilon for a given beta distribution 
-# test output value returned using: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html
+  
 
-assert_that(score_epsilon(1, 1, 1) == 0)
-assert_that(round(score_epsilon(.5, 5, 10), 3) == .200)
-assert_that(score_epsilon(10, 1, 1) == -Inf)
-assert_that(score_epsilon(-1, 1, 1) == -Inf)
+### TEST score_z_given_theta
+
+score_z_given_theta <- function(t, # timestep
+                                f, # feature
+                                lp_y_given_theta, # cached likelihoods
+                                lp_z_given_theta, # likelihoods
+                                model) {
+  ...
 
 
 ## TEST kl_div
@@ -116,3 +137,10 @@ expected_df <- lp_post[[1]][[1]] %>% mutate(unnormalized_log_posterior = 3, # 1+
                                   posterior = 1)
 
 assert_that(all.equal(test_df,expected_df))
+
+# Test 2: test bigger df
+lp_z_given_theta = tibble(lp_z_given_theta = c(0.8, 0.9))
+lp_prior = tibble(theta = c(0.33, 0.33, 0.66, 0.66), epsilon = c(0, 0.1, 0, 0.1), lp_theta = c(0,0,0,0), lp_epsilon(0,1,2,3))
+lp_post = tibble(theta = c(0.33, 0.33, 0.66, 0.66), epsilon = c(0, 0.1, 0, 0.1), unnormalized_log_posterior = c(), log_posterior = c(), posterior = c())
+
+test_df <- score_post(lp_z_given_theta, lp_prior, lp_post[[1]][[1]])
