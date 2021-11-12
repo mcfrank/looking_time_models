@@ -57,24 +57,197 @@ assert_that(score_yi_given_theta(.5, .8) == -Inf)
 assert_that(is.nan(score_yi_given_theta(1, 10)))
 
 
-### TEST score_zij_given_theta
+### TEST score_z_given_theta
 
-score_z_ij_given_theta <- function(zij, theta, epsilon) logSumExp(
-  c(lp_z_ij_given_y(zij = zij, yi = 1, epsilon = epsilon) + lp_yi_given_theta(yi = 1, theta = theta ), 
-    lp_z_ij_given_y(zij = zij, yi = 0, epsilon = epsilon) + lp_yi_given_theta(yi = 0, theta = theta))
+# CASE 1: SINGLE OBSERVATION ON ONE STIMULUS 
+t = 1
+f = 1 
+stimulus_idx <- 1
+theta =  c(0.1, 0.4,.75, .9)
+epsilon = c(0.1, 0.4,.75, .9)
+lp_y_given_theta = tibble(
+  theta = theta, 
+  lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, theta = theta), 
+  lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, theta = theta))
+
+lp_z_given_theta = initialize_z_given_theta(grid_theta = theta, 
+                                            grid_epsilon = epsilon, 
+                                            max_observation = 3, 
+                                            feature_number = 3)
+
+model <- initialize_model(eig_from_world = 0.001, 
+                          max_observation = 3, 
+                          n_features = 3)
+model$t[t] = t
+model$stimulus_idx[t] = stimulus_idx
+model$f1[t] = TRUE
+
+# hand calculate example: 
+# theta = .4, epsilon = .4, observation is TRUE 
+
+test_single_z_given_theta <- function(observation, theta_value, epsilon_value){
+  
+
+  ##calculating a single value with the tested function 
+  lp_z_given_y_ONE = score_z_ij_given_y(observation, 1, epsilon = epsilon_value) # already tested function 
+  lp_z_given_y_ZERO = score_z_ij_given_y(observation, 0, epsilon = epsilon_value)# already tested function 
+  lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, theta = theta_value) #already tested function
+  lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, theta = theta_value)#already tested function
+  
+  value <-log(exp(lp_z_given_y_ONE + lp_y_ONE_given_theta) + exp(lp_z_given_y_ZERO + lp_y_ZERO_given_theta)) 
+  return(value)
+  
+}
+
+assert_that(round(score_z_given_theta(t, f, lp_y_given_theta, lp_z_given_theta, model) %>% 
+  filter(theta == .4, epsilon == .4) %>% 
+  pull(lp_z_given_theta), 3) == round(test_single_z_given_theta(TRUE, .4, .4), 3))
+
+assert_that(round(score_z_given_theta(t, f, lp_y_given_theta, lp_z_given_theta, model) %>% 
+                    filter(theta == .75, epsilon == .75) %>% 
+                    pull(lp_z_given_theta), 3) == round(test_single_z_given_theta(TRUE, .75, .75), 3))
+
+
+
+
+#CASE 2: MULTIPLE OBSERVATION ON ONE STIMULUS 
+# two observation, TRUE TRUE 
+t = 2
+f = 1 
+stimulus_idx <- 1
+theta =  c(0.1, 0.4,.75, .9)
+epsilon = c(0.1, 0.4,.75, .9)
+lp_y_given_theta = tibble(
+  theta = theta, 
+  lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, theta = theta), 
+  lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, theta = theta))
+
+lp_z_given_theta = initialize_z_given_theta(grid_theta = theta, 
+                                            grid_epsilon = epsilon, 
+                                            max_observation = 3, 
+                                            feature_number = 3)
+
+model <- initialize_model(eig_from_world = 0.001, 
+                          max_observation = 3, 
+                          n_features = 3)
+
+
+test_multiple_obs_z_given_theta <- function(observations, theta_value, epsilon_value){
+  
+  
+  lp_z_given_y_ONE = 0
+  lp_z_given_y_ZERO = 0
+  for(i in 1:length(observations)){
+    lp_z_given_y_ONE = lp_z_given_y_ONE + score_z_ij_given_y(observations[[i]], 1, epsilon = epsilon_value)  
+    lp_z_given_y_ZERO = lp_z_given_y_ZERO + score_z_ij_given_y(observations[[i]], 0, epsilon = epsilon_value)
+  }
+  lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, theta = theta_value) #already tested function
+  lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, theta = theta_value)#already tested function
+  
+  value <-log(exp(lp_z_given_y_ONE + lp_y_ONE_given_theta) + exp(lp_z_given_y_ZERO + lp_y_ZERO_given_theta)) 
+  return(value)
+}
+
+model$t[1:t] = seq(1, t)
+model$stimulus_idx[1:t] = stimulus_idx
+model$f1[1:t] = c(TRUE, TRUE) 
+
+assert_that(round(score_z_given_theta(2, 1, lp_y_given_theta, # cached likelihoods
+                    lp_z_given_theta, # likelihoods
+                    model) %>% 
+              filter(theta == .4, epsilon == .4) %>% 
+              pull(lp_z_given_theta), 3) == round(test_multiple_obs_z_given_theta(c(TRUE, TRUE), .75, .4), 3))
+
+
+model$f1[1:t] = c(TRUE, FALSE) 
+assert_that(round(score_z_given_theta(2, 1, lp_y_given_theta, # cached likelihoods
+                                      lp_z_given_theta, # likelihoods
+                                      model) %>% 
+                    filter(theta == .75, epsilon == .4) %>% 
+                    pull(lp_z_given_theta), 3) == round(test_multiple_obs_z_given_theta(c(TRUE, FALSE), .75, .4), 3))
+
+
+
+# CASE 3: Observing new stimulus
+test_obs_on_new_stimuli_z_given_theta <- function(observations, theta_value, epsilon_value, previous_val){
+  
+  
+  lp_z_given_y_ONE = 0
+  lp_z_given_y_ZERO = 0
+  for(i in 1:length(observations)){
+    lp_z_given_y_ONE = lp_z_given_y_ONE + score_z_ij_given_y(observations[[i]], 1, epsilon = epsilon_value)  
+    lp_z_given_y_ZERO = lp_z_given_y_ZERO + score_z_ij_given_y(observations[[i]], 0, epsilon = epsilon_value)
+  }
+  lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, theta = theta_value) #already tested function
+  lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, theta = theta_value)#already tested function
+  
+  current_stim_value <- log(exp(lp_z_given_y_ONE + lp_y_ONE_given_theta) + exp(lp_z_given_y_ZERO + lp_y_ZERO_given_theta)) 
+  prev_stim_value <- previous_val
+  
+  value <- prev_stim_value + current_stim_value
+  
+  return(value)
+}
+
+
+t = 2
+f = 1 
+stimulus_idx <- 1
+theta =  c(0.1, 0.4,.75, .9)
+epsilon = c(0.1, 0.4,.75, .9)
+lp_y_given_theta = tibble(
+  theta = theta, 
+  lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, theta = theta), 
+  lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, theta = theta))
+
+lp_z_given_theta = initialize_z_given_theta(grid_theta = theta, 
+                                            grid_epsilon = epsilon, 
+                                            max_observation = 3, 
+                                            feature_number = 3)
+
+model <- initialize_model(eig_from_world = 0.001, 
+                          max_observation = 3, 
+                          n_features = 3)
+
+
+model$t[1] = 1
+model$stimulus_idx[1] = 1
+model$f1[1] = TRUE
+
+lp_z_given_theta[[1]][[1]] <- score_z_given_theta(1, 1, lp_y_given_theta, 
+                    lp_z_given_theta, 
+                    model)
+
+model$t[2] = 2
+model$stimulus_idx[2] = 2
+model$f1[2] = TRUE
+
+score_z_given_theta(2, 1, lp_y_given_theta, lp_z_given_theta, model)
+test_obs_on_new_stimuli_z_given_theta(c(TRUE), 0.9, 0.1, 
+                                      previous_val = test_multiple_obs_z_given_theta(c(TRUE), 0.9, 0.1))
+
+assert_that(
+  round(score_z_given_theta(2, 1, lp_y_given_theta, lp_z_given_theta, model) %>% 
+    filter(theta == .9, epsilon == .1) %>% pull(lp_z_given_theta), 3) == 
+  round(test_obs_on_new_stimuli_z_given_theta(c(TRUE), 0.9, 0.1, 
+                                              previous_val = test_multiple_obs_z_given_theta(c(TRUE), 0.9, 0.1)), 3)
 )
 
 
-  
+model$t[3] = 3
+model$stimulus_idx[3] = 2
+model$f1[3] = FALSE
 
-### TEST score_z_given_theta
+lp_z_given_theta[[2]][[1]] <- score_z_given_theta(2, 1, lp_y_given_theta, 
+                                                  lp_z_given_theta, 
+                                                  model)
 
-score_z_given_theta <- function(t, # timestep
-                                f, # feature
-                                lp_y_given_theta, # cached likelihoods
-                                lp_z_given_theta, # likelihoods
-                                model) {
-  ...
+assert_that(
+  round(score_z_given_theta(3, 1, lp_y_given_theta, lp_z_given_theta, model) %>% 
+          filter(theta == .75, epsilon == .4) %>% pull(lp_z_given_theta), 3) == 
+    round(test_obs_on_new_stimuli_z_given_theta(c(TRUE, FALSE), .75, .4, 
+                                                previous_val = test_multiple_obs_z_given_theta(c(TRUE), .75, .4)), 3)
+)
 
 
 ## TEST kl_div
