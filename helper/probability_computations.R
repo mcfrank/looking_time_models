@@ -112,13 +112,7 @@ rectified_luce_choice <- function(x, y) {
   max(min(x / (x + y), 1), 0)
 }
 
-# ---------------- score_z_ij_given_theta ---------------------
-score_z_ij_given_theta <- function(zij, theta, epsilon) {
-  logSumExp(
-    c(lp_z_ij_given_y(zij = zij, yi = 1, epsilon = epsilon) + lp_yi_given_theta(yi = 1, theta = theta ), 
-      lp_z_ij_given_y(zij = zij, yi = 0, epsilon = epsilon) + lp_yi_given_theta(yi = 0, theta = theta))
-  )
-}
+
 
 
 # ---------------- score_yi_given_theta ---------------------

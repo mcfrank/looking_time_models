@@ -73,6 +73,8 @@ main_simulation <- function(params = df,
     # - compute current posterior grid
     for (f in 1:params$n_features) {
       # update likelihood
+      browser()
+     
       lp_z_given_theta[[t]][[f]] <- 
         score_z_given_theta(t = t, f = f,
                             lp_y_given_theta = lp_y_given_theta,
@@ -85,7 +87,7 @@ main_simulation <- function(params = df,
                                       lp_post = lp_post[[t]][[f]])
       
       
-      browser()
+      
     }
     
     # -compute new posterior grid over all possible outcomes
@@ -104,7 +106,6 @@ main_simulation <- function(params = df,
                               lp_z_given_theta = lp_z_given_theta,
                               model = model)
         
-        browser()
         
         # upcoming posterior
         lp_post_new[[o]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta_new[[o]][[f]], 
