@@ -312,8 +312,29 @@ expected_df <- lp_post[[1]][[1]] %>% mutate(unnormalized_log_posterior = 3, # 1+
 assert_that(all.equal(test_df,expected_df))
 
 # Test 2: test bigger df
-lp_z_given_theta = tibble(lp_z_given_theta = c(0.8, 0.9))
-lp_prior = tibble(theta = c(0.33, 0.33, 0.66, 0.66), epsilon = c(0, 0.1, 0, 0.1), lp_theta = c(0,0,0,0), lp_epsilon(0,1,2,3))
-lp_post = tibble(theta = c(0.33, 0.33, 0.66, 0.66), epsilon = c(0, 0.1, 0, 0.1), unnormalized_log_posterior = c(), log_posterior = c(), posterior = c())
+lp_z_given_theta = tibble(theta = c(0.33, 0.33, 0.66, 0.66), 
+                          epsilon = c(0, 0.1, 0, 0.1),
+                          lp_z_y_ONE = NA,
+                          lp_z_y_ZERO = NA,
+                          lp_z_given_theta = c(1, 1, 1, 1))
+lp_prior = tibble(theta = c(0.33, 0.33, 0.66, 0.66), 
+                  epsilon = c(0, 0.1, 0, 0.1), 
+                  lp_theta = c(3,2,1,0), 
+                  lp_epsilon = c(0,1,2,3))
+lp_post = tibble(theta = c(0.33, 0.33, 0.66, 0.66), 
+                 epsilon = c(0, 0.1, 0, 0.1), 
+                 unnormalized_log_posterior = NA, 
+                 log_posterior = NA, 
+                 posterior = NA)
 
-test_df <- score_post(lp_z_given_theta, lp_prior, lp_post[[1]][[1]])
+test_df <- score_post(lp_z_given_theta, lp_prior, lp_post)
+
+
+expected_df <- tibble(theta = c(0.33, 0.33, 0.66, 0.66), 
+                      epsilon = c(0, 0.1, 0, 0.1), 
+                      unnormalized_log_posterior = c(4,4,4,4), # this is lp_z_given_theta + lp_theta + lp_epsilon
+                      log_posterior = rep(-1.39, 4), # log(0.25) because 0.25 is the posterior density for a uniform prior
+                      posterior = rep(0.25,4)) #uniform posterior
+
+
+assert_that(all.equal(test_df,expected_df))
