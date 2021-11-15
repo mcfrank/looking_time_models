@@ -329,7 +329,6 @@ lp_post = tibble(theta = c(0.33, 0.33, 0.66, 0.66),
 
 test_df <- score_post(lp_z_given_theta, lp_prior, lp_post)
 
-
 expected_df <- tibble(theta = c(0.33, 0.33, 0.66, 0.66), 
                       epsilon = c(0, 0.1, 0, 0.1), 
                       unnormalized_log_posterior = c(4,4,4,4), # this is lp_z_given_theta + lp_theta + lp_epsilon
