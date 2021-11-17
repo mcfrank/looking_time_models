@@ -51,9 +51,10 @@ make_simulation_params <- function(n,
 max_observations_per_block <- get_max_observations(sequence_scheme, 
                                               forced_exposure_params,
                                               max_observations)
-  
 
-  stimulus_sequence_df %>% mutate(max_observations_per_block = max_observations_per_block) %>%
+
+  
+  stimulus_sequence_df %>% mutate(max_observations_per_block = max_observations_per_block %>% lapply(unlist)) %>%
     crossing(params_id_df)
   
   

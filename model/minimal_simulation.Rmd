@@ -47,7 +47,7 @@ n <- 1 # doesn't perform as expected
 
 # FORCED EXPOSURE PARAMETERS
 forced_exposure_params = tibble(do_forced_exposure = TRUE,  # FALSE = forced exposure is on; TRUE = forced exposure is off
-                                forced_exposure_trials = "allbutlast", # "first" sets the first trial to a fixed exposure, "allbutlast" will set all of them to fixed exposure but the last 
+                                forced_exposure_trials = "first", # "first" sets the first trial to a fixed exposure, "allbutlast" will set all of them to fixed exposure but the last 
                                 exposure_type = "max", # max sets forced exposures as the max_observation of that trial, "exactly" will set the number of forced exposures to be mandatory
                                 max_sample_num = 5 # number of forced samples in forced exposure trials
                                   )  
