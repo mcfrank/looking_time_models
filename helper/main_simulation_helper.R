@@ -24,16 +24,18 @@ main_simulation <- function(params = df,
                                                   params$n_features)
   
   #  book-keeping for likelihoods and posteriors for new observations
-  possible_observations <- get_possible_observations(params$n_features)
+  feature_based_possible_observations <- get_possible_observations_for_feature(params$n_features)
+  
+  
   lp_z_given_theta_new <- initialize_z_given_theta(grid_theta, grid_epsilon,
-                                                   nrow(possible_observations), 
+                                                   nrow(feature_based_possible_observations), 
                                                    params$n_features)
   lp_post_new <- initialize_posterior(grid_theta, grid_epsilon, 
-                                      nrow(possible_observations), 
+                                      nrow(feature_based_possible_observations), 
                                       params$n_features)
-  p_post_new <- matrix(data = NA, nrow = nrow(possible_observations), 
+  p_post_new <- matrix(data = NA, nrow = nrow(feature_based_possible_observations), 
                        ncol = params$n_features)
-  kl_new <- matrix(data = NA, nrow = nrow(possible_observations), 
+  kl_new <- matrix(data = NA, nrow = nrow(feature_based_possible_observations), 
                    ncol = params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
@@ -73,8 +75,7 @@ main_simulation <- function(params = df,
     # - compute current posterior grid
     for (f in 1:params$n_features) {
       # update likelihood
-      browser()
-     
+
       lp_z_given_theta[[t]][[f]] <- 
         score_z_given_theta(t = t, f = f,
                             lp_y_given_theta = lp_y_given_theta,
@@ -93,11 +94,15 @@ main_simulation <- function(params = df,
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
     model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
-    for (o in 1:nrow(possible_observations)) { 
+    
+    
+    
+    
+    for (o in 1:nrow(feature_based_possible_observations)) { 
       for (f in 1:params$n_features) {
         # pretend that the possible observation has truly been observed
         # note that's observed from the same stimulus as the previous one
-        model[t+1, paste0("f", f)] <- as.logical(possible_observations[o,f])
+        model[t+1, paste0("f", f)] <- as.logical(feature_based_possible_observations[o,f])
         
         # get upcoming likelihood
         lp_z_given_theta_new[[o]][[f]] <- 
@@ -116,14 +121,18 @@ main_simulation <- function(params = df,
         
         # posterior predictive
         p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
-                                         heads = possible_observations[o,f]) 
+                                         heads = feature_based_possible_observations[o,f]) 
         
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
+ 
       }
     }
     
+    
+    
+
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
