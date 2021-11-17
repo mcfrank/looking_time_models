@@ -12,8 +12,9 @@ make_simulation_params <- function(n,
                                    feature_space_n, 
                                    simple_feature_n, 
                                    complex_feature_n, 
-                                   dissimilar_ratio
-){
+                                   dissimilar_ratio,
+                                   forced_exposure_params
+                                  ){
   
   params_id_df <- crossing(
     alpha_prior = alpha_priors,
@@ -29,20 +30,30 @@ make_simulation_params <- function(n,
   
   
   stimulus_sequence_df <- tibble(sequence_scheme = sequence_scheme) %>% 
-    crossing(tibble(complexity = complexity)) %>% 
-    mutate(n = 1) %>% 
-    rowwise() %>% 
-    mutate(
-      stimuli_sequence = nest(scheme_to_stimuli(sequence_scheme, fixed_length_complexity = fixed_length_complexity, 
-                                                complexity = complexity, 
-                                                feature_space_n = feature_space_n, 
-                                                simple_feature_n = simple_feature_n, 
-                                                complex_feature_n = complex_feature_n, 
-                                                dissimilar_ratio = dissimilar_ratio), data = everything())) %>% 
-    ungroup() %>% 
-    mutate(sim_id = row_number()) 
+                          crossing(tibble(complexity = complexity)) %>% 
+                          mutate(n = 1) %>% 
+                          rowwise() %>% 
+                          mutate(stimuli_sequence = 
+                                   nest(
+                                     scheme_to_stimuli(sequence_scheme, 
+                                                       fixed_length_complexity = fixed_length_complexity, 
+                                                        complexity = complexity, 
+                                                        feature_space_n = feature_space_n, 
+                                                        simple_feature_n = simple_feature_n, 
+                                                        complex_feature_n = complex_feature_n, 
+                                                        dissimilar_ratio = dissimilar_ratio), 
+                                                        data = everything()
+                                        )
+                                  ) %>% 
+                        ungroup() %>% 
+                        mutate(sim_id = row_number()) 
   
-  stimulus_sequence_df %>% 
+max_observations_per_block <- get_max_observations(sequence_scheme, 
+                                              forced_exposure_params,
+                                              max_observations)
+  
+
+  stimulus_sequence_df %>% mutate(max_observations_per_block = max_observations_per_block) %>%
     crossing(params_id_df)
   
   
@@ -62,7 +73,8 @@ scheme_to_stimuli <- function(sequence_scheme,
   
   if (fixed_length_complexity){
     background_creature <- sample(c(rep(FALSE, 
-                                        feature_space_n - ifelse(complexity == "complex", complex_feature_n, simple_feature_n)),                                     rep(TRUE, ifelse(complexity == "complex", complex_feature_n, simple_feature_n))))
+                                        feature_space_n - ifelse(complexity == "complex", complex_feature_n, simple_feature_n)),    
+                                    rep(TRUE, ifelse(complexity == "complex", complex_feature_n, simple_feature_n))))
     
     # make deviant creature
     # first figure out which location has TRUE
@@ -93,7 +105,7 @@ scheme_to_stimuli <- function(sequence_scheme,
                                                      complex_feature_n, 
                                                      simple_feature_n))))
     # how to represent dissimilarity with ratio? currently just flipping 
-    #FIXME: 
+    # FIXME: 
     deviant_creature <- as.logical(1-background_creature)
     dissimilar_stimuli = deviant_creature
     
@@ -120,4 +132,34 @@ scheme_to_stimuli <- function(sequence_scheme,
   
   
 }
+
+get_max_observations <- function(sequence_scheme, forced_exposure_params, max_observations) {
+
+  # the length of each block
+  block_lengths <- nchar(sequence_scheme)
+  
+    max_observations <- block_lengths %>% map(function(x) rep(max_observation, x))
+  
+    # modify this to put cosntraints for forced_exposure
+    if (forced_exposure_params$do_forced_exposure) {
+      
+      if(forced_exposure_params$forced_exposure_trials == 'first') {
+        max_observations <- max_observations %>% lapply(function(x) {x[1] <- forced_exposure_params$max_sample_num 
+                                                        + x})
+      }
+      
+      else if (forced_exposure_params$forced_exposure_trials == 'allbutlast') {
+        max_observations <- max_observations %>% lapply(function(x) {x[1:length(x)-1] = forced_exposure_params$max_sample_num 
+                                                        + x})
+
+      }
+      else {
+        error('invalid forced exposure trials specified. check whether forced_exposure_params$forced_exposure_trials was correctly specified')
+        
+      }
+    
+    }
+   
+  return(max_observations)   
+  }
 
