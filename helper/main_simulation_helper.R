@@ -46,15 +46,20 @@ main_simulation <- function(params = df,
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
+  # max observation set up
+  max_observations = params$max_observations_per_block %>% unlist()
+  
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
   t <- 1
+  t_on_trial <- 1
   
   # while we haven't run out of stimuli or observations, 
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+  while(stimulus_idx <= total_trial_number) {
+          
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
     
@@ -73,7 +78,6 @@ main_simulation <- function(params = df,
     # - compute current posterior grid
     for (f in 1:params$n_features) {
       # update likelihood
-      browser()
      
       lp_z_given_theta[[t]][[f]] <- 
         score_z_given_theta(t = t, f = f,
@@ -136,13 +140,17 @@ main_simulation <- function(params = df,
     # actual choice of whether to look away is sampled here
     model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
     
-    # if look away, increment
-    if (model$look_away[t] == TRUE) {
+    # if look away or max observation has been reached, increment and start new trial counter
+    if (model$look_away[t] == TRUE || t_on_trial >= max_observations[stimulus_idx]) {
       stimulus_idx <- stimulus_idx + 1
+      t_on_trial <- 0 # starts at 0 because it will be incremented right away after this
+      
     }
     
-
+    print(t_on_trial)
     t <- t+1
+    t_on_trial <- t_on_trial+1
+    
  
     } # FINISH HUGE WHILE LOOP
   
