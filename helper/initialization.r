@@ -65,6 +65,11 @@ initialize_m_observation <- function(feature_number, max_observation, stimuli_se
 
 # helper function that gets you a df with features as columns and all possible
 # combinations
+
+get_possible_observations_for_feature <- function(n_features){
+  matrix(rep(c(TRUE, FALSE), n_features), nrow = 2, byrow = FALSE)
+}
+
 get_possible_observations <- function(n_features) {
   feature_list <- list()
 
