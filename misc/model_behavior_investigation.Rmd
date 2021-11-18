@@ -1,0 +1,118 @@
+---
+title: "Model behaviors investigation"
+author: "anjie"
+date: "11/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(partitions)
+library(tictoc)
+library(LaplacesDemon)
+
+source(here("helper/make_scheme_and_params.R"))
+source(here("helper/initialization.R"))
+source(here("helper/probability_computations.R"))
+source(here("helper/main_simulation_with_visualization.R"))
+
+
+```
+
+
+# Understanding dishabituation patterns 
+```{r}
+alpha_epsilon = c(1)
+beta_epsilon = c(10)
+alpha_priors = c(1)
+beta_priors = c(1)
+noise_parameters = c(0)
+world_EIG = c(0.001)
+max_observation = 100
+fixed_length_complexity = FALSE 
+feature_space_n = 7
+simple_feature_n = 1
+complex_feature_n = 1
+dissimilar_ratio = 1
+#sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
+
+sequence_scheme = c("BD", "BBD", "BBBD", "BBBBD", "BBBBBD")
+
+complexity = c("simple") #"complex", 
+n <- 1 # doesn't perform as expected
+
+full_params_df <- make_simulation_params(n = n,
+                                         sequence_scheme, 
+                                         complexity, 
+                                         alpha_priors, 
+                                         beta_priors, 
+                                         alpha_epsilon, 
+                                         beta_epsilon, 
+                                         noise_parameters, 
+                                         world_EIG, 
+                                         max_observation, 
+                                         fixed_length_complexity, 
+                                         feature_space_n, 
+                                         simple_feature_n, 
+                                         complex_feature_n, 
+                                         dissimilar_ratio)
+
+# note that this should happen in make_simulation_params
+full_params_df <- full_params_df %>%
+  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:80)) %>%
+  mutate(n_features = 1)
+
+```
+
+
+```{r}
+full_params_df
+```
+
+
+```{r}
+all_sims_res <- full_params_df %>%
+  group_by(params_id, sim_id, sub_id) %>%
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation(params = df))) %>%
+  unnest(cols = c(data, results))
+```
+
+
+
+- it looks like the EIG bumps is consistent with what would be expected, but note that the significant drop in the last deviant trial 
+- it took many points for the observation at the first trial to reach asymptotic, less point for the following trials
+
+
+```{r}
+all_sims_res %>% 
+  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
+  geom_point() + 
+  geom_line() + 
+  facet_wrap(~sequence_scheme)
+```
+why would this be the case?
+
+
+```{r}
+library(patchwork)
+
+ main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBD") %>% nest() %>% unnest(), 
+                visualization = TRUE)
+
+
+ main_simulation(params = full_params_df %>% filter(sequence_scheme == "BD") %>% nest() %>% unnest(), 
+                visualization = TRUE)
+```
+
+
+
+
+# Understanding Complexity 
+
+
+# Playing with EIG decision 
