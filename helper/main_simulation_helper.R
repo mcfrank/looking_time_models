@@ -96,8 +96,7 @@ main_simulation <- function(params = df,
     model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
     
     
-    
-    
+  
     for (o in 1:nrow(feature_based_possible_observations)) { 
       for (f in 1:params$n_features) {
         # pretend that the possible observation has truly been observed
@@ -123,6 +122,7 @@ main_simulation <- function(params = df,
         p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
                                          heads = feature_based_possible_observations[o,f]) 
         
+        
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
@@ -136,6 +136,8 @@ main_simulation <- function(params = df,
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
+    
+
     model$EIG[t] <- sum(p_post_new * kl_new)
     
     # luce choice probability whether to look away
