@@ -32,7 +32,7 @@ alpha_epsilon = c(1)
 beta_epsilon = c(10)
 alpha_priors = c(1)
 beta_priors = c(1)
-noise_parameters = c(0.05)
+noise_parameters = c(0)
 world_EIG = c(0.001)
 max_observation = 100
 fixed_length_complexity = FALSE 
@@ -41,7 +41,9 @@ simple_feature_n = 1
 complex_feature_n = 3
 dissimilar_ratio = 1
 #sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
-sequence_scheme = c("BBBBBD", "BD", "BBD", "BBBD", "BBBBD")
+#sequence_scheme = c("BBBBBD", "BD", "BBD", "BBBD", "BBBBD")
+
+sequence_scheme = c("B")
 
 complexity = c("complex") #"complex", 
 n <- 50 # doesn't perform as expected
