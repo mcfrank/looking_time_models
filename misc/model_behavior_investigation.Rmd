@@ -13,6 +13,8 @@ library(matrixStats)
 library(partitions)
 library(tictoc)
 library(LaplacesDemon)
+library(patchwork)
+
 
 source(here("helper/make_scheme_and_params.R"))
 source(here("helper/initialization.R"))
@@ -39,7 +41,7 @@ complex_feature_n = 1
 dissimilar_ratio = 1
 #sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 
-sequence_scheme = c("BD", "BBD", "BBBD", "BBBBD", "BBBBBD")
+sequence_scheme = c("BD", "BBD", "BBBD", "BBBBD", "BBBBBD", "BB","BBB", "BBBB", "BBBBB", "BBBBBB")
 
 complexity = c("simple") #"complex", 
 n <- 1 # doesn't perform as expected
@@ -95,24 +97,180 @@ all_sims_res %>%
   geom_line() + 
   facet_wrap(~sequence_scheme)
 ```
-why would this be the case?
-
 
 ```{r}
-library(patchwork)
+all_sims_res %>% 
+  ggplot(aes(x = t, y = p_look_away, color = as.factor(stimulus_idx))) + 
+  geom_point() + 
+  geom_line() + 
+  facet_wrap(~sequence_scheme)
+
+all_sims_res %>% 
+  ggplot(aes(x = EIG, y = p_look_away)) + 
+  geom_point() + 
+  #geom_line() + 
+  facet_wrap(~sequence_scheme)
+```
+
+
+why would this be the case?
+ 
+well this break down is a little difficult to tell, maybe i should have a comparison between the trajectory on BD vs BB, BBD vs BBB or sth like that 
+
+```{r}
 
  main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBD") %>% nest() %>% unnest(), 
+                visualization = TRUE)
+
+ 
+  main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBB") %>% nest() %>% unnest(), 
                 visualization = TRUE)
 
 
  main_simulation(params = full_params_df %>% filter(sequence_scheme == "BD") %>% nest() %>% unnest(), 
                 visualization = TRUE)
+ 
+ 
+ main_simulation(params = full_params_df %>% filter(sequence_scheme == "BB") %>% nest() %>% unnest(), 
+                visualization = TRUE)
+```
+```{r}
+all_sims_res %>% 
+  rowwise() %>% 
+  mutate(sequence_length = nchar(as.character(sequence_scheme)), 
+         item_type = case_when(
+           sequence_length == 2 & sequence_scheme == "BD" & stimulus_idx == 2 ~ "deviant", 
+           sequence_length == 3 & sequence_scheme == "BBD" &stimulus_idx == 3 ~ "deviant", 
+           sequence_length == 4 & sequence_scheme == "BBBD" & stimulus_idx == 4 ~ "deviant", 
+           sequence_length == 5 & sequence_scheme == "BBBBD" & stimulus_idx == 5 ~ "deviant", 
+            sequence_length == 6 & sequence_scheme == "BBBBBD" & stimulus_idx == 6 ~ "deviant",
+           TRUE ~ "background"
+         )) %>% 
+  ggplot(aes(x = t, y = EIG, color = item_type, group = sequence_scheme)) + 
+  geom_point() + 
+  geom_line() + 
+  facet_wrap(sequence_length~sequence_scheme)
+  
+```
+
+# Understanding Complexity 
+- things that might influence complexity effect: 
+  - complexity representation: fixed length vector or vector length representing complexity 
+  - prior: how likely feature is going to occur is going to have an influence on the "informativeness" of the feature appearing. 
+      - try: a10b1, a1b1, a1b10, a10b10
+
+needs 8 possible combinations, each has simple or complex, so 16 rows  
+      
+```{r}
+alpha_epsilon = c(1)
+beta_epsilon = c(10)
+alpha_priors = c(1, 10)
+beta_priors = c(1, 10)
+noise_parameters = c(0)
+world_EIG = c(0.001)
+max_observation = 100
+fixed_length_complexity = FALSE 
+feature_space_n = 7
+simple_feature_n = 1
+complex_feature_n = 3
+dissimilar_ratio = 1
+#sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
+
+sequence_scheme = c("BBBBB")
+
+complexity = c("simple", "complex") 
+n <- 1 # doesn't perform as expected
+
+fixed_length_params_df <- make_simulation_params(n = n,
+                                         sequence_scheme, 
+                                         complexity, 
+                                         alpha_priors, 
+                                         beta_priors, 
+                                         alpha_epsilon, 
+                                         beta_epsilon, 
+                                         noise_parameters, 
+                                         world_EIG, 
+                                         max_observation, 
+                                         fixed_length_complexity = TRUE, 
+                                         feature_space_n, 
+                                         simple_feature_n, 
+                                         complex_feature_n, 
+                                         dissimilar_ratio)
+
+
+
+flex_length_params_df <- make_simulation_params(n = n,
+                                         sequence_scheme, 
+                                         complexity, 
+                                         alpha_priors, 
+                                         beta_priors, 
+                                         alpha_epsilon, 
+                                         beta_epsilon, 
+                                         noise_parameters, 
+                                         world_EIG, 
+                                         max_observation, 
+                                         fixed_length_complexity = FALSE, 
+                                         feature_space_n, 
+                                         simple_feature_n, 
+                                         complex_feature_n, 
+                                         dissimilar_ratio) 
+
+# this is a temproary fix to get the right index for parameters
+
+complexity_params <- bind_rows(fixed_length_params_df, flex_length_params_df) %>% 
+  mutate(params_id = case_when(
+    fixed_length_complexity ~ as.integer(params_id), 
+    fixed_length_complexity == FALSE ~ as.integer(params_id) + as.integer(4)
+  )) %>% 
+  rowwise() %>% 
+  mutate(n_features = ncol(stimuli_sequence$data[[1]]) - 1)
+  
+```
+
+
+
+```{r}
+all_sims_res_complexity <- complexity_params %>%
+  group_by(params_id, sim_id) %>%
+  nest() %>%
+  mutate(sub_id = 1) %>% 
+  mutate(results = map(data,
+                       function(df) main_simulation(params = df))) %>%
+  unnest(cols = c(data, results))
+```
+
+n = 1 EIG 
+```{r}
+all_sims_res_complexity %>% 
+  mutate(
+    param = paste0("a", alpha_prior, "b", beta_prior, "_", fixed_length_complexity)
+  ) %>% 
+  ggplot(aes(x = t, y = EIG, color = complexity)) + 
+  geom_point()+
+  geom_line()+
+  facet_wrap(~param)
 ```
 
 
 
 
-# Understanding Complexity 
+
+- observation from behavioral data: very ambiguous complexity effect 
+
+- model: 
+  - start with simple case, BBBBB
+  - see dishabituation's influence: BBBBD
+  
+
+
+
+
+
+
+
+
+
+
 
 
 # Playing with EIG decision 

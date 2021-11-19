@@ -42,8 +42,11 @@ make_simulation_params <- function(n,
     ungroup() %>% 
     mutate(sim_id = row_number()) 
   
+ 
+  
   stimulus_sequence_df %>% 
-    crossing(params_id_df)
+    crossing(params_id_df) %>% 
+    mutate(fixed_length_complexity = fixed_length_complexity)
   
   
   
