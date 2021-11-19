@@ -32,7 +32,7 @@ alpha_epsilon = c(1)
 beta_epsilon = c(10)
 alpha_priors = c(1)
 beta_priors = c(1)
-noise_parameters = c(0.05)
+noise_parameters = c(0.00)
 world_EIG = c(0.001)
 max_observation = 100
 fixed_length_complexity = FALSE 
@@ -40,21 +40,18 @@ feature_space_n = 7
 simple_feature_n = 1
 complex_feature_n = 3
 dissimilar_ratio = 1
-sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
+sequence_scheme = c("B")
 complexity = c("complex") #"complex", 
 n <- 1 # doesn't perform as expected
 
 
-# FORCED EXPOSURE PARAMETERS
-forced_exposure_params = tibble(do_forced_exposure = TRUE,  # FALSE = forced exposure is on; TRUE = forced exposure is off
-                                forced_exposure_trials = "first", # "first" sets the first trial to a fixed exposure, "allbutlast" will set all of them to fixed exposure but the last 
+# consider just making an infant vs adult toggle
+# FORCED EXPOSURE PARAMETERS  
+forced_exposure_params = tibble(do_forced_exposure = FALSE,  # FALSE = forced exposure is on; TRUE = forced exposure is off
+                                forced_exposure_trials = "allbutlast", # "first" sets the first trial to a fixed exposure, "allbutlast" will set all of them to fixed exposure but the last 
                                 exposure_type = "max", # max sets forced exposures as the max_observation of that trial, "exactly" will set the number of forced exposures to be mandatory
                                 max_sample_num = 5 # number of forced samples in forced exposure trials
                                   )  
-
-
-
-
 
 full_params_df <- make_simulation_params(n = n,
                                          sequence_scheme, 

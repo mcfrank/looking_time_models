@@ -46,8 +46,9 @@ main_simulation <- function(params = df,
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
+  browser()
   # max observation set up
-  max_observations = params$max_observations_per_block %>% unlist()
+  max_observations = params$max_observations_per_trial %>% unlist()
   
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
@@ -129,6 +130,8 @@ main_simulation <- function(params = df,
     }
     
     
+    browser()
+    
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
     model$EIG[t] <- sum(p_post_new * kl_new)
@@ -147,7 +150,6 @@ main_simulation <- function(params = df,
       
     }
     
-    print(t_on_trial)
     t <- t+1
     t_on_trial <- t_on_trial+1
     
