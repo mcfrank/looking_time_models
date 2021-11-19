@@ -230,16 +230,20 @@ complexity_params <- bind_rows(fixed_length_params_df, flex_length_params_df) %>
 
 
 ```{r}
+  
 all_sims_res_complexity <- complexity_params %>%
   group_by(params_id, sim_id) %>%
   nest() %>%
-  mutate(sub_id = 1) %>% 
+  mutate(sub_id = 1)
   mutate(results = map(data,
                        function(df) main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
 ```
 
-n = 1 EIG 
+
+FALSE = flexible length complexity, 1 feature vs 3 feature 
+TRUE = fixed length complexity, 6 FALSE 1 TRUE vs 4 FALSE 3 TRUE  
+
 ```{r}
 all_sims_res_complexity %>% 
   mutate(
@@ -250,9 +254,125 @@ all_sims_res_complexity %>%
   geom_line()+
   facet_wrap(~param)
 ```
+how does this translate to looking time sample? 
+
+```{r}
+n_sim = 50
+
+complexity_params <- bind_rows(fixed_length_params_df, flex_length_params_df) %>% 
+  mutate(params_id = case_when(
+    fixed_length_complexity ~ as.integer(params_id), 
+    fixed_length_complexity == FALSE ~ as.integer(params_id) + as.integer(4)
+  )) %>% 
+  rowwise() %>% 
+  mutate(n_features = ncol(stimuli_sequence$data[[1]]) - 1)
+
+
+sims_res_complexity_fs <- complexity_params %>%
+  filter(alpha_prior == 1 & beta_prior == 10) %>% 
+  left_join(expand_grid(sim_id = 1:2, params_id = c(2, 6), sub_id = 1:n_sim)) %>% 
+  group_by(params_id, sim_id, sub_idn) %>%
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation(params = df))) %>%
+  unnest(cols = c(data, results))
+```
+
+```{r}
+sims_res_complexity_fs %>% 
+  mutate(params_info = paste0("a", alpha_prior, "b", beta_prior, "_", fixed_length_complexity)) %>% 
+  group_by(params_id, params_info, sim_id, sub_id, stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = as.factor(sim_id))) + 
+  #geom_point() + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
+  theme_classic()+
+  facet_wrap(~params_info)
+```
+
+
+```{r}
+sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
+
+complexity = c("simple", "complex") 
+
+alpha_priors = c(1, 10)
+beta_priors = c(1, 10)
+
+fixed_length_params_df <- make_simulation_params(n = n,
+                                         sequence_scheme, 
+                                         complexity, 
+                                         alpha_priors, 
+                                         beta_priors, 
+                                         alpha_epsilon, 
+                                         beta_epsilon, 
+                                         noise_parameters, 
+                                         world_EIG, 
+                                         max_observation, 
+                                         fixed_length_complexity = TRUE, 
+                                         feature_space_n, 
+                                         simple_feature_n, 
+                                         complex_feature_n, 
+                                         dissimilar_ratio)
 
 
 
+flex_length_params_df <- make_simulation_params(n = n,
+                                         sequence_scheme, 
+                                         complexity, 
+                                         alpha_priors, 
+                                         beta_priors, 
+                                         alpha_epsilon, 
+                                         beta_epsilon, 
+                                         noise_parameters, 
+                                         world_EIG, 
+                                         max_observation, 
+                                         fixed_length_complexity = FALSE, 
+                                         feature_space_n, 
+                                         simple_feature_n, 
+                                         complex_feature_n, 
+                                         dissimilar_ratio) 
+
+# this is a temproary fix to get the right index for parameters
+
+complexity_params <- bind_rows(fixed_length_params_df, flex_length_params_df) %>% 
+  mutate(params_id = case_when(
+    fixed_length_complexity ~ as.integer(params_id), 
+    fixed_length_complexity == FALSE ~ as.integer(params_id) + as.integer(4)
+  )) %>% 
+  rowwise() %>% 
+  mutate(n_features = ncol(stimuli_sequence$data[[1]]) - 1)
+
+
+sims_res_complexity_fs_trajectory <- complexity_params %>%
+  filter(alpha_prior == 1) %>% 
+  filter(beta_prior == 10) %>% 
+  left_join(expand_grid(sim_id = 1:8, params_id = c(2, 6), sub_id = 1:n_sim)) %>% 
+  group_by(params_id, sim_id, sub_id) %>%
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation(params = df))) %>%
+  unnest(cols = c(data, results))
+```
+
+```{r}
+sims_res_complexity_fs_trajectory
+```
+
+
+```{r}
+sims_res_complexity_fs_trajectory %>% 
+  mutate(params_info = paste0("a", alpha_prior, "b", beta_prior, "_", fixed_length_complexity)) %>% 
+  group_by(params_id, sequence_scheme, params_info, sim_id, sub_id, stimulus_idx, complexity) %>% 
+  summarise(sample_n = n()) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  #geom_point() + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
+  theme_classic()+
+  facet_wrap(params_info~sequence_scheme)
+```
 
 
 - observation from behavioral data: very ambiguous complexity effect 
