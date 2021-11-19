@@ -48,13 +48,13 @@ make_simulation_params <- function(n,
                         ungroup() %>% 
                         mutate(sim_id = row_number()) 
   
-max_observations_per_block <- get_max_observations(sequence_scheme, 
+max_observations_per_trial <- get_max_observations(sequence_scheme, 
                                               forced_exposure_params,
                                               max_observations)
 
 
   
-  stimulus_sequence_df %>% mutate(max_observations_per_block = max_observations_per_block %>% lapply(unlist)) %>%
+  stimulus_sequence_df %>% mutate(max_observations_per_trial = max_observations_per_trial) %>%
     crossing(params_id_df)
   
   
@@ -138,6 +138,8 @@ get_max_observations <- function(sequence_scheme, forced_exposure_params, max_ob
 
   # the length of each block
   block_lengths <- nchar(sequence_scheme)
+  
+  browser()
   
     max_observations <- block_lengths %>% map(function(x) rep(max_observation, x))
   
