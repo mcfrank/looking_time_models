@@ -46,9 +46,11 @@ main_simulation <- function(params = df,
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
-  browser()
   # max observation set up
-  max_observations = params$max_observations_per_trial %>% unlist()
+  max_observations_per_trial = params$max_observations_per_trial %>% unlist()
+  
+  # forced trials set up
+  forced_trials = params$forced_trials %>% unlist()
   
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
@@ -59,7 +61,7 @@ main_simulation <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number) {
+  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
           
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
@@ -129,9 +131,6 @@ main_simulation <- function(params = df,
       }
     }
     
-    
-    browser()
-    
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
     model$EIG[t] <- sum(p_post_new * kl_new)
@@ -139,12 +138,21 @@ main_simulation <- function(params = df,
     # luce choice probability whether to look away
     model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
                                                  y = model$EIG[t])
-
-    # actual choice of whether to look away is sampled here
-    model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
+    
+    # actual choice of whether to look away is sampled here 
+    # lookaways can be triggered by 1) p_lookaway in regular trials, or 2) reaching max observation in forced trials
+    model$look_away[t] = case_when(
+                # if it's not a forced trial, look away based on coin flip with weight p_look_away 
+                forced_trials[stimulus_idx] == FALSE & rbinom(1, 1, prob = model$p_look_away[t])  ~  TRUE,
+                # if it's a forced trial, look away when t_on_trial has reached p_lookaway
+                forced_trials[stimulus_idx] == TRUE & (t_on_trial >= max_observations_per_trial[stimulus_idx]) ~ TRUE,
+                # otherwise don't look away 
+                TRUE ~ FALSE
+                
+    )
     
     # if look away or max observation has been reached, increment and start new trial counter
-    if (model$look_away[t] == TRUE || t_on_trial >= max_observations[stimulus_idx]) {
+    if (model$look_away[t] == TRUE ) {
       stimulus_idx <- stimulus_idx + 1
       t_on_trial <- 0 # starts at 0 because it will be incremented right away after this
       
@@ -152,10 +160,9 @@ main_simulation <- function(params = df,
     
     t <- t+1
     t_on_trial <- t_on_trial+1
+
     
- 
     } # FINISH HUGE WHILE LOOP
-  
   return(model)  
 }
 
