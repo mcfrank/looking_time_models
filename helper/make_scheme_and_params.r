@@ -22,10 +22,10 @@ make_simulation_params <- function(n,
     alpha_epsilon = alpha_epsilon, 
     beta_epsilon = beta_epsilon,
     noise_parameter = noise_parameters,
-    world_EIG = world_EIG, 
-    max_observation = max_observation
-  ) %>% 
+    world_EIG = world_EIG) %>% 
     mutate(params_id = row_number(), 
+   max_observation = max_observation, 
+           
     )
   
   
@@ -48,20 +48,17 @@ make_simulation_params <- function(n,
                         ungroup() %>% 
                         mutate(sim_id = row_number()) 
   
-max_observations_per_trial <- get_max_observations(sequence_scheme, 
-                                              forced_exposure_params,
-                                              max_observations)
+ forced_exposure_df <- get_forced_exposure_trials(sequence_scheme, 
+                                                  forced_exposure_params,
+                                                  max_observation)
 
 
-  
-  stimulus_sequence_df %>% mutate(max_observations_per_trial = max_observations_per_trial) %>%
+
+  stimulus_sequence_df %>% mutate(max_observations_per_trial = forced_exposure_df$max_observations, 
+                                  forced_trials = forced_exposure_df$forced_trials) %>%
     crossing(params_id_df)
   
-  
-  
 }
-
-
 
 scheme_to_stimuli <- function(sequence_scheme, 
                               fixed_length_complexity = TRUE,
@@ -134,25 +131,32 @@ scheme_to_stimuli <- function(sequence_scheme,
   
 }
 
-get_max_observations <- function(sequence_scheme, forced_exposure_params, max_observations) {
+get_forced_exposure_trials <- function(sequence_scheme, forced_exposure_params, max_observations) {
 
   # the length of each block
   block_lengths <- nchar(sequence_scheme)
   
-  browser()
+  trials_per_sequence <- block_lengths %>% map(function(x) rep(max_observation, x))
   
-    max_observations <- block_lengths %>% map(function(x) rep(max_observation, x))
+  # forced trial (FALSE by default)
+  trial_type <- block_lengths %>% map(function(x) rep(FALSE, x))
   
-    # modify this to put cosntraints for forced_exposure
+  
     if (forced_exposure_params$do_forced_exposure) {
       
       if(forced_exposure_params$forced_exposure_trials == 'first') {
-        max_observations <- max_observations %>% lapply(function(x) {x[1] <- forced_exposure_params$max_sample_num 
-                                                        + x})
+        max_observations <- trials_per_sequence %>% lapply(function(x) {x[1] = forced_exposure_params$max_sample_num 
+        + x})
+        
+        forced_trials <- trial_type %>% lapply(function(x) {x[1] = TRUE
+        + x})
       }
       
       else if (forced_exposure_params$forced_exposure_trials == 'allbutlast') {
-        max_observations <- max_observations %>% lapply(function(x) {x[1:length(x)-1] = forced_exposure_params$max_sample_num 
+        max_observations <- trials_per_sequence %>% lapply(function(x) {x[1:length(x)-1] = forced_exposure_params$max_sample_num 
+                                                        + x})
+        
+        forced_trials <- trial_type %>% lapply(function(x) {x[1:length(x)-1] = TRUE
                                                         + x})
 
       }
@@ -162,7 +166,9 @@ get_max_observations <- function(sequence_scheme, forced_exposure_params, max_ob
       }
     
     }
+  
+  forced_trials_df <- tibble(max_observations = max_observations, forced_trials = forced_trials)
    
-  return(max_observations)   
+  return(forced_trials_df)   
   }
 
