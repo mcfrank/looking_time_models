@@ -28,55 +28,47 @@ future::plan(multicore)
 Figuring out the sequence and generate the stimuli sequence with all the parameters 
 
 ```{r}
-alpha_epsilon = c(1)
-beta_epsilon = c(10)
+
+# set model-related parameters 
+alpha_epsilons = c(1)
+beta_epsilons = c(10)
 alpha_priors = c(1)
 beta_priors = c(1)
 noise_parameters = c(0)
-world_EIG = c(0.001)
+world_EIGs = c(0.001)
 max_observation = 100
-fixed_length_complexity = FALSE 
-feature_space_n = 7
-simple_feature_n = 1
-complex_feature_n = 3
-dissimilar_ratio = 1
-#sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
-#sequence_scheme = c("BBBBBD", "BD", "BBD", "BBBD", "BBBBD")
 
-sequence_scheme = c("B")
+model_params <- set_model_params(alpha_priors, beta_priors, 
+                alpha_epsilons, beta_epsilons, 
+                noise_parameters, world_EIGs, max_observation)
 
-complexity = c("complex") #"complex", 
-n <- 50 # doesn't perform as expected
 
-full_params_df <- make_simulation_params(n = n,
-                                         sequence_scheme, 
-                                         complexity, 
-                                         alpha_priors, 
-                                         beta_priors, 
-                                         alpha_epsilon, 
-                                         beta_epsilon, 
-                                         noise_parameters, 
-                                         world_EIG, 
-                                         max_observation, 
-                                         fixed_length_complexity, 
-                                         feature_space_n, 
-                                         simple_feature_n, 
-                                         complex_feature_n, 
-                                         dissimilar_ratio)
+# set stimuli-related parameters 
+features_df <- tibble(
+  n_features = c(1, 3, 5), 
+  on_features_n = c(1, 3, 5)
+)
+sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 
-# note that this should happen in make_simulation_params
-full_params_df <- full_params_df %>%
-  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:80)) %>%
-  mutate(n_features = 3)
+stims_df <- set_stim_params(sequence_scheme, features_df)
+
+
+full_params_df <- make_simulation_params(n_sim = 50,
+                                        model_params, 
+                                        stims_df)
+
 
 ```
+
+
 
 Running the simulation. 
 
 ```{r}
 tic()
 all_sims_res <- full_params_df %>%
-  group_by(params_id, sim_id, sub_id) %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
   nest() %>%
   mutate(results = map(data,
                        function(df) main_simulation(params = df))) %>%
