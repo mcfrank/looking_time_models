@@ -158,6 +158,62 @@ tail_sims_res %>%
 ```
 
 ```{r}
+tail_sims_res %>% 
+  filter(sequence_scheme == "BBBBB") %>% 
+  filter(!is.na(EIG)) %>%
+  filter(sub_id < 10) %>% 
+  ggplot(aes(x = t, y = EIG, group = sub_id, color = stimulus_idx)) + 
+  geom_point() + 
+  facet_wrap(~sub_id)
+```
+
+```{r}
+tail_sims_res %>% 
+  filter(sequence_scheme == "BBBBB") %>% 
+  filter(!is.na(EIG)) %>%
+  #filter(sub_id < 10) %>% 
+  group_by(sub_id, stimulus_idx) %>% 
+  summarise(
+    sample_n = n()
+  ) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+  geom_point(alpha = .3) #+ 
+  #facet_wrap(~sub_id)
+```
+
+
+
+```{r}
+tail_sims_res %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme,  stimulus_idx) %>% 
+  filter(!is.na(EIG)) %>% 
+  summarise(sample_n = n()) %>% 
+  filter(sequence_scheme == "BBBBB") %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+  stat_summary(aes(color = as.factor(on_features_n)), position =position_dodge(width = .1),  fun.data = "mean_cl_boot") + 
+  facet_wrap(~sequence_scheme)
+```
+
+
+```{r}
+tail_sims_res %>% 
+  filter(row_number == 358) %>% 
+  filter(!is.na(EIG)) %>% 
+  ggplot(aes(x = t, y = EIG, color = stimulus_idx)) + 
+  geom_point() 
+
+tail_sims_res %>% 
+  filter(row_number == 358) %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme,  stimulus_idx) %>% 
+  filter(!is.na(EIG)) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = stimulus_idx)) + 
+  geom_point() 
+```
+
+
+
+```{r}
 
 # set model-related parameters 
 alpha_epsilons = c(1)
