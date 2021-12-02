@@ -209,6 +209,15 @@ tail_sims_res %>%
   summarise(sample_n = n()) %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n, color = stimulus_idx)) + 
   geom_point() 
+
+tail_sims_res %>% 
+  filter(row_number == 358)
+
+tail_sims_res %>% 
+  filter(row_number == 358) %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme,  stimulus_idx) %>% 
+  filter(!is.na(EIG)) %>% 
+  summarise(sample_n = n())
 ```
 
 
@@ -219,7 +228,7 @@ tail_sims_res %>%
 alpha_epsilons = c(1)
 beta_epsilons = c(10)
 alpha_priors = c(1)
-beta_priors = c(15)
+beta_priors = c(5)
 noise_parameters = c(0)
 world_EIGs = c(0.001)
 max_observation = 100
@@ -234,7 +243,7 @@ features_df <- tibble(
   n_features = c(3), 
   on_features_n = c(1)
 )
-sequence_scheme = c("BB", "BBB", "BBBBB", "BBBBBB", "BBBBBBB", "BBBBBBBB", "BBBBBBBB")
+sequence_scheme = c("BBB", "BBBBB", "BBBBBB", "BBBBBBB", "BBBBBBBB", "BBBBBBBB")
 
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
@@ -248,7 +257,7 @@ tail_params_df <- make_simulation_params(n_sim = 150,
 
 
 ```{r}
-tail_sims_res_a1b15 <- tail_params_df %>%
+tail_sims_res_a1b5 <- tail_params_df %>%
   mutate(row_number = row_number()) %>% 
   group_by(row_number) %>% 
   nest() %>%
@@ -258,12 +267,68 @@ tail_sims_res_a1b15 <- tail_params_df %>%
 ```
 
 ```{r}
-tail_sims_res_a1b15 %>% 
+tail_sims_res_a1b5 %>% 
   group_by(row_number, params_id, n_features, on_features_n, sequence_scheme,  stimulus_idx) %>% 
   filter(!is.na(stimulus_idx)) %>% 
   summarise(sample_n = n()) %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n, group = as.factor(on_features_n))) + 
   stat_summary(aes(color = as.factor(on_features_n)), position =position_dodge(width = .1),  fun.data = "mean_cl_boot") + 
+  facet_wrap(~sequence_scheme)
+```
+
+```{r}
+features_df <- tibble(
+  n_features = c(3), 
+  on_features_n = c(3)
+)
+sequence_scheme = c("BBB", "BBBBB", "BBBBBB", "BBBBBBB", "BBBBBBBB", "BBBBBBBB")
+
+stims_df <- set_stim_params(sequence_scheme, features_df)
+
+
+all_true_params_df <- make_simulation_params(n_sim = 150,
+                                        model_params, 
+                                        stims_df)
+
+all_true_res_a1b5 <- all_true_params_df %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation(params = df))) %>%
+  unnest(cols = c(data, results))
+
+```
+
+
+```{r}
+all_true_res_a1b5 %>% 
+   filter(!is.na(stimulus_idx)) %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme,  stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, group = as.factor(on_features_n))) + 
+  stat_summary(aes(color = as.factor(on_features_n)), position =position_dodge(width = .1),  fun.data = "mean_cl_boot") + 
+  facet_wrap(~sequence_scheme)
+```
+
+```{r}
+all_true_res_a1b5 %>% 
+   filter(!is.na(stimulus_idx)) %>% 
+  filter(sequence_scheme == "BBBBBB") %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme,  stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, group = as.factor(on_features_n))) + 
+  geom_point(position = position_jitter(), alpha = .2) + 
+  stat_summary(aes(color = as.factor(on_features_n)), position =position_dodge(width = .1),  fun.data = "mean_cl_boot") + 
+  facet_wrap(~sequence_scheme)
+
+
+all_true_res_a1b5 %>% 
+   filter(!is.na(stimulus_idx)) %>% 
+  filter(sequence_scheme == "BBBBBB") %>% 
+  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
+  geom_point(position = position_jitter(), alpha = .2) + 
+#  stat_summary(aes(color = as.factor(stimulus_idx)), position =position_dodge(width = .1),  fun.data = "mean_cl_boot") + 
   facet_wrap(~sequence_scheme)
 ```
 
