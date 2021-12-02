@@ -64,8 +64,33 @@ scheme_to_stimuli <- function(sequence_scheme, n_features, on_features_n){
   
   background_creature <- sample(c(rep(FALSE, n_features - on_features_n), 
                                   rep(TRUE, on_features_n)))
-  deviant_creature <- as.logical(1-background_creature)
   
+  # construct deviant creature from background creature 
+  deviant_creature <- background_creature
+  
+  # if not all features can be flipped, then select a random subset of the features to flip as many as possible 
+  if (on_features_n > n_features * .5){
+    # randomly select a subset of features to be flipped 
+    # R has annoying behaviors for sample when the vector length is 1
+    # can't use if_else because it has an annoying behavior that forces both clause return the same thing 
+    
+    if (n_features - on_features_n == 1){
+      on_location <-  which(background_creature == TRUE)
+      off_location <-  which(background_creature == FALSE)
+    }else{
+      on_location <- sample(which(background_creature == TRUE), size = n_features - on_features_n)
+      off_location <- sample(which(background_creature == FALSE), size = n_features - on_features_n)
+    }
+  
+  # if all features can be flipped, flip all features   
+  }else{
+    on_location <- which(background_creature == TRUE)
+    off_location <- sample(x = which(background_creature == FALSE), size = on_features_n)
+  }
+  
+  deviant_creature <- background_creature
+  deviant_creature[on_location] <- FALSE 
+  deviant_creature[off_location] <- TRUE 
   
   block_list <- strsplit(sequence_scheme, "")[[1]]
   
