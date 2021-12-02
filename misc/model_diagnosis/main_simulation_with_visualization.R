@@ -3,9 +3,13 @@
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
+
+# note that the visualization function only works well with feature n = 1
+
 main_simulation <- function(params = df,
                             grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2)) {
+                            grid_epsilon = seq(0.1, 1, 0.2), 
+                            visualization = FALSE) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -48,6 +52,22 @@ main_simulation <- function(params = df,
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
+
+  if (visualization){
+    vis_df <- tibble(
+      "t" = rep(NA_real_, params$max_observation), 
+      "stimulus_idx" = rep(NA_real_, params$max_observation), 
+      "obs" = rep(NA, params$max_observation),
+      "EIG" = rep(NA_real_, params$max_observation), 
+      "pp_TRUE_t+1" = rep(NA_real_, params$max_observation), 
+      "pp_FALSE_t+1" = rep(NA_real_, params$max_observation), 
+      "kl_TRUE_t+1" = rep(NA_real_, params$max_observation), 
+      "kl_FALSE_t+1" = rep(NA_real_, params$max_observation), 
+    )
+  }
+  
+  
+  
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
   t <- 1
@@ -69,6 +89,15 @@ main_simulation <- function(params = df,
     )
     
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
+    
+    
+    if(visualization){
+      #browser()
+      vis_df$t[t] = t
+      vis_df$stimulus_idx[t] = stimulus_idx
+      vis_df$obs[t] = as.logical(current_observation)
+    }
+    
     
     
     # steps in calculating EIG
@@ -126,19 +155,31 @@ main_simulation <- function(params = df,
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
+        
+
  
       }
     }
-    
-    
-    
-
+   
+   
+  
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
     
 
     model$EIG[t] <- sum(p_post_new * kl_new)
+    
+    if(visualization){
+      
+      vis_df$`pp_TRUE_t+1`[t] = p_post_new[1, 1]
+      vis_df$`pp_FALSE_t+1`[t] = p_post_new[2, 1]
+      vis_df$`kl_TRUE_t+1`[t] = kl_new[1, 1]
+      vis_df$`kl_FALSE_t+1`[t] = kl_new[2, 1]
+      vis_df$EIG[t] = sum(p_post_new * kl_new)
+      
+    }
+    
     
     # luce choice probability whether to look away
     model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
@@ -157,7 +198,90 @@ main_simulation <- function(params = df,
  
     } # FINISH HUGE WHILE LOOP
   
+  if(visualization){
+    
+    vis_df <- vis_df %>% 
+      pivot_longer(cols = c("EIG", "pp_TRUE_t+1", "pp_FALSE_t+1", "kl_TRUE_t+1", "kl_FALSE_t+1"), 
+                   names_to = "value_type", 
+                   values_to = "value") %>% 
+      mutate(info_type = case_when(
+        grepl("pp", value_type) ~ "posterior_predictives", 
+        grepl("kl", value_type) ~ "kl", 
+        TRUE ~ "EIG"
+      ), 
+      hypothetical_observation = case_when(
+        grepl("TRUE", value_type) ~ "TRUE", 
+        grepl("FALSE", value_type) ~ "FALSE"
+      )) 
+    
+    pp_sep <- vis_df %>% 
+      filter(!is.na(stimulus_idx)) %>% 
+      filter(info_type == "posterior_predictives") %>% 
+      ggplot(aes(x = t, y = value, color = as.factor(stimulus_idx), shape = obs)) + 
+      geom_point() + 
+      facet_wrap(~hypothetical_observation, scales = "free", 
+                 nrow = 2) + 
+      theme_classic() + 
+      theme(legend.position = "none") +
+      ylab("Posterior Predictives") 
+    
+    
+    pp_sum <- vis_df %>% 
+      filter(!is.na(stimulus_idx)) %>% 
+      filter(info_type == "posterior_predictives") %>% 
+      ggplot(aes(x = t, y = value, color = hypothetical_observation, shape = obs)) + 
+      geom_point()+
+      theme_classic() + 
+      theme(legend.position = "none")
+    ylab("")
+    
+    
+    pp_full <- pp_sep + pp_sum 
+    
+    kl_sep <- vis_df %>% 
+      filter(!is.na(stimulus_idx)) %>% 
+      filter(info_type == "kl") %>% 
+      ggplot(aes(x = t, y = value, color = as.factor(stimulus_idx), shape = obs)) + 
+      geom_point() + 
+      facet_wrap(~hypothetical_observation, scales = "free", 
+                 nrow = 2) + 
+      theme_classic() + 
+      theme(legend.position = "none") +
+      ylab("KL")
+    
+    
+    kl_sum <- vis_df %>% 
+      filter(!is.na(stimulus_idx)) %>% 
+      filter(info_type == "kl") %>% 
+      ggplot(aes(x = t, y = value, color = hypothetical_observation, shape = obs)) + 
+      geom_point()+
+      theme_classic() + 
+      theme(legend.position = "none") 
+    ylab("")
+    
+    
+    kl_full <- kl_sep + kl_sum
+    
+    eig <- vis_df %>% 
+      filter(!is.na(stimulus_idx)) %>% 
+      filter(info_type == "EIG") %>% 
+      ggplot(aes(x = t, y = value, color = as.factor(stimulus_idx), shape = obs)) + 
+      geom_point() + 
+      theme_classic() + 
+      theme(legend.position = "none")
+    
+    
+    
+    
+    return((pp_full | kl_full)/
+             eig)
+  }
+  
+  
   return(model)  
+  
+  
+  
 }
 
 
