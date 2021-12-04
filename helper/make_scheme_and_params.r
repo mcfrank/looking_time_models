@@ -13,6 +13,7 @@ make_simulation_params <- function(n,
                                    simple_feature_n, 
                                    complex_feature_n, 
                                    dissimilar_ratio,
+                                    softmax_greed,
                                    forced_exposure_params
                                   ){
   
@@ -22,7 +23,8 @@ make_simulation_params <- function(n,
     alpha_epsilon = alpha_epsilon, 
     beta_epsilon = beta_epsilon,
     noise_parameter = noise_parameters,
-    world_EIG = world_EIG) %>% 
+    world_EIG = world_EIG,
+    softmax_greed = softmax_greed) %>% 
     mutate(params_id = row_number(), 
    max_observation = max_observation, 
            
@@ -55,7 +57,7 @@ make_simulation_params <- function(n,
 
 
   stimulus_sequence_df %>% mutate(max_observations_per_trial = forced_exposure_df$max_observations, 
-                                  forced_trials = forced_exposure_df$forced_trials) %>%
+                                  forced_trials = forced_exposure_df$forced_exposure_trials) %>%
     crossing(params_id_df)
   
 }
@@ -139,7 +141,7 @@ get_forced_exposure_trials <- function(sequence_scheme, forced_exposure_params, 
   trials_per_sequence <- block_lengths %>% map(function(x) rep(max_observation, x))
   
   # forced trial (FALSE by default)
-  trial_type <- block_lengths %>% map(function(x) rep(FALSE, x))
+    trial_type <- block_lengths %>% map(function(x) rep(FALSE, x))
   
   
     if (forced_exposure_params$do_forced_exposure) {
@@ -158,14 +160,18 @@ get_forced_exposure_trials <- function(sequence_scheme, forced_exposure_params, 
         
         forced_trials <- trial_type %>% lapply(function(x) {x[1:length(x)-1] = TRUE
                                                         + x})
-
       }
+      
       else {
         error('invalid forced exposure trials specified. check whether forced_exposure_params$forced_exposure_trials was correctly specified')
-        
       }
     
     }
+    else {
+      forced_trials <- trial_type
+     }
+      
+
   
   forced_trials_df <- tibble(max_observations = max_observations, forced_trials = forced_trials)
    
