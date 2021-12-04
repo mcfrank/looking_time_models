@@ -67,20 +67,172 @@ full_params_df <- make_simulation_params(n_sim = 150,
 
 ```{r}
 single_sim <- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBBB", sub_id == 1)%>% nest() %>% unnest(), 
-                visualization = FALSE)
+                visualization = FALSE, detailed_post = TRUE)
 ```
 
 
 ```{r}
-single_sim
-```
+single_sim[[1]] %>% 
+    group_by(stimulus_idx) %>% 
+    summarise(sample_n = n()) %>% 
+    ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+    geom_point()
 
-
-```{r}
-single_sim %>% 
-  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
+single_sim[[1]] %>% 
+  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) +
   geom_point()
 ```
+#ok so what's up with t = 21 and t = 22
+
+```{r}
+single_sim[[1]] %>% 
+  filter(stimulus_idx %in% c(7)) 
+```
+```{r}
+single_sim[[2]][[26]][[1]]$posterior 
+single_sim[[2]][[27]][[1]] $posterior
+
+```
+
+
+
+the change honestly looks quite gradual and reasonable, so now we need to check the EIG calculation on t = 17 and t = 18. 
+```{r}
+#WITH TRUE OBSERVATION
+single_sim[[3]][[26]]
+
+#WITH FALSE OBSERVATION
+single_sim[[4]][[26]]
+
+# GET kl 
+kl_div(single_sim[[3]][[26]]$posterior,
+                              single_sim[[2]][[26]][[1]]$posterior)
+
+kl_div(single_sim[[4]][[26]]$posterior,
+                              single_sim[[2]][[26]][[1]]$posterior)
+
+
+#WITH TRUE OBSERVATION
+single_sim[[3]][[27]]
+
+#WITH FALSE OBSERVATION
+single_sim[[4]][[27]]
+
+# GET kl 
+kl_div(single_sim[[3]][[27]]$posterior,
+                              single_sim[[2]][[27]][[1]]$posterior)
+
+kl_div(single_sim[[4]][[27]]$posterior,
+                              single_sim[[2]][[27]][[1]]$posterior)
+```
+
+
+```{r}
+
+#abnormal
+ab_x <- single_sim[[4]][[27]]$posterior
+ab_y <- single_sim[[2]][[27]][[1]]$posterior
+ab_kl <- ab_x * log(ab_x/ab_y)
+
+n_x <- single_sim[[4]][[26]]$posterior
+n_y <- single_sim[[2]][[26]][[1]]$posterior
+n_kl <- n_x * log(n_x/n_y)
+
+comp_df <- 
+  tibble(
+    ab_x = ab_x,
+    ab_y = ab_y, 
+    ab_kl = ab_kl, 
+    n_x = n_x, 
+    n_y = n_y, 
+    n_kl = n_kl
+  ) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_longer(cols = !contains("id"), 
+               names_to = "type", 
+               values_to = "value") %>% 
+  separate(type, into = c("categories", "value_type"), 
+           sep = "_") %>% 
+  mutate(
+    print_categories = if_else(categories =="ab", "t = 26", "t = 27"), 
+    print_value_type = case_when(
+      value_type == "x" ~ "1_false_obs", 
+      value_type == "y" ~ "2_posterior", 
+      TRUE ~ value_type
+    )
+  )
+
+comp_df %>% 
+  ggplot(aes(x = id, y = value, color = print_value_type)) + 
+  geom_point()+
+  facet_grid(print_value_type~print_categories, scales = "free")
+
+```
+
+
+```{r}
+ab_x[[1]]
+n_x[[1]]
+
+ab_y[[1]]
+n_y[[1]]
+
+ab_kl[[1]]
+n_kl[[1]]
+```
+
+
+
+```{r}
+ab_x <- single_sim[[4]][[27]]$posterior
+ab_y <- single_sim[[2]][[27]][[1]]$posterior
+ab_kl <- ab_x * log(ab_x/ab_y)
+
+n_x <- single_sim[[4]][[26]]$posterior
+n_y <- single_sim[[2]][[26]][[1]]$posterior
+n_kl <- n_x * log(n_x/n_y)
+
+comp_df <- 
+  tibble(
+    ab_x = ab_x,
+    ab_y = ab_y, 
+    ab_kl = ab_kl, 
+    n_x = n_x, 
+    n_y = n_y, 
+    n_kl = n_kl
+  ) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_longer(cols = !contains("id"), 
+               names_to = "type", 
+               values_to = "value") %>% 
+  separate(type, into = c("categories", "value_type"), 
+           sep = "_") 
+
+comp_df %>% 
+  filter(id !=1) %>% 
+  ggplot(aes(x = id, y = value, color = value_type)) + 
+  geom_point()+
+  facet_grid(value_type~categories, scales = "free")
+```
+
+
+
+```{r}
+ab_kl[2]
+n_kl[2]
+
+ab_x[2]
+ab_y[2]
+
+n_x[2]
+n_y[2]
+
+single_sim[[4]][[27]]
+```
+
+
+
+
 
 i wonder if this is a property of the KL (how it interacts with the prior)
 goal: construct a toy example with beta count and how it changes the KL as evidence accumulate 
@@ -139,6 +291,10 @@ full_df %>%
 ```
 
 
+ok now really needs goes into the posterior distribution to see if it is going wrong 
+```{r}
+
+```
 
 
 

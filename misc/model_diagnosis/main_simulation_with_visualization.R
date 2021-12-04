@@ -9,7 +9,8 @@
 main_simulation <- function(params = df,
                             grid_theta = seq(0.1, 1, 0.2),
                             grid_epsilon = seq(0.1, 1, 0.2), 
-                            visualization = FALSE) {
+                            visualization = FALSE, 
+                            detailed_post = FALSE) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -22,6 +23,11 @@ main_simulation <- function(params = df,
   lp_post <- initialize_posterior(grid_theta, grid_epsilon, 
                                   params$max_observation, params$n_features)
   
+  lp_EIG_true <- initialize_posterior(grid_theta, grid_epsilon, 
+                                  params$max_observation, params$n_features)
+  
+  lp_EIG_false <- initialize_posterior(grid_theta, grid_epsilon, 
+                                      params$max_observation, params$n_features)
   
   lp_z_given_theta <- initialize_z_given_theta(grid_theta, grid_epsilon, 
                                                   params$max_observation, 
@@ -37,6 +43,9 @@ main_simulation <- function(params = df,
   lp_post_new <- initialize_posterior(grid_theta, grid_epsilon, 
                                       nrow(feature_based_possible_observations), 
                                       params$n_features)
+  
+  
+  
   p_post_new <- matrix(data = NA, nrow = nrow(feature_based_possible_observations), 
                        ncol = params$n_features)
   kl_new <- matrix(data = NA, nrow = nrow(feature_based_possible_observations), 
@@ -145,7 +154,11 @@ main_simulation <- function(params = df,
                                             lp_prior = lp_prior, 
                                             lp_post = lp_post_new[[o]][[f]])
         
-        
+        if(as.logical(feature_based_possible_observations[o,f])){
+          lp_EIG_true[[t]] <- lp_post_new[[o]][[f]]
+        }else{
+          lp_EIG_false[[t]] <- lp_post_new[[o]][[f]]
+        }
         
         # posterior predictive
         p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
@@ -203,6 +216,8 @@ main_simulation <- function(params = df,
     t <- t+1
  
     } # FINISH HUGE WHILE LOOP
+  
+ 
   
   if(visualization){
     
@@ -284,8 +299,19 @@ main_simulation <- function(params = df,
               eig)
   }
   
+  if (detailed_post){
+    res_list <- list(list(), list(), list(), list())
+    res_list[[1]] <- model 
+    res_list[[2]] <- lp_post
+    res_list[[3]] <- lp_EIG_true
+    res_list[[4]] <- lp_EIG_false
+    return(res_list)
+    #return(lp_post)
+    
+  }else{
+    return(model)  
+  }
   
-  return(model)  
   
   
   
