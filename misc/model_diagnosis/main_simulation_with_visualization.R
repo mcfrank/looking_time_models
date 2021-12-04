@@ -156,10 +156,16 @@ main_simulation <- function(params = df,
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
         
+        #reset the model so that it doesn't behave weird in the end 
+        model[t+1, paste0("f", f)] <- NA
+        
 
  
       }
     }
+    
+    # reset the model stimulus so that it doesn't behave weird at the last stimulus 
+    model$stimulus_idx[t+1] <- NA_real_ 
    
    
   
@@ -273,8 +279,9 @@ main_simulation <- function(params = df,
     
     
     
-    return((pp_full | kl_full)/
-             eig)
+    
+    return( (pp_full | kl_full)/
+              eig)
   }
   
   

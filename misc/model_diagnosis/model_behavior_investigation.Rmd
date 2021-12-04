@@ -19,7 +19,7 @@ library(patchwork)
 source(here("helper/make_scheme_and_params.R"))
 source(here("helper/initialization.R"))
 source(here("helper/probability_computations.R"))
-source(here("helper/main_simulation_with_visualization.R"))
+source(here("misc/model_diagnosis/main_simulation_with_visualization.R"))
 
 
 ```
@@ -27,113 +27,130 @@ source(here("helper/main_simulation_with_visualization.R"))
 
 # Understanding dishabituation patterns 
 ```{r}
-alpha_epsilon = c(1)
-beta_epsilon = c(10)
+alpha_epsilons = c(1)
+beta_epsilons = c(10)
 alpha_priors = c(1)
-beta_priors = c(1)
+beta_priors = c(100)
 noise_parameters = c(0)
-world_EIG = c(0.001)
+world_EIGs = c(0.001)
 max_observation = 100
-fixed_length_complexity = FALSE 
-feature_space_n = 7
-simple_feature_n = 1
-complex_feature_n = 1
-dissimilar_ratio = 1
-#sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 
-sequence_scheme = c("BD", "BBD", "BBBD", "BBBBD", "BBBBBD", "BB","BBB", "BBBB", "BBBBB", "BBBBBB")
+model_params <- set_model_params(alpha_priors, beta_priors, 
+                alpha_epsilons, beta_epsilons, 
+                noise_parameters, world_EIGs, max_observation)
 
-complexity = c("simple") #"complex", 
-n <- 1 # doesn't perform as expected
 
-full_params_df <- make_simulation_params(n = n,
-                                         sequence_scheme, 
-                                         complexity, 
-                                         alpha_priors, 
-                                         beta_priors, 
-                                         alpha_epsilon, 
-                                         beta_epsilon, 
-                                         noise_parameters, 
-                                         world_EIG, 
-                                         max_observation, 
-                                         fixed_length_complexity, 
-                                         feature_space_n, 
-                                         simple_feature_n, 
-                                         complex_feature_n, 
-                                         dissimilar_ratio)
+# set stimuli-related parameters 
+features_df <- tibble(
+  n_features = c(1), 
+  on_features_n = c(1)
+)
+sequence_scheme = c("BBBBBBB")
 
-# note that this should happen in make_simulation_params
-full_params_df <- full_params_df %>%
-  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:80)) %>%
-  mutate(n_features = 1)
+stims_df <- set_stim_params(sequence_scheme, features_df)
 
+
+full_params_df <- make_simulation_params(n_sim = 150,
+                                        model_params, 
+                                        stims_df)
+
+```
+
+```{r}
+
+ main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBBB", sub_id == 1)%>% nest() %>% unnest(), 
+                visualization = TRUE)
+
+ 
 ```
 
 
 ```{r}
-full_params_df
+single_sim <- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBBB", sub_id == 1)%>% nest() %>% unnest(), 
+                visualization = FALSE)
 ```
 
 
 ```{r}
-all_sims_res <- full_params_df %>%
-  group_by(params_id, sim_id, sub_id) %>%
-  nest() %>%
-  mutate(results = map(data,
-                       function(df) main_simulation(params = df))) %>%
-  unnest(cols = c(data, results))
+single_sim
 ```
 
 
-
-- it looks like the EIG bumps is consistent with what would be expected, but note that the significant drop in the last deviant trial 
-- it took many points for the observation at the first trial to reach asymptotic, less point for the following trials
-
-
 ```{r}
-all_sims_res %>% 
+single_sim %>% 
   ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
-  geom_point() + 
-  geom_line() + 
-  facet_wrap(~sequence_scheme)
+  geom_point()
+```
+
+i wonder if this is a property of the KL (how it interacts with the prior)
+goal: construct a toy example with beta count and how it changes the KL as evidence accumulate 
+```{r}
+x <- dbeta(seq(0.01, 0.99, 0.2), 1, 10) / sum(dbeta(seq(0.01, 0.99, 0.2), 1, 10))
+y <- dbeta(seq(0.01, 0.99, 0.2), 1, 9) / sum(dbeta(seq(0.01, 0.99, 0.2), 1, 9))
+
+t <- rbind(x, y)
+
+philentropy::KL(t)
+
+
+get_kl <- function(prior_alpha, prior_beta, obs = FALSE){
+  
+  prior <- dbeta(seq(0.01, 0.99, 0.1), prior_alpha, prior_beta) / sum(dbeta(seq(0.01, 0.99, 0.1), 
+                                                                            prior_alpha, 
+                                                                            prior_beta))
+  
+  if(obs){
+    post_alpha = prior_alpha + 1
+    post_beta = prior_beta
+  }else{
+    post_alpha = prior_alpha 
+    post_beta = prior_beta + 1
+  }
+  
+  post <- dbeta(seq(0.01, 0.99, 0.1), post_alpha, post_beta) / sum(dbeta(seq(0.01, 0.99, 0.1), 
+                                                                            post_alpha, 
+                                                                            post_beta))
+  
+  return(philentropy::KL(rbind(prior, post)))
+  
+}
+
+
 ```
 
 ```{r}
-all_sims_res %>% 
-  ggplot(aes(x = t, y = p_look_away, color = as.factor(stimulus_idx))) + 
-  geom_point() + 
-  geom_line() + 
-  facet_wrap(~sequence_scheme)
+prior_df <- tibble(
+  prior_alpha = seq(1, 100), # to mimic accumulating true observation 
+  prior_beta = rep(1, 100)
+)
 
-all_sims_res %>% 
-  ggplot(aes(x = EIG, y = p_look_away)) + 
-  geom_point() + 
-  #geom_line() + 
-  facet_wrap(~sequence_scheme)
+false_df <- pmap_df(prior_df, get_kl, obs = FALSE) %>% 
+  rename(false_obs = `kullback-leibler`)
+true_df <- pmap_df(prior_df, get_kl, obs = TRUE) %>% 
+  rename(true_obs = `kullback-leibler`)
+
+full_df <- bind_cols(prior_df, false_df, true_df) %>% 
+  pivot_longer(cols = c("false_obs", "true_obs"), names_to = "value_type", values_to = "value")
+  
+full_df %>%   
+  ggplot(aes(x = prior_alpha, y = value, color = value_type)) + 
+  geom_point()
+
 ```
 
 
-why would this be the case?
- 
-well this break down is a little difficult to tell, maybe i should have a comparison between the trajectory on BD vs BB, BBD vs BBB or sth like that 
-
-```{r}
-
- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBD") %>% nest() %>% unnest(), 
-                visualization = TRUE)
-
- 
-  main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBB") %>% nest() %>% unnest(), 
-                visualization = TRUE)
 
 
- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BD") %>% nest() %>% unnest(), 
-                visualization = TRUE)
- 
- 
- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BB") %>% nest() %>% unnest(), 
-                visualization = TRUE)
-```
+
+
+
+
+
+
+
+
+
+
 ```{r}
 all_sims_res %>% 
   rowwise() %>% 
