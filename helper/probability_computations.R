@@ -105,14 +105,12 @@ score_prior <- function(grid_theta, grid_epsilon,
   return(lp_theta_epsilon) 
 }
 
-# ---------------- rectified_luce_choice ----------------
+# ---------------- softmax ----------------
 # this crazy function is necessary because if the values get too close to 0, 
 # this can be > 1 or < 0
-rectified_luce_choice <- function(x, y) {
-  max(min(x / (x + y), 1), 0)
+rectified_softmax <- function(x, y, beta) {
+  max(min(exp(beta*x) / (exp(beta*x) + exp(beta*y)), 1), 0)
 }
-
-
 
 
 # ---------------- score_yi_given_theta ---------------------

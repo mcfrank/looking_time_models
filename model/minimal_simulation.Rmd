@@ -31,7 +31,7 @@ Figuring out the sequence and generate the stimuli sequence with all the paramet
 alpha_epsilon = c(1)
 beta_epsilon = c(10)
 alpha_priors = c(1)
-beta_priors = c(1)
+beta_priors = c(30)
 noise_parameters = c(0.00)
 world_EIG = c(0.001)
 max_observation = 500
@@ -40,14 +40,15 @@ feature_space_n = 7
 simple_feature_n = 1
 complex_feature_n = 3
 dissimilar_ratio = 1
-sequence_scheme = c("BBBBB")
+softmax_greed = 1
+sequence_scheme = c("BBBBB", "BBBBBBB", "BBBBBBBBBB")
 complexity = c("complex") #"complex", 
 n <- 1 # doesn't perform as expected
 
 
 # consider just making an infant vs adult toggle
 # FORCED EXPOSURE PARAMETERS  
-forced_exposure_params = tibble(do_forced_exposure = TRUE,  # FALSE = forced exposure is on; TRUE = forced exposure is off
+forced_exposure_params = tibble(do_forced_exposure = FALSE,  # FALSE = forced exposure is off; TRUE = forced exposure is on
                                 forced_exposure_trials = "first", # "first" sets the first trial to a fixed exposure, "allbutlast" will set all of them to fixed exposure but the last 
                                 max_sample_num = 23 # number of forced samples in forced exposure trials
                                   )  
@@ -67,6 +68,7 @@ full_params_df <- make_simulation_params(n = n,
                                          simple_feature_n, 
                                          complex_feature_n, 
                                          dissimilar_ratio,
+                                         softmax_greed,
                                          forced_exposure_params)
 
 # note that this should happen in make_simulation_params
@@ -103,8 +105,8 @@ complete_sim_res <- all_sims_res %>%
 
 ggplot(complete_sim_res, 
        aes(x = stimulus_idx, y = sample_n)) + 
-  geom_line(alpha = .1, aes(group = sub_id.x)) + 
-  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1)) +
-  facet_grid(alpha_prior~sequence_scheme)
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .1)) +facet_grid(alpha_prior~sequence_scheme)
+
+
 ```
 
