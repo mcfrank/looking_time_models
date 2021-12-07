@@ -1,0 +1,97 @@
+---
+title: "different_EIG_metrics"
+author: "Gal"
+date: "12/6/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(philentropy)
+```
+
+```{r}
+theta = seq(0.01, 1, by = 0.01)
+my_len = 200
+alpha = rep(100,my_len)
+beta = seq(1, my_len)
+
+kl_true <- vector(mode = 'numeric', length = my_len)
+kl_false <- vector(mode = 'numeric', length = my_len)
+
+H_true <- vector(mode = 'numeric', length = my_len)
+H_false <- vector(mode = 'numeric', length = my_len)
+
+for (i in 1:length(kl_true)) {
+  posterior <- dbeta(theta, alpha[i], beta[i]) / sum(dbeta(theta, alpha[i], beta[i]))
+  true_obs <- dbeta(theta, alpha[i] + 1, beta[i]) / sum(dbeta(theta, alpha[i] + 1, beta[i]))
+  false_obs <- dbeta(theta, alpha[i], beta[i] + 1) / sum(dbeta(theta, alpha[i], beta[i] + 1))
+  
+  kl_true[i] = KL(rbind(posterior,true_obs))
+  kl_false[i] = KL(rbind(posterior,false_obs))
+    
+  H_true[i] = H(true_obs) - H(posterior) 
+  H_false[i] = H(false_obs) - H(posterior) 
+}
+
+df <- tibble(alpha = alpha, beta = beta, 
+             kl_true = kl_true, 
+             kl_false = kl_false, 
+             entropy_true = H_true, 
+             entropy_false = H_false) %>% 
+  pivot_longer(cols = c("kl_true", "kl_false", "entropy_true", "entropy_false"), 
+               names_to = "metric", values_to = "value") %>% 
+  separate(metric, into = c("metric", "true_or_false"))
+
+
+ggplot(data = df, aes(x = beta, y = value, color = true_or_false)) + 
+  geom_point() + facet_wrap(~metric) + ggtitle('fixed alpha = 100')
+
+
+```
+
+
+```{r}
+
+get_kl <- function(prior_alpha, prior_beta, obs = FALSE){
+  
+  theta = seq(0.01, 0.99, 0.01)
+  
+  prior <- dbeta(theta, prior_alpha, prior_beta) / 
+    sum(dbeta(theta, prior_alpha, prior_beta))
+  
+  if(obs){
+    post_alpha = prior_alpha + 1
+    post_beta = prior_beta
+  }else{
+    post_alpha = prior_alpha 
+    post_beta = prior_beta + 1
+  }
+  
+  post <- dbeta(theta, post_alpha, post_beta) / 
+    sum(dbeta(theta, post_alpha, post_beta))
+  
+  return(philentropy::KL(rbind(prior, post)))
+  
+}
+
+prior_df <- tibble(
+  prior_alpha = rep(100, 200), # to mimic accumulating true observation 
+  prior_beta = seq(1, 200)
+)
+
+false_df <- pmap_df(prior_df, get_kl, obs = FALSE) %>% 
+  rename(false_obs = `kullback-leibler`)
+
+true_df <- pmap_df(prior_df, get_kl, obs = TRUE) %>% 
+  rename(true_obs = `kullback-leibler`)
+
+full_df <- bind_cols(prior_df, false_df, true_df) %>% 
+  pivot_longer(cols = c("false_obs", "true_obs"), names_to = "value_type", values_to = "value")
+  
+full_df %>%   
+  ggplot(aes(x = prior_beta, y = value, color = value_type)) + 
+  geom_point()
+
+
+```
