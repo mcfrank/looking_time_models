@@ -56,12 +56,25 @@ full_params_df <- make_simulation_params(n_sim = 150,
 
 ```
 
+
+```{r}
+ main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBBB", sub_id == 1)%>% nest() %>% unnest(), 
+                visualization = TRUE)
+
+```
+
+
+
 ```{r}
 
  main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBBB", sub_id == 1)%>% nest() %>% unnest(), 
                 visualization = TRUE)
 
  
+```
+```{r}
+single_sim_granularities <- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBBB", sub_id == 1)%>% nest() %>% unnest(), 
+                visualization = FALSE, detailed_post = TRUE)
 ```
 
 
@@ -195,203 +208,6 @@ comp_df %>%
   filter(value_type == "kl")
 
 ```
-
-i don't understand why it is so small. maybe another way to do it is to do it the log way 
-```{r}
-
-# sum(x * log(x/y))
-# logSumExp(log(X) + (log(X) - log(Y)))
-
-# might just be a minor bug 
-log(ab_x) == single_sim[[4]][[27]]$log_posterior
-log(n_x) == single_sim[[4]][[26]]$log_posterior
-
-log(ab_y) == single_sim[[2]][[27]][[1]]$log_posterior
-log(n_y) == single_sim[[2]][[26]][[1]]$log_posterior
-
-
-
-```
-
-```{r}
-
-(single_sim[[1]]$EIG)[14:28] %>% 
-  plot()
-```
-
-
-
-```{r}
-ab_sum = 0
-n_sum = 0
-
-ab_acc <- list()
-n_acc <- list()
-for(i in 1:length(ab_kl)){
-  ab_sum <- ab_sum + ab_kl[i]
-  n_sum <- n_sum + n_kl[i]
-  ab_acc[i] <- ab_sum 
-  n_acc[i] <- n_sum 
-
-}
-
-
-```
-
-
-
-
-```{r}
-ab_x[[1]]
-n_x[[1]]
-
-ab_y[[1]]
-n_y[[1]]
-
-ab_kl[[1]]
-n_kl[[1]]
-```
-
-
-
-```{r}
-ab_x <- single_sim[[4]][[27]]$posterior
-ab_y <- single_sim[[2]][[27]][[1]]$posterior
-ab_kl <- ab_x * log(ab_x/ab_y)
-
-n_x <- single_sim[[4]][[26]]$posterior
-n_y <- single_sim[[2]][[26]][[1]]$posterior
-n_kl <- n_x * log(n_x/n_y)
-
-comp_df <- 
-  tibble(
-    ab_x = ab_x,
-    ab_y = ab_y, 
-    ab_kl = ab_kl, 
-    n_x = n_x, 
-    n_y = n_y, 
-    n_kl = n_kl
-  ) %>% 
-  mutate(id = row_number()) %>% 
-  pivot_longer(cols = !contains("id"), 
-               names_to = "type", 
-               values_to = "value") %>% 
-  separate(type, into = c("categories", "value_type"), 
-           sep = "_") 
-
-comp_df %>% 
-  filter(id !=1) %>% 
-  ggplot(aes(x = id, y = value, color = value_type)) + 
-  geom_point()+
-  facet_grid(value_type~categories, scales = "free")
-```
-
-
-
-```{r}
-ab_kl[2]
-n_kl[2]
-
-ab_x[2]
-ab_y[2]
-
-n_x[2]
-n_y[2]
-
-single_sim[[4]][[27]]
-```
-
-
-
-
-
-i wonder if this is a property of the KL (how it interacts with the prior)
-goal: construct a toy example with beta count and how it changes the KL as evidence accumulate 
-```{r}
-x <- dbeta(seq(0.01, 0.99, 0.2), 1, 10) / sum(dbeta(seq(0.01, 0.99, 0.2), 1, 10))
-y <- dbeta(seq(0.01, 0.99, 0.2), 1, 9) / sum(dbeta(seq(0.01, 0.99, 0.2), 1, 9))
-
-t <- rbind(x, y)
-
-philentropy::KL(t)
-
-
-get_kl <- function(prior_alpha, prior_beta, obs = FALSE){
-  
-  prior <- dbeta(seq(0.01, 0.99, 0.1), prior_alpha, prior_beta) / sum(dbeta(seq(0.01, 0.99, 0.1), 
-                                                                            prior_alpha, 
-                                                                            prior_beta))
-  
-  if(obs){
-    post_alpha = prior_alpha + 1
-    post_beta = prior_beta
-  }else{
-    post_alpha = prior_alpha 
-    post_beta = prior_beta + 1
-  }
-  
-  post <- dbeta(seq(0.01, 0.99, 0.1), post_alpha, post_beta) / sum(dbeta(seq(0.01, 0.99, 0.1), 
-                                                                            post_alpha, 
-                                                                            post_beta))
-  
-  return(philentropy::KL(rbind(prior, post), unit = "log"))
-  
-}
-
-
-```
-
-```{r}
-prior_df <- tibble(
-  prior_alpha = rep(100, 200), # to mimic accumulating true observation 
-  prior_beta = seq(1, 200)
-)
-
-false_df <- pmap_df(prior_df, get_kl, obs = FALSE) %>% 
-  rename(false_obs = `kullback-leibler`)
-true_df <- pmap_df(prior_df, get_kl, obs = TRUE) %>% 
-  rename(true_obs = `kullback-leibler`)
-
-full_df <- bind_cols(prior_df, false_df, true_df) %>% 
-  pivot_longer(cols = c("false_obs", "true_obs"), names_to = "value_type", values_to = "value")
-  
-full_df %>%   
-  ggplot(aes(x = prior_beta, y = value, color = value_type)) + 
-  geom_point()
-
-```
-```{r}
-prior_df <- tibble(
-  prior_alpha = seq(1, 1500), # to mimic accumulating true observation 
-  prior_beta = rep(100, 1500)
-)
-
-false_df <- pmap_df(prior_df, get_kl, obs = FALSE) %>% 
-  rename(false_obs = `kullback-leibler`)
-true_df <- pmap_df(prior_df, get_kl, obs = TRUE) %>% 
-  rename(true_obs = `kullback-leibler`)
-
-full_df <- bind_cols(prior_df, false_df, true_df) %>% 
-  pivot_longer(cols = c("false_obs", "true_obs"), names_to = "value_type", values_to = "value")
-  
-full_df %>%   
-  #ilter(prior_alpha > 1000) %>% 
-  ggplot(aes(x = prior_alpha, y = value, color = value_type)) + 
-  geom_point()
-```
-
-
-ok now really needs goes into the posterior distribution to see if it is going wrong 
-```{r}
-
-```
-
-
-
-
-
-
-
 
 
 

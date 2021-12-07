@@ -7,8 +7,8 @@
 # note that the visualization function only works well with feature n = 1
 
 main_simulation <- function(params = df,
-                            grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2), 
+                            grid_theta = seq(0.01, 0.99, 0.02),
+                            grid_epsilon = seq(0.01, 0.99, 0.02), 
                             visualization = FALSE, 
                             detailed_post = FALSE) {
   
