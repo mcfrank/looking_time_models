@@ -1,0 +1,98 @@
+---
+title: "eig behavior in beta distribution models"
+author: "anjie & gal"
+date: "12/6/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(philentropy) # preexisting package for KL calculation; verified by hand 
+library(here)
+
+
+source(here("misc/toy_model/compute_im.R"))
+source(here("misc/toy_model/toy_model_helper.R"))
+
+```
+
+we observed some weird oscillations in the EIG with extreme prior cases. this markdown is intended to investigate what's going on in those oscillations. 
+
+after some initial poke-around on a particular case (when prior is a1b30, the model shows a very weird EIG bumps on the last observed stimulus. we looked at the different components of EIG and found the KL for when hypothetical observation is false is disproportionately large), we decided to use a basic beta distribution model to see how KL behaves in extreme prior case as evidence accumulates. 
+
+
+this first run seems to reflect the weird oscillations we saw in the main model. 
+this represents the process of model accumulating TRUE observation: it starts with a strong prior in favor of seeing FALSE (a1b100) and gradually shifts toward favoring seeing TRUE (a200b100).  
+
+
+
+```{r message=FALSE, warning=FALSE}
+prior_df <- tibble(
+  grid_step = rep(0.1, 200),
+  prior_alpha = seq(1, 200) , # to mimic accumulating true observation 
+  prior_beta = rep(100, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_alpha, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+```
+
+
+and we can see similar thing in the reverse direction. when the prior is favoring fasle and gradually shift toward true:
+
+```{r message=FALSE, warning=FALSE}
+prior_df <- tibble(
+  grid_step = rep(0.1, 200),
+  prior_alpha =  rep(100, 200),
+  prior_beta = seq(1, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_beta, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+```
+
+
+interestingly, these oscillations disappears when you use smaller grid steps: 
+
+
+```{r message=FALSE, warning=FALSE}
+prior_df <- tibble(
+  grid_step = rep(0.001, 200),
+  prior_alpha = seq(1, 200) , # to mimic accumulating true observation 
+  prior_beta = rep(100, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_alpha, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+
+prior_df <- tibble(
+  grid_step = rep(0.001, 200),
+  prior_alpha =  rep(100, 200),
+  prior_beta = seq(1, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_beta, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+```
+
+
