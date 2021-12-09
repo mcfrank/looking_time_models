@@ -11,7 +11,7 @@ library(philentropy)
 ```
 
 ```{r}
-theta = seq(0.01, 1, by = 0.01)
+theta = seq(0.001, 0.999, by = 0.001)
 my_len = 200
 alpha = rep(100,my_len)
 beta = seq(1, my_len)
@@ -28,10 +28,12 @@ for (i in 1:length(kl_true)) {
   false_obs <- dbeta(theta, alpha[i], beta[i] + 1) / sum(dbeta(theta, alpha[i], beta[i] + 1))
   
   kl_true[i] = KL(rbind(posterior,true_obs))
-  kl_false[i] = KL(rbind(posterior,false_obs))
-    
+  kl_false[i] = KL(rbind(false_obs, posterior))
+  
   H_true[i] = H(true_obs) - H(posterior) 
   H_false[i] = H(false_obs) - H(posterior) 
+  
+  
 }
 
 df <- tibble(alpha = alpha, beta = beta, 
@@ -44,8 +46,8 @@ df <- tibble(alpha = alpha, beta = beta,
   separate(metric, into = c("metric", "true_or_false"))
 
 
-ggplot(data = df, aes(x = beta, y = value, color = true_or_false)) + 
-  geom_point() + facet_wrap(~metric) + ggtitle('fixed alpha = 100')
+ggplot(data = df %>% filter(metric == 'kl'), aes(x = beta, y = value, color = true_or_false)) + 
+  geom_point() + ggtitle('fixed alpha = 100') 
 
 
 ```
@@ -55,7 +57,7 @@ ggplot(data = df, aes(x = beta, y = value, color = true_or_false)) +
 
 get_kl <- function(prior_alpha, prior_beta, obs = FALSE){
   
-  theta = seq(0.01, 0.99, 0.01)
+  theta = seq(0.01, 1, 0.01)
   
   prior <- dbeta(theta, prior_alpha, prior_beta) / 
     sum(dbeta(theta, prior_alpha, prior_beta))
