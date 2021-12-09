@@ -74,8 +74,9 @@ scheme_to_stimuli <- function(sequence_scheme, n_features, on_features_n){
     # R has annoying behaviors for sample when the vector length is 1
     # can't use if_else because it has an annoying behavior that forces both clause return the same thing 
     
-    if (n_features - on_features_n == 1){
-      on_location <-  which(background_creature == TRUE)
+    if (n_features - on_features_n == 1 | n_features == on_features_n){
+
+      on_location <-  sample(which(background_creature == TRUE), 1)
       off_location <-  which(background_creature == FALSE)
     }else{
       on_location <- sample(which(background_creature == TRUE), size = n_features - on_features_n)
