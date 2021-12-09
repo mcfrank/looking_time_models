@@ -114,4 +114,34 @@ bind_rows(hab, dishab) %>%
 ```
 
 
+```{r}
+library(doParallel)
+```
+
+
+```{r}
+registerDoParallel(cores=1)
+
+# bootstrap iteration example
+x <- iris[which(iris[,5] != "setosa"), c(1,5)]
+iterations <- 10000# Number of iterations to run
+
+# parallel loop
+# note the '%dopar%' instruction
+parallel_time <- system.time({
+  r <- foreach(icount(iterations), .combine=rbind) %dopar% {
+    ind <- sample(100, 100, replace=TRUE)
+    result1 <- glm(x[ind,2]~x[ind,1], family=binomial(logit))
+    coefficients(result1)
+  }
+})[3]
+
+# show the number of parallel workers to be used
+getDoParWorkers()
+
+# execute the function
+parallel_time
+```
+
+
 
