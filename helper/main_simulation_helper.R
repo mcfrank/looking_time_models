@@ -4,8 +4,8 @@
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
-                            grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2)) {
+                            grid_theta = seq(0.001, 1, 0.01),
+                            grid_epsilon = seq(0.001, 1, 0.01)) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)

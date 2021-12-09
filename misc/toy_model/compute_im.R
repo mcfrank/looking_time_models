@@ -4,7 +4,7 @@
 
 get_kl_after_obs <- function(grid_step, prior_alpha, prior_beta, obs = FALSE){
   
-  prior <- dbeta(seq(0.01, 0.99, grid_step), prior_alpha, prior_beta) / sum(dbeta(seq(0.01, 0.99, grid_step), 
+  prior <- dbeta(seq(0.01, 1, grid_step), prior_alpha, prior_beta) / sum(dbeta(seq(0.01, 1, grid_step), 
                                                                              prior_alpha, 
                                                                              prior_beta))
   
@@ -16,7 +16,7 @@ get_kl_after_obs <- function(grid_step, prior_alpha, prior_beta, obs = FALSE){
     post_beta = prior_beta + 1
   }
   
-  post <- dbeta(seq(0.01, 0.99, grid_step), post_alpha, post_beta) / sum(dbeta(seq(0.01, 0.99, grid_step), 
+  post <- dbeta(seq(0.01, 1, grid_step), post_alpha, post_beta) / sum(dbeta(seq(0.01, 1, grid_step), 
                                                                           post_alpha, 
                                                                           post_beta))
   
