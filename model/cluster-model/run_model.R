@@ -75,7 +75,7 @@ tidy_sim <- all_res %>%
   unnest(res) %>% 
   select(!starts_with("f")) %>% 
   left_join(lk_table, by = "row_number") %>% 
-  group_by(params_info, stimulus_idx) %>% 
+  group_by(row_number, params_info, stimulus_idx) %>% 
   summarise(sample_n = n())
 
 
