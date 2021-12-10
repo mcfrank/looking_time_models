@@ -120,7 +120,8 @@ sim <-  readRDS(here("model/cached_data/sim_res.RDS"))
 ```
 
 ```{r}
-sim
+sim %>% 
+  mutate(row_num)
 ```
 
 ```{r}
@@ -138,15 +139,17 @@ lk_table
 
 ```{r}
 tidy_sim <- sim %>% 
+  filter(row_number < 10) %>% 
   ungroup() %>% 
   select(row_number, res) %>% 
   unnest(cols = c(res)) %>% 
   unnest(res) %>% 
   select(!starts_with("f")) %>% 
   left_join(lk_table, by = "row_number") %>% 
-  group_by(params_info, stimulus_idx) %>% 
+  group_by(row_number, params_info, stimulus_idx) %>% 
   summarise(sample_n = n())
   
+tidy_sim
 ```
 
 
