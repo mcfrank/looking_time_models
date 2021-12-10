@@ -115,33 +115,38 @@ bind_rows(hab, dishab) %>%
 
 
 ```{r}
-library(doParallel)
+sim <-  readRDS(here("model/cached_data/sim_res.RDS"))
+
+```
+
+```{r}
+sim
+```
+
+```{r}
+lk_table <- sim %>% 
+  unnest(data) %>% 
+  mutate(
+    params_info = paste0("ep_", noise_parameter, "_wEIG_", 
+                         world_EIG, "_of_", on_features_n)  
+  ) %>% 
+  select(row_number, params_info)
+
+lk_table
 ```
 
 
 ```{r}
-registerDoParallel(cores=1)
-
-# bootstrap iteration example
-x <- iris[which(iris[,5] != "setosa"), c(1,5)]
-iterations <- 10000# Number of iterations to run
-
-# parallel loop
-# note the '%dopar%' instruction
-parallel_time <- system.time({
-  r <- foreach(icount(iterations), .combine=rbind) %dopar% {
-    ind <- sample(100, 100, replace=TRUE)
-    result1 <- glm(x[ind,2]~x[ind,1], family=binomial(logit))
-    coefficients(result1)
-  }
-})[3]
-
-# show the number of parallel workers to be used
-getDoParWorkers()
-
-# execute the function
-parallel_time
+tidy_sim <- sim %>% 
+  ungroup() %>% 
+  select(row_number, res) %>% 
+  unnest(cols = c(res)) %>% 
+  unnest(res) %>% 
+  select(!starts_with("f")) %>% 
+  left_join(lk_table, by = "row_number") %>% 
+  group_by(params_info, stimulus_idx) %>% 
+  summarise(sample_n = n())
+  
 ```
-
 
 
