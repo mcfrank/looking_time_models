@@ -60,5 +60,24 @@ all_res <- foreach(i = 1:(max(all_sims_params$row_number)), .combine=rbind, .err
 } 
   
 
-saveRDS(all_res, paste0(Sys.time(),"_sim_res.RDS"))
+lk_table <- all_res %>% 
+  unnest(data) %>% 
+  mutate(
+    params_info = paste0("ep_", noise_parameter, "_wEIG_", # this needs to be adapted to recognizing changed parameters
+                         world_EIG, "_of_", on_features_n)  
+  ) %>% 
+  select(row_number, params_info)
+
+tidy_sim <- all_res %>% 
+  ungroup() %>% 
+  select(row_number, res) %>% 
+  unnest(cols = c(res)) %>% 
+  unnest(res) %>% 
+  select(!starts_with("f")) %>% 
+  left_join(lk_table, by = "row_number") %>% 
+  group_by(params_info, stimulus_idx) %>% 
+  summarise(sample_n = n())
+
+
+saveRDS(tidy_sim, "tidy_sim_res.RDS")
 
