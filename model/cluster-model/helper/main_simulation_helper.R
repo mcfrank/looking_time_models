@@ -56,7 +56,8 @@ main_simulation <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+  # t needs to be < max observation instead of == to prevent OOB in the KL calculation phase 
+  while(stimulus_idx <= total_trial_number && t < params$max_observation) {
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
     
