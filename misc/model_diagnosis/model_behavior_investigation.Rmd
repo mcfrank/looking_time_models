@@ -115,13 +115,70 @@ bind_rows(hab, dishab) %>%
 
 
 ```{r}
-sim <-  readRDS(here("model/cached_data/sim_res.RDS"))
+sim <-  readRDS(here("model/cached_data/tidy_sim_res.RDS"))
 
 ```
 
 ```{r}
 sim %>% 
-  mutate(row_num)
+  ungroup(row_number, params_info) %>% 
+  distinct(params_info)
+```
+
+
+```{r}
+sim %>% 
+  mutate(
+    complexity = case_when(
+      grepl("of_1", params_info) ~ "simple_1T5F", 
+      grepl("of_3", params_info) ~ "complex_3T3F"
+    ), 
+    params_info = case_when(
+      grepl("ep_0.01_wEIG_0.005", params_info) ~ "ep_0.01_wEIG_0.005", 
+      grepl("ep_0.01_wEIG_0.1", params_info) ~ "ep_0.01_wEIG_0.1", 
+      grepl("ep_0.05_wEIG_0.005", params_info) ~ "ep_0.05_wEIG_0.005", 
+      grepl("ep_0.05_wEIG_0.1", params_info) ~ "ep_0.05_wEIG_0.1"
+    )
+  ) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  facet_wrap(~params_info) + 
+  labs(title = "theta_prior: a1b30; epsilon_prior: a1b10") + 
+  theme_classic()
+```
+
+
+```{r}
+sim3 <-  readRDS(here("model/cached_data/tidy_sim_res3.RDS"))
+
+```
+
+```{r}
+sim3 %>% 
+  ungroup(row_number, params_info) %>% 
+  distinct(params_info)
+```
+
+
+```{r}
+sim3 %>% 
+  mutate(
+    complexity = case_when(
+      grepl("of_1", params_info) ~ "simple_1T5F", 
+      grepl("of_3", params_info) ~ "complex_3T3F"
+    ), 
+    params_info = case_when(
+      grepl("ep_0.001_wEIG_0.005", params_info) ~ "ep_0.001_wEIG_0.005", 
+      grepl("ep_0.005_wEIG_0.005", params_info) ~ "ep_0.005_wEIG_0.005"
+    )
+  ) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  facet_wrap(~params_info) + 
+  labs(title = "theta_prior: a1b30; epsilon_prior: a1b10") + 
+  theme_classic()
 ```
 
 ```{r}

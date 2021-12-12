@@ -8,11 +8,19 @@ library(foreach)
 registerDoParallel(cores=16)
 getDoParWorkers()
 
+ON_CLUSTER = FALSE
 
-source("~/poke_model/helper/make_scheme_and_params.r") # can't believe it's case sensitive on the server!
-source("~/poke_model/helper/initialization.r")
-source("~/poke_model/helper/probability_computations.R")
-source("~/poke_model/helper/main_simulation_helper.R")
+if (ON_CLUSTER){
+  source("~/poke_model/helper/make_scheme_and_params.r") # can't believe it's case sensitive on the server!
+  source("~/poke_model/helper/initialization.r")
+  source("~/poke_model/helper/probability_computations.R")
+  source("~/poke_model/helper/main_simulation_helper.R")
+}else{
+  source(here("helper/make_scheme_and_params.r"))
+  source(here("helper/initialization.r"))
+  source(here("helper/probability_computations.R"))
+  source(here("helper/main_simulation_helper.R"))
+}
 
 
 alpha_epsilons = c(1)
@@ -23,59 +31,96 @@ alpha_priors = c(1)
 beta_priors = c(30)
 noise_parameters = c(0.01, 0.05)
 world_EIGs = c(0.005, 0.1)
-max_observation = c(1500)
+
+max_observation = c(3000) # some combination of the prams are going to end up having very high observation
+
+# prior search upper bound 
+ps_ub = 3
+# prior search lower bound
+ps_lb = 1
+# prior search step 
+ps_s = 0.5
+
+alpha_epsilons = seq(ps_lb, ps_ub, ps_s)
+beta_epsilons = seq(ps_lb, ps_ub, ps_s)
+alpha_priors = seq(ps_lb, ps_ub, ps_s)
+beta_priors = seq(ps_lb, ps_ub, ps_s)
+
+
+# noise search upper bound 
+ns_ub = 0.08
+# noise search lower bound 
+ns_lb = 0.01
+# noise search step
+ns_s = 0.05
+
+noise_parameters = seq(ns_lb, ns_ub, ns_s)
+
+
+# wEIG upper bound 
+weig_ub = 0.005
+# wEIG lower bound
+weig_lb = 0.001
+# wEIG 
+weig_s = 0.001
+
+weig_parameters = seq(weig_lb, weig_ub, weig_s)
+
+
+# needs to first have a complete record of the parameter 
+# then have a quick way to control for certain parameter and look for pattern 
+
 
 model_params <- set_model_params(alpha_priors, beta_priors,
                                  alpha_epsilons, beta_epsilons,
-                                 noise_parameters, world_EIGs, max_observation)
+                                 noise_parameters, world_EIGs, max_observation) %>% 
+  filter(alpha_prior < beta_prior, alpha_epsilon < beta_epsilon) %>% 
+  mutate(params_id = row_number() 
+  )
 
 
 # set stimuli-related parameters
 features_df <- tibble(
-  n_features = c(6, 6),
-  on_features_n = c(1, 3)
+  n_features = c(1),
+  on_features_n = c(1)
 )
-sequence_scheme = c("BBBBDB")
+sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
 
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-full_params_df <- make_simulation_params(n_sim = 100,
+full_params_df <- make_simulation_params(n_sim = 1,
                                          model_params,
                                          stims_df)
 
 
 all_sims_params <- full_params_df %>%
-  mutate(row_number = row_number()) %>% 
-  group_by(row_number) %>% 
+  mutate(sim_id = row_number()) %>% 
+  group_by(sim_id,stim_info, params_info) %>% 
   nest() 
 
+all_sims_params <- all_sims_params %>% head(3)
 
-all_res <- foreach(i = 1:(max(all_sims_params$row_number)), .combine=rbind, .errorhandling = "remove") %dopar% {
+  
+  
+all_res <- foreach(i = 1:(max(all_sims_params$sim_id)), .combine=rbind, .errorhandling = "remove") %dopar% {
   
   res <- all_sims_params[i, ] %>% 
     mutate(res = main_simulation(params = (all_sims_params[i, ]$data)[[1]]) %>% nest(res = everything()))
-    
-  sprintf("currently running task %s out of %s tasks", as.character(i), as.character(max(all_sims_params$row_number))) 
-} 
   
+} 
 
-lk_table <- all_res %>% 
-  unnest(data) %>% 
-  mutate(
-    params_info = paste0("ep_", noise_parameter, "_wEIG_", # this needs to be adapted to recognizing changed parameters
-                         world_EIG, "_of_", on_features_n)  
-  ) %>% 
-  select(row_number, params_info)
+
+
 
 tidy_sim <- all_res %>% 
   ungroup() %>% 
-  select(row_number, res) %>% 
+  select(sim_id, params_info, stim_info, res) %>% 
   unnest(cols = c(res)) %>% 
   unnest(res) %>% 
   select(!starts_with("f")) %>% 
-  left_join(lk_table, by = "row_number") %>% 
-  group_by(row_number, params_info, stimulus_idx) %>% 
+  group_by(sim_id, params_info, stim_info, stimulus_idx) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
   summarise(sample_n = n())
 
 
