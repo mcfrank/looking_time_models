@@ -1,7 +1,7 @@
 #!/usr/bin/bash
-#SBATCH --time=5:00:00
-#SBATCH --mem=10G
-#SBATCH --output=R-model.log
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=32
+#SBATCH --output=R-model-parallel.log
 
 # load the module
 ml R/3.6
