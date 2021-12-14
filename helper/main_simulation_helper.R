@@ -147,7 +147,6 @@ main_simulation <- function(params = df,
 
     model$EIG[t] <- sum(p_post_new * kl_new)
 
-    browser()
 
     # luce choice probability whether to look away
     model$p_look_away[t] = rectified_softmax(x = params$world_EIG,
