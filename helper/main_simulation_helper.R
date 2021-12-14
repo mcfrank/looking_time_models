@@ -4,10 +4,11 @@
 # runs main simulation computing EIG
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
-                            grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2)) {
+                            grid_theta = seq(0.001, 1, 0.01),
+                            grid_epsilon = seq(0.001, 1, 0.01)) {
+  
+  ### BOOK-KEEPING 
 
-  ### BOOK-KEEPING
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
 
   # df for keeping track of model behavior
@@ -56,7 +57,8 @@ main_simulation <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+  # t needs to be < max observation instead of == to prevent OOB in the KL calculation phase 
+  while(stimulus_idx <= total_trial_number && t < params$max_observation) {
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
 

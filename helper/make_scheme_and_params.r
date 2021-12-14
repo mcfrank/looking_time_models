@@ -17,8 +17,12 @@ set_model_params <- function(alpha_priors,
     world_EIG = world_EIGs, 
     max_observation = max_observation
   ) %>% 
-    mutate(params_id = row_number(), 
-    )
+    mutate(params_info = paste("ae", alpha_epsilon, 
+                               "be", beta_epsilon, 
+                               "ap", alpha_prior, 
+                               "bp", beta_prior, 
+                               "np", noise_parameter, 
+                               "wEIG", world_EIG, sep = "_"))
   
   return(model_params_df)
   
@@ -36,7 +40,11 @@ set_stim_params <- function(sequence_scheme, features_df){
       stimuli_sequence = nest(scheme_to_stimuli(sequence_scheme, 
                                                 n_features = n_features, 
                                                 on_features_n = on_features_n), data = everything())) %>% 
-    ungroup() 
+    ungroup() %>% 
+    mutate(stim_info = paste("nf", n_features, 
+                             "of", on_features_n, 
+                             "ss", sequence_scheme, 
+                             sep = "_"))
   
   return(stimulus_sequence_df)
 }
@@ -74,8 +82,9 @@ scheme_to_stimuli <- function(sequence_scheme, n_features, on_features_n){
     # R has annoying behaviors for sample when the vector length is 1
     # can't use if_else because it has an annoying behavior that forces both clause return the same thing 
     
-    if (n_features - on_features_n == 1){
-      on_location <-  which(background_creature == TRUE)
+    if (n_features - on_features_n == 1 | n_features == on_features_n){
+
+      on_location <-  sample(which(background_creature == TRUE), 1)
       off_location <-  which(background_creature == FALSE)
     }else{
       on_location <- sample(which(background_creature == TRUE), size = n_features - on_features_n)
