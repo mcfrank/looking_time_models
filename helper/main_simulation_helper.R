@@ -4,10 +4,11 @@
 # runs main simulation computing EIG
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
-                            grid_theta = seq(0.1, 1, 0.2),
-                            grid_epsilon = seq(0.1, 1, 0.2)) {
+                            grid_theta = seq(0.001, 1, 0.01),
+                            grid_epsilon = seq(0.001, 1, 0.01)) {
 
   ### BOOK-KEEPING
+
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
 
   # df for keeping track of model behavior
@@ -56,7 +57,8 @@ main_simulation <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+  # t needs to be < max observation instead of == to prevent OOB in the KL calculation phase
+  while(stimulus_idx <= total_trial_number && t < params$max_observation) {
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
 
@@ -126,21 +128,12 @@ main_simulation <- function(params = df,
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
-<<<<<<< HEAD
 
         #reset the model so that it doesn't behave weird in the end
         model[t+1, paste0("f", f)] <- NA
 
       }
     }
-=======
- 
-      }
-    }
-    
-    
-    
->>>>>>> parent of 818f38f... Merge pull request #21 from mcfrank/clean-up-main
 
     # reset the model stimulus so that it doesn't behave weird at the last stimulus
     model$stimulus_idx[t+1] <- NA_real_
@@ -154,7 +147,6 @@ main_simulation <- function(params = df,
 
     model$EIG[t] <- sum(p_post_new * kl_new)
 
-    browser()
 
     # luce choice probability whether to look away
     model$p_look_away[t] = rectified_softmax(x = params$world_EIG,

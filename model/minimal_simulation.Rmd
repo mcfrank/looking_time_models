@@ -22,7 +22,7 @@ source(here("helper/main_simulation_helper.R"))
 d <- read_csv(here("data/processed_rt_task_data.csv"))
 
 # set up multicore sims
-future::plan(multicore)
+#future::plan(multicore)
 ```
 
 Figuring out the sequence and generate the stimuli sequence with all the parameters 
