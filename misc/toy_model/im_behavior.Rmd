@@ -1,0 +1,139 @@
+---
+title: "eig behavior in beta distribution models"
+author: "anjie & gal"
+date: "12/6/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(philentropy) # preexisting package for KL calculation; verified by hand 
+library(here)
+
+
+source(here("misc/toy_model/compute_im.R"))
+source(here("misc/toy_model/toy_model_helper.R"))
+
+```
+
+we observed some weird oscillations in the EIG with extreme prior cases. this markdown is intended to investigate what's going on in those oscillations. 
+
+after some initial poke-around on a particular case (when prior is a1b30, the model shows a very weird EIG bumps on the last observed stimulus. we looked at the different components of EIG and found the KL for when hypothetical observation is false is disproportionately large), we decided to use a basic beta distribution model to see how KL behaves in extreme prior case as evidence accumulates. 
+
+
+this first run seems to reflect the weird oscillations we saw in the main model. 
+this represents the process of model accumulating TRUE observation: it starts with a strong prior in favor of seeing FALSE (a1b100) and gradually shifts toward favoring seeing TRUE (a200b100).  
+
+
+
+```{r message=FALSE, warning=FALSE}
+prior_df <- tibble(
+  grid_step = rep(0.1, 200),
+  prior_alpha = seq(1, 200) , # to mimic accumulating true observation 
+  prior_beta = rep(100, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_alpha, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+```
+
+
+and we can see similar thing in the reverse direction. when the prior is favoring fasle and gradually shift toward true:
+
+```{r message=FALSE, warning=FALSE}
+prior_df <- tibble(
+  grid_step = rep(0.1, 200),
+  prior_alpha =  rep(100, 200),
+  prior_beta = seq(1, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_beta, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+```
+
+
+interestingly, these oscillations disappears when you use smaller grid steps: 
+
+
+```{r message=FALSE, warning=FALSE}
+prior_df <- tibble(
+  grid_step = rep(0.001, 200),
+  prior_alpha = seq(1, 200) , # to mimic accumulating true observation 
+  prior_beta = rep(100, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_alpha, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+
+prior_df <- tibble(
+  grid_step = rep(0.001, 200),
+  prior_alpha =  rep(100, 200),
+  prior_beta = seq(1, 200)
+)
+
+res<-run_toy_model(prior_df) 
+
+res %>% 
+  ggplot(aes(x = prior_beta, y = value, color = value_type)) + 
+  geom_point() + 
+  ylab("kl") + 
+  xlab(paste0("a_?_b_100"))
+```
+
+we also realized another way in which the values in grid can have an influence on the trajectory of KL. 
+when we set the upper bound of the grid theta to be 1, the first value in the KL is very high and the trend of KL is monotonic. When we set the upper bound of the grid theta to be .99, we will have non-monotonicity with the first KL lower than the second one. The rest of the plots are the same. 
+
+```{r message=FALSE, warning=FALSE}
+# using grid with upper bound being 0.99
+theta = seq(0.01, 0.99, by = 0.01)
+my_len = 200
+alpha = rep(100,my_len)
+beta = seq(1, my_len)
+kl_false_99 <- vector(mode = 'numeric', length = my_len)
+for (i in 1:length(kl_false_99)) {
+  posterior <- dbeta(theta, alpha[i], beta[i]) / sum(dbeta(theta, alpha[i], beta[i]))
+  false_obs <- dbeta(theta, alpha[i], beta[i] + 1) / sum(dbeta(theta, alpha[i], beta[i] + 1))
+  kl_false_99[i] = KL(rbind(false_obs,posterior), unit = "log")
+}
+
+# using grid with upper bound being 1
+theta = seq(0.01, 1, by = 0.01)
+my_len = 200
+alpha = rep(100,my_len)
+beta = seq(1, my_len)
+kl_false_1 <- vector(mode = 'numeric', length = my_len)
+for (i in 1:length(kl_false_99)) {
+  posterior <- dbeta(theta, alpha[i], beta[i]) / sum(dbeta(theta, alpha[i], beta[i]))
+  false_obs <- dbeta(theta, alpha[i], beta[i] + 1) / sum(dbeta(theta, alpha[i], beta[i] + 1))
+  kl_false_1[i] = KL(rbind(false_obs,posterior), unit = "log")
+}
+
+tibble( 
+  kl_false_with_99 = kl_false_99, 
+  kl_false_with_1 = kl_false_1) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_longer(cols = starts_with("kl"),names_to = "kl_type") %>% 
+  ggplot(aes(x = id, y = value, color = kl_type)) + 
+  geom_point() + 
+  facet_wrap(~kl_type) + 
+  xlab("a_100b_?")
+ 
+```
+
+
+

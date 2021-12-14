@@ -19,378 +19,194 @@ library(patchwork)
 source(here("helper/make_scheme_and_params.R"))
 source(here("helper/initialization.R"))
 source(here("helper/probability_computations.R"))
-source(here("helper/main_simulation_with_visualization.R"))
+source(here("misc/model_diagnosis/main_simulation_with_visualization.R"))
 
 
 ```
 
 
 # Understanding dishabituation patterns 
+
 ```{r}
-alpha_epsilon = c(1)
-beta_epsilon = c(10)
-alpha_priors = c(1)
-beta_priors = c(1)
+alpha_epsilons = c(1)
+beta_epsilons = c(10)
+alpha_priors = c(1,10,30)
+beta_priors = c(1,10,30)
 noise_parameters = c(0)
-world_EIG = c(0.001)
-max_observation = 100
-fixed_length_complexity = FALSE 
-feature_space_n = 7
-simple_feature_n = 1
-complex_feature_n = 1
-dissimilar_ratio = 1
-#sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
+world_EIGs = c(0.001)
+max_observation = c(800)
 
-sequence_scheme = c("BD", "BBD", "BBBD", "BBBBD", "BBBBBD", "BB","BBB", "BBBB", "BBBBB", "BBBBBB")
+model_params <- set_model_params(alpha_priors, beta_priors, 
+                alpha_epsilons, beta_epsilons, 
+                noise_parameters, world_EIGs, max_observation)
 
-complexity = c("simple") #"complex", 
-n <- 1 # doesn't perform as expected
 
-full_params_df <- make_simulation_params(n = n,
-                                         sequence_scheme, 
-                                         complexity, 
-                                         alpha_priors, 
-                                         beta_priors, 
-                                         alpha_epsilon, 
-                                         beta_epsilon, 
-                                         noise_parameters, 
-                                         world_EIG, 
-                                         max_observation, 
-                                         fixed_length_complexity, 
-                                         feature_space_n, 
-                                         simple_feature_n, 
-                                         complex_feature_n, 
-                                         dissimilar_ratio)
+# set stimuli-related parameters 
+features_df <- tibble(
+  n_features = c(1), 
+  on_features_n = c(1)
+)
+sequence_scheme = c("BBBBDB")
 
-# note that this should happen in make_simulation_params
-full_params_df <- full_params_df %>%
-  left_join(expand_grid(sub_id = 1:n, params_id = 1, sim_id = 1:80)) %>%
-  mutate(n_features = 1)
+stims_df <- set_stim_params(sequence_scheme, features_df)
+
+
+full_params_df <- make_simulation_params(n_sim = 100,
+                                        model_params, 
+                                        stims_df)
 
 ```
 
+note: starts with 0 results in buggy behavior 
 
 ```{r}
-full_params_df
-```
 
-
-```{r}
+tic()
 all_sims_res <- full_params_df %>%
-  group_by(params_id, sim_id, sub_id) %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
   nest() %>%
   mutate(results = map(data,
                        function(df) main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
-```
+toc()
 
-
-
-- it looks like the EIG bumps is consistent with what would be expected, but note that the significant drop in the last deviant trial 
-- it took many points for the observation at the first trial to reach asymptotic, less point for the following trials
-
-
-```{r}
-all_sims_res %>% 
-  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
-  geom_point() + 
-  geom_line() + 
-  facet_wrap(~sequence_scheme)
 ```
 
 ```{r}
 all_sims_res %>% 
-  ggplot(aes(x = t, y = p_look_away, color = as.factor(stimulus_idx))) + 
-  geom_point() + 
-  geom_line() + 
-  facet_wrap(~sequence_scheme)
-
-all_sims_res %>% 
-  ggplot(aes(x = EIG, y = p_look_away)) + 
-  geom_point() + 
-  #geom_line() + 
-  facet_wrap(~sequence_scheme)
+  head()
 ```
 
 
-why would this be the case?
- 
-well this break down is a little difficult to tell, maybe i should have a comparison between the trajectory on BD vs BB, BBD vs BBB or sth like that 
+observation: BBBBBB 
 
-```{r}
-
- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBD") %>% nest() %>% unnest(), 
-                visualization = TRUE)
-
- 
-  main_simulation(params = full_params_df %>% filter(sequence_scheme == "BBBBBB") %>% nest() %>% unnest(), 
-                visualization = TRUE)
-
-
- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BD") %>% nest() %>% unnest(), 
-                visualization = TRUE)
- 
- 
- main_simulation(params = full_params_df %>% filter(sequence_scheme == "BB") %>% nest() %>% unnest(), 
-                visualization = TRUE)
-```
 ```{r}
 all_sims_res %>% 
-  rowwise() %>% 
-  mutate(sequence_length = nchar(as.character(sequence_scheme)), 
-         item_type = case_when(
-           sequence_length == 2 & sequence_scheme == "BD" & stimulus_idx == 2 ~ "deviant", 
-           sequence_length == 3 & sequence_scheme == "BBD" &stimulus_idx == 3 ~ "deviant", 
-           sequence_length == 4 & sequence_scheme == "BBBD" & stimulus_idx == 4 ~ "deviant", 
-           sequence_length == 5 & sequence_scheme == "BBBBD" & stimulus_idx == 5 ~ "deviant", 
-            sequence_length == 6 & sequence_scheme == "BBBBBD" & stimulus_idx == 6 ~ "deviant",
-           TRUE ~ "background"
-         )) %>% 
-  ggplot(aes(x = t, y = EIG, color = item_type, group = sequence_scheme)) + 
-  geom_point() + 
-  geom_line() + 
-  facet_wrap(sequence_length~sequence_scheme)
-  
+  mutate(prior_info = paste0("a", alpha_prior, "b", beta_prior)) %>% 
+  group_by(row_number, prior_info, sub_id, stimulus_idx, sequence_scheme) %>% 
+  summarise(sample_n = n()) %>% 
+  #filter(sequence_scheme == "BBBBBBBB") %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+  #geom_point(alpha = .3) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line") + 
+  facet_wrap(~prior_info)
 ```
 
-# Understanding Complexity 
-- things that might influence complexity effect: 
-  - complexity representation: fixed length vector or vector length representing complexity 
-  - prior: how likely feature is going to occur is going to have an influence on the "informativeness" of the feature appearing. 
-      - try: a10b1, a1b1, a1b10, a10b10
-
-needs 8 possible combinations, each has simple or complex, so 16 rows  
-      
 ```{r}
-alpha_epsilon = c(1)
-beta_epsilon = c(10)
-alpha_priors = c(1, 10)
-beta_priors = c(1, 10)
-noise_parameters = c(0)
-world_EIG = c(0.001)
-max_observation = 100
-fixed_length_complexity = FALSE 
-feature_space_n = 7
-simple_feature_n = 1
-complex_feature_n = 3
-dissimilar_ratio = 1
-#sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
+hab <- readRDS(here("dishab_sim_BBBBBB.RDS")) %>% 
+  mutate(sequence_scheme = "BBBBBB") # a bug
+dishab <- readRDS(here("dishab_sim_BBBBDB.RDS"))
+```
 
-sequence_scheme = c("BBBBB")
-
-complexity = c("simple", "complex") 
-n <- 1 # doesn't perform as expected
-
-fixed_length_params_df <- make_simulation_params(n = n,
-                                         sequence_scheme, 
-                                         complexity, 
-                                         alpha_priors, 
-                                         beta_priors, 
-                                         alpha_epsilon, 
-                                         beta_epsilon, 
-                                         noise_parameters, 
-                                         world_EIG, 
-                                         max_observation, 
-                                         fixed_length_complexity = TRUE, 
-                                         feature_space_n, 
-                                         simple_feature_n, 
-                                         complex_feature_n, 
-                                         dissimilar_ratio)
-
-
-
-flex_length_params_df <- make_simulation_params(n = n,
-                                         sequence_scheme, 
-                                         complexity, 
-                                         alpha_priors, 
-                                         beta_priors, 
-                                         alpha_epsilon, 
-                                         beta_epsilon, 
-                                         noise_parameters, 
-                                         world_EIG, 
-                                         max_observation, 
-                                         fixed_length_complexity = FALSE, 
-                                         feature_space_n, 
-                                         simple_feature_n, 
-                                         complex_feature_n, 
-                                         dissimilar_ratio) 
-
-# this is a temproary fix to get the right index for parameters
-
-complexity_params <- bind_rows(fixed_length_params_df, flex_length_params_df) %>% 
-  mutate(params_id = case_when(
-    fixed_length_complexity ~ as.integer(params_id), 
-    fixed_length_complexity == FALSE ~ as.integer(params_id) + as.integer(4)
-  )) %>% 
-  rowwise() %>% 
-  mutate(n_features = ncol(stimuli_sequence$data[[1]]) - 1)
-  
+```{r}
+bind_rows(hab, dishab) %>% 
+  mutate(prior_info = paste0("a", alpha_prior, "b", beta_prior)) %>% 
+  group_by(row_number, prior_info, sub_id, stimulus_idx, sequence_scheme) %>% 
+  summarise(sample_n = n()) %>% 
+  #filter(sequence_scheme == "BBBBBBBB") %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = sequence_scheme)) + 
+  #geom_point(alpha = .3) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "pointrange", position = position_dodge(width = .5)) + 
+   stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) +
+  facet_wrap(~prior_info) + 
+  theme_classic()
 ```
 
 
+```{r}
+sim <-  readRDS(here("model/cached_data/tidy_sim_res.RDS"))
+
+```
 
 ```{r}
-  
-all_sims_res_complexity <- complexity_params %>%
-  group_by(params_id, sim_id) %>%
-  nest() %>%
-  mutate(sub_id = 1)
-  mutate(results = map(data,
-                       function(df) main_simulation(params = df))) %>%
-  unnest(cols = c(data, results))
+sim %>% 
+  ungroup(row_number, params_info) %>% 
+  distinct(params_info)
 ```
 
 
-FALSE = flexible length complexity, 1 feature vs 3 feature 
-TRUE = fixed length complexity, 6 FALSE 1 TRUE vs 4 FALSE 3 TRUE  
-
 ```{r}
-all_sims_res_complexity %>% 
+sim %>% 
   mutate(
-    param = paste0("a", alpha_prior, "b", beta_prior, "_", fixed_length_complexity)
+    complexity = case_when(
+      grepl("of_1", params_info) ~ "simple_1T5F", 
+      grepl("of_3", params_info) ~ "complex_3T3F"
+    ), 
+    params_info = case_when(
+      grepl("ep_0.01_wEIG_0.005", params_info) ~ "ep_0.01_wEIG_0.005", 
+      grepl("ep_0.01_wEIG_0.1", params_info) ~ "ep_0.01_wEIG_0.1", 
+      grepl("ep_0.05_wEIG_0.005", params_info) ~ "ep_0.05_wEIG_0.005", 
+      grepl("ep_0.05_wEIG_0.1", params_info) ~ "ep_0.05_wEIG_0.1"
+    )
   ) %>% 
-  ggplot(aes(x = t, y = EIG, color = complexity)) + 
-  geom_point()+
-  geom_line()+
-  facet_wrap(~param)
-```
-how does this translate to looking time sample? 
-
-```{r}
-n_sim = 50
-
-complexity_params <- bind_rows(fixed_length_params_df, flex_length_params_df) %>% 
-  mutate(params_id = case_when(
-    fixed_length_complexity ~ as.integer(params_id), 
-    fixed_length_complexity == FALSE ~ as.integer(params_id) + as.integer(4)
-  )) %>% 
-  rowwise() %>% 
-  mutate(n_features = ncol(stimuli_sequence$data[[1]]) - 1)
-
-
-sims_res_complexity_fs <- complexity_params %>%
-  filter(alpha_prior == 1 & beta_prior == 10) %>% 
-  left_join(expand_grid(sim_id = 1:2, params_id = c(2, 6), sub_id = 1:n_sim)) %>% 
-  group_by(params_id, sim_id, sub_idn) %>%
-  nest() %>%
-  mutate(results = map(data,
-                       function(df) main_simulation(params = df))) %>%
-  unnest(cols = c(data, results))
-```
-
-```{r}
-sims_res_complexity_fs %>% 
-  mutate(params_info = paste0("a", alpha_prior, "b", beta_prior, "_", fixed_length_complexity)) %>% 
-  group_by(params_id, params_info, sim_id, sub_id, stimulus_idx) %>% 
-  summarise(sample_n = n()) %>% 
-  filter(!is.na(stimulus_idx)) %>% 
-  ggplot(aes(x = stimulus_idx, y = sample_n, color = as.factor(sim_id))) + 
-  #geom_point() + 
-  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
-  theme_classic()+
-  facet_wrap(~params_info)
-```
-
-
-```{r}
-sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
-
-complexity = c("simple", "complex") 
-
-alpha_priors = c(1, 10)
-beta_priors = c(1, 10)
-
-fixed_length_params_df <- make_simulation_params(n = n,
-                                         sequence_scheme, 
-                                         complexity, 
-                                         alpha_priors, 
-                                         beta_priors, 
-                                         alpha_epsilon, 
-                                         beta_epsilon, 
-                                         noise_parameters, 
-                                         world_EIG, 
-                                         max_observation, 
-                                         fixed_length_complexity = TRUE, 
-                                         feature_space_n, 
-                                         simple_feature_n, 
-                                         complex_feature_n, 
-                                         dissimilar_ratio)
-
-
-
-flex_length_params_df <- make_simulation_params(n = n,
-                                         sequence_scheme, 
-                                         complexity, 
-                                         alpha_priors, 
-                                         beta_priors, 
-                                         alpha_epsilon, 
-                                         beta_epsilon, 
-                                         noise_parameters, 
-                                         world_EIG, 
-                                         max_observation, 
-                                         fixed_length_complexity = FALSE, 
-                                         feature_space_n, 
-                                         simple_feature_n, 
-                                         complex_feature_n, 
-                                         dissimilar_ratio) 
-
-# this is a temproary fix to get the right index for parameters
-
-complexity_params <- bind_rows(fixed_length_params_df, flex_length_params_df) %>% 
-  mutate(params_id = case_when(
-    fixed_length_complexity ~ as.integer(params_id), 
-    fixed_length_complexity == FALSE ~ as.integer(params_id) + as.integer(4)
-  )) %>% 
-  rowwise() %>% 
-  mutate(n_features = ncol(stimuli_sequence$data[[1]]) - 1)
-
-
-sims_res_complexity_fs_trajectory <- complexity_params %>%
-  filter(alpha_prior == 1) %>% 
-  filter(beta_prior == 10) %>% 
-  left_join(expand_grid(sim_id = 1:8, params_id = c(2, 6), sub_id = 1:n_sim)) %>% 
-  group_by(params_id, sim_id, sub_id) %>%
-  nest() %>%
-  mutate(results = map(data,
-                       function(df) main_simulation(params = df))) %>%
-  unnest(cols = c(data, results))
-```
-
-```{r}
-sims_res_complexity_fs_trajectory
-```
-
-
-```{r}
-sims_res_complexity_fs_trajectory %>% 
-  mutate(params_info = paste0("a", alpha_prior, "b", beta_prior, "_", fixed_length_complexity)) %>% 
-  group_by(params_id, sequence_scheme, params_info, sim_id, sub_id, stimulus_idx, complexity) %>% 
-  summarise(sample_n = n()) %>% 
   filter(!is.na(stimulus_idx)) %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
-  #geom_point() + 
-  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
-  theme_classic()+
-  facet_wrap(params_info~sequence_scheme)
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  facet_wrap(~params_info) + 
+  labs(title = "theta_prior: a1b30; epsilon_prior: a1b10") + 
+  theme_classic()
 ```
 
 
-- observation from behavioral data: very ambiguous complexity effect 
+```{r}
+sim3 <-  readRDS(here("model/cached_data/tidy_sim_res3.RDS"))
 
-- model: 
-  - start with simple case, BBBBB
-  - see dishabituation's influence: BBBBD
+```
+
+```{r}
+sim3 %>% 
+  ungroup(row_number, params_info) %>% 
+  distinct(params_info)
+```
+
+
+```{r}
+sim3 %>% 
+  mutate(
+    complexity = case_when(
+      grepl("of_1", params_info) ~ "simple_1T5F", 
+      grepl("of_3", params_info) ~ "complex_3T3F"
+    ), 
+    params_info = case_when(
+      grepl("ep_0.001_wEIG_0.005", params_info) ~ "ep_0.001_wEIG_0.005", 
+      grepl("ep_0.005_wEIG_0.005", params_info) ~ "ep_0.005_wEIG_0.005"
+    )
+  ) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  facet_wrap(~params_info) + 
+  labs(title = "theta_prior: a1b30; epsilon_prior: a1b10") + 
+  theme_classic()
+```
+
+```{r}
+lk_table <- sim %>% 
+  unnest(data) %>% 
+  mutate(
+    params_info = paste0("ep_", noise_parameter, "_wEIG_", 
+                         world_EIG, "_of_", on_features_n)  
+  ) %>% 
+  select(row_number, params_info)
+
+lk_table
+```
+
+
+```{r}
+tidy_sim <- sim %>% 
+  filter(row_number < 10) %>% 
+  ungroup() %>% 
+  select(row_number, res) %>% 
+  unnest(cols = c(res)) %>% 
+  unnest(res) %>% 
+  select(!starts_with("f")) %>% 
+  left_join(lk_table, by = "row_number") %>% 
+  group_by(row_number, params_info, stimulus_idx) %>% 
+  summarise(sample_n = n())
   
+tidy_sim
+```
 
 
-
-
-
-
-
-
-
-
-
-
-# Playing with EIG decision 

@@ -1,0 +1,140 @@
+---
+title: "cluster simulation result"
+author: "anjie & gal"
+date: "12/13/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+
+sim_res <- readRDS(here("model/cached_data/tidy_sim_res3.RDS"))
+```
+
+
+
+
+```{r}
+sim_res %>%
+  rowwise() %>% 
+  mutate(
+    stimuli_sequence =  sub(".*_", "", stim_info),
+    stimuli_rep = str_replace(stim_info, paste0("_", "ss_", stimuli_sequence), "")
+  ) %>% 
+  filter(!is.na(stimuli_sequence)) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = stimuli_rep)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_grid(params_info~stimuli_sequence) + 
+  theme_classic()
+  
+```
+
+# now let's just look at deviant 
+
+```{r}
+sim_res %>%
+  rowwise() %>% 
+  mutate(
+    stimuli_sequence =  sub(".*_", "", stim_info),
+    stimuli_rep = str_replace(stim_info, paste0("_", "ss_", stimuli_sequence), "")
+  ) %>% 
+  mutate(
+    deviant_position = case_when(
+      stimuli_sequence == "BDBBBB" ~ 2, 
+      stimuli_sequence == "BBBDBB" ~ 4,
+      stimuli_sequence == "BBBBBD" ~ 6, 
+      TRUE ~ 0
+    ), 
+    stimuli_type = case_when(
+      stimulus_idx == deviant_position ~ "deviant", 
+      TRUE ~ "background"
+    )
+  ) %>% 
+  filter(stimuli_type == "deviant") %>% 
+  ggplot(aes(x = deviant_position, y = sample_n, color = stimuli_rep)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+    stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_wrap(~params_info) +
+  theme_classic() + 
+  labs(title = "absolute sample n for deviant")
+```
+
+
+```{r}
+dev_df <- sim_res %>%
+  rowwise() %>% 
+  mutate(
+    stimuli_sequence =  sub(".*_", "", stim_info),
+    stimuli_rep = str_replace(stim_info, paste0("_", "ss_", stimuli_sequence), "")
+  ) %>% 
+  mutate(
+    deviant_position = case_when(
+      stimuli_sequence == "BDBBBB" ~ 2, 
+      stimuli_sequence == "BBBDBB" ~ 4,
+      stimuli_sequence == "BBBBBD" ~ 6, 
+      TRUE ~ 0
+    ), 
+    stimuli_type = case_when(
+      stimulus_idx == deviant_position ~ "deviant", 
+      TRUE ~ "background"
+    )
+  ) %>% 
+  filter(stimuli_type == "deviant") %>% 
+  ungroup()
+
+dev_df <- dev_df %>% 
+  rename(deviant_n = sample_n) %>% 
+  select(stimulus_idx, deviant_n, params_info, stimuli_rep, deviant_position) %>% 
+  ungroup() %>% 
+  group_by(params_info, stimuli_rep, .drop = FALSE) %>%
+  mutate(base_id = row_number())
+
+
+sim_res %>%
+  rowwise() %>% 
+  mutate(
+    stimuli_sequence =  sub(".*_", "", stim_info),
+    stimuli_rep = str_replace(stim_info, paste0("_", "ss_", stimuli_sequence), "")
+  ) %>% 
+  filter(stimuli_sequence == "BBBBBB") %>%
+  rename(background_n = sample_n) %>% 
+  filter(stimulus_idx %in% c(2, 4, 6)) %>% 
+  ungroup() %>% 
+  group_by(params_info, stimuli_rep, .drop = FALSE) %>% 
+  mutate(base_id = row_number()) %>% 
+  left_join(dev_df, by = c("base_id", "stimuli_rep", "params_info")) %>% 
+  mutate(
+    relative_dishab = deviant_n - background_n
+  ) %>% 
+  ggplot(aes(x = deviant_position, y = relative_dishab, color = stimuli_rep)) + 
+   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+    stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_wrap(~params_info) +
+  theme_classic() + 
+  labs(title = "relative n for deviant")
+  
+```
+
+
+```{r}
+fam_res <- readRDS(here("model/cached_data/fam_sim_res.RDS"))
+
+```
+
+```{r}
+fam_res %>% 
+  rowwise() %>% 
+  mutate(
+    stimuli_sequence =  sub(".*_", "", stim_info),
+    stimuli_rep = str_replace(stim_info, paste0("_", "ss_", stimuli_sequence), "")
+  ) %>% 
+  filter(!is.na(stimuli_sequence)) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, color = stimuli_rep)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_wrap(~params_info) + 
+  theme_classic()
+```
+
