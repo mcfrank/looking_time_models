@@ -126,12 +126,21 @@ main_simulation <- function(params = df,
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
+<<<<<<< HEAD
 
         #reset the model so that it doesn't behave weird in the end
         model[t+1, paste0("f", f)] <- NA
 
       }
     }
+=======
+ 
+      }
+    }
+    
+    
+    
+>>>>>>> parent of 818f38f... Merge pull request #21 from mcfrank/clean-up-main
 
     # reset the model stimulus so that it doesn't behave weird at the last stimulus
     model$stimulus_idx[t+1] <- NA_real_
