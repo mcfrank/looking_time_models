@@ -22,7 +22,8 @@ set_model_params <- function(alpha_priors,
                                "ap", alpha_prior, 
                                "bp", beta_prior, 
                                "np", noise_parameter, 
-                               "wEIG", world_EIG, sep = "_"))
+                               "wEIG", world_EIG, sep = "_")) %>% 
+    mutate(params_id = row_number())
   
   return(model_params_df)
   
