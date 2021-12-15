@@ -9,10 +9,26 @@ output: html_document
 library(tidyverse)
 library(here)
 
-sim_res <- readRDS(here("model/cached_data/tidy_sim_res3.RDS"))
+sim_res <- readRDS(here("model/cached_data/extreme_sim.RDS"))
+```
+
+```{r}
+sim_res %>% 
+  ungroup() %>% 
+  distinct(params_info)
 ```
 
 
+```{r}
+sim_res %>%
+  rowwise() %>% 
+  mutate(
+    stimuli_sequence =  sub(".*_", "", stim_info),
+    stimuli_rep = str_replace(stim_info, paste0("_", "ss_", stimuli_sequence), "")
+  ) %>% 
+  ungroup() %>% 
+  distinct(params_info)
+```
 
 
 ```{r}
