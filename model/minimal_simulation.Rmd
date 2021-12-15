@@ -45,15 +45,15 @@ model_params <- set_model_params(alpha_priors, beta_priors,
 
 # set stimuli-related parameters 
 features_df <- tibble(
-  n_features = c(5, 5), 
-  on_features_n = c(1, 3)
+  n_features = c(1), 
+  on_features_n = c(1)
 )
-sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
+sequence_scheme = c("BBBBD")
 
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-full_params_df <- make_simulation_params(n_sim = 150,
+full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
 
@@ -87,7 +87,7 @@ Clean and visualize.
 
 ```{r}
 all_sims_res %>% 
-  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme,  stimulus_idx) %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme, stimulus_idx) %>% 
   filter(!is.na(stimulus_idx)) %>% 
   summarise(sample_n = n()) %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n, group = as.factor(on_features_n))) + 
@@ -101,7 +101,3 @@ observation:
 - dishabituation is still very weak 
 - weird tail going up that doesn't make sense 
 - complexity showing up in the dishabituation trial (kind of) but not really 
-
-
-
-

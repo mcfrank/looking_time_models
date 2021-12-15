@@ -8,7 +8,7 @@ library(foreach)
 registerDoParallel(cores=32)
 getDoParWorkers()
 
-ON_CLUSTER = TRUE
+ON_CLUSTER = FALSE
 
 if (ON_CLUSTER){
   source("~/poke_model/helper/make_scheme_and_params.r") # can't believe it's case sensitive on the server!
