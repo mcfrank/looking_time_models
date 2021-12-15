@@ -4,8 +4,8 @@
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
 main_simulation <- function(params = df,
-                            grid_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = seq(0.001, 1, 0.01)) {
+                            grid_theta = seq(0.1, 1, 0.2),
+                            grid_epsilon = seq(0.1, 1, 0.2)) {
   
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -24,18 +24,16 @@ main_simulation <- function(params = df,
                                                   params$n_features)
   
   #  book-keeping for likelihoods and posteriors for new observations
-  feature_based_possible_observations <- get_possible_observations_for_feature(params$n_features)
-  
-  
+  possible_observations <- get_possible_observations(params$n_features)
   lp_z_given_theta_new <- initialize_z_given_theta(grid_theta, grid_epsilon,
-                                                   nrow(feature_based_possible_observations), 
+                                                   nrow(possible_observations), 
                                                    params$n_features)
   lp_post_new <- initialize_posterior(grid_theta, grid_epsilon, 
-                                      nrow(feature_based_possible_observations), 
+                                      nrow(possible_observations), 
                                       params$n_features)
-  p_post_new <- matrix(data = NA, nrow = nrow(feature_based_possible_observations), 
+  p_post_new <- matrix(data = NA, nrow = nrow(possible_observations), 
                        ncol = params$n_features)
-  kl_new <- matrix(data = NA, nrow = nrow(feature_based_possible_observations), 
+  kl_new <- matrix(data = NA, nrow = nrow(possible_observations), 
                    ncol = params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
@@ -56,8 +54,7 @@ main_simulation <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  # t needs to be < max observation instead of == to prevent OOB in the KL calculation phase 
-  while(stimulus_idx <= total_trial_number && t < params$max_observation) {
+  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
     
@@ -76,7 +73,7 @@ main_simulation <- function(params = df,
     # - compute current posterior grid
     for (f in 1:params$n_features) {
       # update likelihood
-
+     
       lp_z_given_theta[[t]][[f]] <- 
         score_z_given_theta(t = t, f = f,
                             lp_y_given_theta = lp_y_given_theta,
@@ -95,14 +92,11 @@ main_simulation <- function(params = df,
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
     model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
-    
-    
-  
-    for (o in 1:nrow(feature_based_possible_observations)) { 
+    for (o in 1:nrow(possible_observations)) { 
       for (f in 1:params$n_features) {
         # pretend that the possible observation has truly been observed
         # note that's observed from the same stimulus as the previous one
-        model[t+1, paste0("f", f)] <- as.logical(feature_based_possible_observations[o,f])
+        model[t+1, paste0("f", f)] <- as.logical(possible_observations[o,f])
         
         # get upcoming likelihood
         lp_z_given_theta_new[[o]][[f]] <- 
@@ -121,35 +115,24 @@ main_simulation <- function(params = df,
         
         # posterior predictive
         p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
-                                         heads = feature_based_possible_observations[o,f]) 
-        
+                                         heads = possible_observations[o,f]) 
         
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
-        
-        #reset the model so that it doesn't behave weird in the end 
-        model[t+1, paste0("f", f)] <- NA
- 
       }
     }
     
-    # reset the model stimulus so that it doesn't behave weird at the last stimulus 
-    model$stimulus_idx[t+1] <- NA_real_ 
-    
-    
-
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
-    
-
     model$EIG[t] <- sum(p_post_new * kl_new)
     
     # luce choice probability whether to look away
     model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
                                                  y = model$EIG[t])
 
+    
     # actual choice of whether to look away is sampled here
     model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
     
