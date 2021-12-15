@@ -13,6 +13,7 @@ library(matrixStats)
 library(partitions)
 library(tictoc)
 library(LaplacesDemon)
+library(Brobdingnag)
 
 source(here("helper/make_scheme_and_params.R"))
 source(here("helper/initialization.R"))
@@ -22,7 +23,7 @@ source(here("helper/main_simulation_helper.R"))
 d <- read_csv(here("data/processed_rt_task_data.csv"))
 
 # set up multicore sims
-future::plan(multicore)
+#future::plan(multicore)
 ```
 
 Figuring out the sequence and generate the stimuli sequence with all the parameters 
@@ -33,7 +34,7 @@ Figuring out the sequence and generate the stimuli sequence with all the paramet
 alpha_epsilons = c(1)
 beta_epsilons = c(10)
 alpha_priors = c(1)
-beta_priors = c(30)
+beta_priors = c(5000)
 noise_parameters = c(0)
 world_EIGs = c(0.001)
 max_observation = 100

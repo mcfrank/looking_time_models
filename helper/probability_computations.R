@@ -137,6 +137,12 @@ kl_div <- function (x, y) {
       sum(x * log(x/y))
 }
 
+kl_div_log <- function(log_x, log_y){
+  
+  sum(exp(log_x + as.brob(log(log_x - log_y))))
+  
+}
+
 # ---------------- get_post_pred ---------------------
 # get posterior predictive
 get_post_pred <- function(lp_post, heads = TRUE) {
