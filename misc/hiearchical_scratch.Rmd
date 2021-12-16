@@ -126,22 +126,29 @@ model
            log_1minusgamma = log(1-g))
   
   # NEEDS TO BE FIXED TO TAKE CARE OF THE ROWWISE THINGS
- lp_z_y_theta$z_given_theta <- logSumExp(c(lp_z_y_theta$z_given_y_ONE + 
-                                             
-                                             logSumExp(c(lp_z_y_theta$lp_y_ONE_given_theta_ONE + log(gamma) + lp_z_y_theta$lp_theta_one, 
-                                                         lp_z_y_theta$lp_y_ONE_given_theta_TWO + log(1-gamma) + lp_z_y_theta$lp_theta_two
-                                                          )), 
-                                           lp_z_y_theta$z_given_y_ZERO + 
-                                             logSumExp(c(lp_z_y_theta$lp_y_ZERO_given_theta_ONE + log(gamma) + lp_z_y_theta$lp_theta_one, 
-                                                         lp_z_y_theta$lp_y_ZERO_given_theta_TWO + log(1-gamma) + lp_z_y_theta$lp_theta_two
-                                                          ))))
   
   
-  # likelihood of all samples for current stimulus
-  this_lp_z_given_theta$lp_z_given_theta <- 
-    rowLogSumExps(lx = as.matrix(this_lp_z_given_theta[,c("lp_z_y_ONE", "lp_z_y_ZERO")]))
+  lp_z_y_theta$calculation_y_ONE_theta_ONE <- lp_z_y_theta$lp_y_ONE_given_theta_ONE + log(gamma) + lp_z_y_theta$lp_theta_one
+  lp_z_y_theta$calculation_y_ONE_theta_TWO <- lp_z_y_theta$lp_y_ONE_given_theta_TWO + log(1-gamma) + lp_z_y_theta$lp_theta_two
+  lp_z_y_theta$calculation_y_ONE_theta_2concepts <-  rowLogSumExps(as.matrix(lp_z_y_theta[, c("calculation_y_ONE_theta_ONE", 
+                                                                                    "calculation_y_ONE_theta_TWO")])) 
+  lp_z_y_theta$calculation_given_y_ONE <- lp_z_y_theta$z_given_y_ONE + lp_z_y_theta$calculation_y_ONE_theta_2concepts
   
-  # add in likelihood for last sample from last stimulus, which includes all prior obs
+  
+  lp_z_y_theta$calculation_y_ZERO_theta_ONE <- lp_z_y_theta$lp_y_ZERO_given_theta_ONE + log(gamma) + lp_z_y_theta$lp_theta_one
+  lp_z_y_theta$calculation_y_ZERO_theta_TWO <- lp_z_y_theta$lp_y_ZERO_given_theta_TWO + log(1-gamma) + lp_z_y_theta$lp_theta_two
+  lp_z_y_theta$calculation_y_ZERO_theta_2concepts <-  rowLogSumExps(as.matrix(lp_z_y_theta[, c("calculation_y_ZERO_theta_ONE", 
+                                                                                    "calculation_y_ZERO_theta_TWO")])) 
+  lp_z_y_theta$calculation_given_y_ZERO <- lp_z_y_theta$z_given_y_ZERO + lp_z_y_theta$calculation_y_ZERO_theta_2concepts
+  
+  
+  lp_z_y_theta$z_given_theta <- rowLogSumExps(as.matrix(lp_z_y_theta[, c("calculation_given_y_ONE", 
+                                                                                    "calculation_given_y_ZERO")]))  
+ 
+ # NOT USRE HOW TO PROCEED, weird, maybe th emath is wrong 
+  
+  # add in likelihood for last sample from last stimulus, which includes all prior obs 
+  # feels like this needs to be related to how we are enumerating different possibilities
   if (this_stimulus_idx > 1) {
     last_stim_last_t <- max(model$t[model$stimulus_idx == this_stimulus_idx - 1], na.rm=TRUE)
     this_lp_z_given_theta$lp_z_given_theta <- this_lp_z_given_theta$lp_z_given_theta + 
@@ -152,4 +159,42 @@ model
 }
 
 ```
+
+
+# MAYBE I SHOULD TRY A SIMPLER CASE WITH JUST BETA COUNT ACCUMULATION? 
+
+```{r}
+theta_grid <- seq(0.0001, 1, 0.01)
+
+theta_one_alpha <- 10
+theta_one_beta <- 1
+
+theta_two_alpha <- 1
+theta_two_beta <- 10
+
+# chances of it seeing the concept from ONE 
+gamma <- .6
+
+update <- function(prior, observation){
+  
+  if(observation){
+    
+    theta_one_alpha = theta_one_alpha + gamma * length(observation)
+    theta_two_alpha = theta_one_alpha + (1-gamma) * length(observation)
+    
+  }else{
+    
+    theta_one_beta = theta_one_beta + gamma * length(observation)
+    theta_two_beta = theta_two_beta + (1-gamma) * length(observation)
+    
+  }
+  
+  # we will end up having two pairs of prior 
+  
+}
+
+```
+
+
+
 
