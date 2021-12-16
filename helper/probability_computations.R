@@ -12,7 +12,7 @@
 # ---------------- score_z_given_theta ---------------------
 # main function updating likelihood
 # returns a dataframe of cumulative log probabilities, p(z | theta)
-score_z_given_theta <- function(t, # timestep
+  score_z_given_theta <- function(t, # timestep
                                 f, # feature
                                 lp_y_given_theta, # cached likelihoods
                                 lp_z_given_theta, # likelihoods
