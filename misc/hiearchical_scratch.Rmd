@@ -26,6 +26,71 @@ score_lambda <- function(lambda, alpha_lambda, beta_lambda){
 ```
 
 
+# stuff we need for two concepts world 
+
+```{r}
+test_model <- initialize_model(0.2, 20, 1)
+test_model$t[1:10] <- seq(1, 10)
+test_model$stimulus_idx[1:10] <- c(1, 1, 1, 2, 2, 3, 3, 3, 4, 4)
+test_model$f1[1:10] <- rep(TRUE, 10)
+
+test_model
+```
+
+# all for single concept right now, 
+
+```{r}
+# a list of dataframes that keep tracks of all the combinations possible 
+# index corresponds to trial number 
+# dataframes correspond to 
+initialize_two_concepts_combinations <- function(total_trial_number){
+  
+  lapply(1:total_trial_number, 
+         function(trial_number){
+            as.matrix(expand.grid(as.data.frame(sapply(1:trial_number, 
+                  FUN = function(i){c(1,2)}))))
+         })
+  
+}
+all_two_concepts_combination <- initialize_two_concepts_combinations(4)
+current_stimulus_two_concept_combination <- all_two_concepts_combination[[4]]
+
+# a function to index into the observation so that we can update the theta accordingly 
+
+# a loop to go through all the possibilities 
+i = 8
+current_combo <- current_stimulus_two_concept_combination[i, ]
+
+get_observation_for_concept <- function(concept, current_combo, model){
+
+  # stimuli that comes from the specific concept 
+  stimuli_from_concept <- which(current_combo == concept)
+  
+  # observation from those stimuli 
+  obs_t <- (model$t[model$stimulus_idx %in% stimuli_from_concept])[!is.na(model$t[model$stimulus_idx %in% stimuli_from_concept])]
+
+  return(obs_t)
+  
+}
+
+obs_t_from_concept_one <- get_observation_for_concept(1, current_combo, model)
+obs_t_from_concept_two <- get_observation_for_concept(2, current_combo, model)
+
+
+# a function that put all the pieces together for likelihood in two world concept 
+# takes gamma, needs to take into account of what the 
+
+
+update_theta <- function(concept, observations){
+  
+  
+}
+
+```
+
+
+
+
 
 now we are going to pretend that we are in a two concepts only world 
 
