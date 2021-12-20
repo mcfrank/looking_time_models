@@ -80,12 +80,55 @@ obs_t_from_concept_two <- get_observation_for_concept(2, current_combo, model)
 # a function that put all the pieces together for likelihood in two world concept 
 # takes gamma, needs to take into account of what the 
 
+# currently looking at one feature but needs to be updated later to look at different feature 
 
-update_theta <- function(concept, observations){
+update_z_given_theta <- function(concept, current_combo, obs_t_from_concept, model, 
+                         lp_y_given_theta, lp_z_given_theta){
+  
+  # looping through # of the stimuli that has been seen
+  
+  lp_z_theta <- expand_grid(theta = grid_theta, 
+                                  epsilon = grid_epsilon)
+  lp_z_theta$z_theta <- rep(0, length(lp_z_theta$theta))
+ 
+  
+  for (i in 1:length(current_combo)){
+    # if the stimuli just seen came from the concept that we are interested in 
+    # initializing p(z|y) for this particular y
+    lp_z_given_y = tibble(epsilon = grid_epsilon)
+    lp_y_given_theta = tibble(theta = grid_theta, 
+                            lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, 
+                                                                     theta = grid_theta), 
+                            lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0,
+                                                                         theta = grid_theta)) 
+    
+    if(current_combo[stimulus_id] == concept){
+      # then grab all of the observations on that stimuli that came from this concept 
+      observation_on_current_stimulus <- model$f1[model$stimulus_idx == i][!is.na(model$f1[model$stimulus_idx == i])]
+      
+      lp_z_given_y$z_given_y_ONE = rowSums(sapply(observation_on_current_stimulus, 
+                                              function(x){ score_z_ij_given_y(x, 1, grid_epsilon)}))
+      lp_z_given_y$z_given_y_ZERO = rowSums(sapply(observation_on_current_stimulus, 
+                                               function(x){ score_z_ij_given_y(x, 0, grid_epsilon)}))
+      
+      # clever expansion with cached likelihoods
+      lp_z_y_theta <- expand_grid(lp_y_given_theta, lp_z_given_y)
+  
+      # update current observation
+      this_lp_z_given_theta$lp_z_y_ZERO <- lp_z_y_theta$lp_y_ZERO_given_theta + lp_z_y_theta$z_given_y_ZERO
+      this_lp_z_given_theta$lp_z_y_ONE <- lp_z_y_theta$lp_y_ONE_given_theta + lp_z_y_theta$z_given_y_ONE
+  
+      # likelihood of all samples for current stimulus
+      this_lp_z_given_theta$lp_z_given_theta <- rowLogSumExps(lx = as.matrix(this_lp_z_given_theta[,c("lp_z_y_ONE", "lp_z_y_ZERO")]))
+      
+       lp_z_theta$z_theta  <-  lp_z_theta$z_theta  +  this_lp_z_given_theta$lp_z_given_theta
+  
+    }
   
   
+  }
+return(lp_z_theta)
 }
-
 ```
 
 
