@@ -207,18 +207,25 @@ posterior$log_posterior <- NA_real_
 posterior$posterior <- NA_real_
 
 
+# figure out the # of stimulus_idx i'm on
+
+current_two_concepts_combination <- all_two_concepts_combination[[current_stimulus_idx]]
+
 # loop through all features 
 for (f in ALL_FEATURES){
   
    # do some calulcation for the one concept world 
-  #[ CALCULATION GFOR ONE CONCEPT WORLD]
+  ONE_CONCEPT_WORLD_RESULTS <- SOME_CALC
   
   # do some calculation for the two concept world 
   # for each feature loop through all possible combinations
-  for(i in nrow(all_possible_combination)){
+  all_combo_y_ONE_likelihood <- #some length vector 
+  all_combo_y_ZERO_likelihood <- # some length vector 
+  
+  for(i in nrow(current_two_concepts_combination)){
     
     # first figure out which combo we are on
-    current_combo <- current_stimulus_two_concept_combination[i, ]
+    current_combo <- current_two_concepts_combination[i, ]
     
     # calculate posterior for concept one 
     likelihood_for_concept_one <- score_z_given_theta_for_concept(...)
@@ -228,13 +235,46 @@ for (f in ALL_FEATURES){
     likelihood_for_concept_two <- score_z_given_theta_for_concept(...)
     posterior_for_concept_two <- score_posterior_for_concept(...)
   
-    # figure out how many lamda to attach to 
+    # figure out how many lambda to attach to 
+    # this is buggy, needs to take into acount of the 0 
+    n_concept_one_occurence <- table(current_combo)[[1]]
+    n_concept_two_occurence <- table(current_combo)[[2]]
     
+  
+    # figure out the p(y|theta_1) p(y|theta_2) components 
+    lp_y_ONE_theta_1 <- lp_y_given_theta$lp_y_ONE_given_theta
+    lp_y_ONE_theta_2 <- lp_y_given_theta$lp_y_ONE_given_theta
+    lp_y_ZERO_theta_1 <- lp_y_given_theta$lp_y_ZERO_given_theta
+    lp_y_ZERO_theta_2 <- lp_y_given_theta$lp_y_ZERO_given_theta
     
+    # putting everything together 
+    lp_combo_y_ONE_likelihood <- (lp_y_ONE_theta_1 * n_concept_one_occurence) + (lp_y_ONE_theta_2 * n_concept_one_occurence) + 
+      (lp_gamma_1 * n_concept_one_occurence) + (lp_gamma_2 * n_concept_two_occurence)
+    
+    lp_combo_y_ZERO_likelihood <- (lp_y_ZERO_theta_1 * n_concept_one_occurence) + (lp_y_ZERO_theta_2 * n_concept_one_occurence) + 
+      (lp_gamma_1 * n_concept_one_occurence) + (lp_gamma_2 * n_concept_two_occurence)
+    
+    # some sort of adding all combo together 
+    all_combo_y_ONE_likelihood <- ACC #accumulating 
+    all_combo_y_ZERO_likelihood <-ACC #accumulating 
     
   }
+  # get observation accumulation 
+  lp_z_given_y$z_given_y_ONE = rowSums(sapply(observation_till_this_stimulus, 
+                                              function(x){ score_z_ij_given_y(x, 1, grid_epsilon)}))
+  
+  lp_z_given_y$z_given_y_ZERO = rowSums(sapply(observation_till_this_stimulus, 
+                                              function(x){ score_z_ij_given_y(x, 0, grid_epsilon)}))
   
   
+ 
+  # finally putting everything gether  
+  # probalby needs to be rowwise or sth like that
+  TWO_CONCEPT_WORLD <- logSumExp(lp_z_given_y$z_given_y_ONE +  all_combo_y_ONE_likelihood, 
+            lp_z_given_y$z_given_y_ZERO +  all_combo_y_ZERO_likelihood)
+  
+  FINAL_RESULTS <- logSumExp((ONE_CONCEPT_WORLD + LOG_LAMBDA), 
+                             (TWO_CONCEPT_WORLD + LOG(1-LAMBDA)))
   
   
 }
