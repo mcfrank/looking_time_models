@@ -80,59 +80,166 @@ obs_t_from_concept_two <- get_observation_for_concept(2, current_combo, model)
 # a function that put all the pieces together for likelihood in two world concept 
 # takes gamma, needs to take into account of what the 
 
-# currently looking at one feature but needs to be updated later to look at different feature 
 
-update_z_given_theta <- function(concept, current_combo, obs_t_from_concept, model, 
-                         lp_y_given_theta, lp_z_given_theta){
-  
-  # looping through # of the stimuli that has been seen
-  
-  lp_z_theta <- expand_grid(theta = grid_theta, 
-                                  epsilon = grid_epsilon)
-  lp_z_theta$z_theta <- rep(0, length(lp_z_theta$theta))
- 
-  
-  for (i in 1:length(current_combo)){
-    # if the stimuli just seen came from the concept that we are interested in 
-    # initializing p(z|y) for this particular y
-    lp_z_given_y = tibble(epsilon = grid_epsilon)
-    lp_y_given_theta = tibble(theta = grid_theta, 
+
+```
+
+
+```{r}
+
+# set up the dataframe to be used 
+
+lp_z_given_y = tibble(epsilon = grid_epsilon)
+lp_y_given_theta = tibble(theta = grid_theta, 
                             lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, 
                                                                      theta = grid_theta), 
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0,
                                                                          theta = grid_theta)) 
-    
-    if(current_combo[stimulus_id] == concept){
-      # then grab all of the observations on that stimuli that came from this concept 
-      observation_on_current_stimulus <- model$f1[model$stimulus_idx == i][!is.na(model$f1[model$stimulus_idx == i])]
-      
-      lp_z_given_y$z_given_y_ONE = rowSums(sapply(observation_on_current_stimulus, 
+
+
+lp_z_theta <- expand_grid(theta = grid_theta, 
+                          epsilon = grid_epsilon)
+lp_z_theta$z_theta <- rep(0, length(lp_z_theta$theta))
+
+
+
+score_all_observations_from_this_stimulus <- function(f, model, stimulus_idx, 
+                                                 lp_z_given_y, 
+                                                 lp_y_given_theta){
+  
+  # select the feature to be updated and get all the observation on that particular stimulus  
+  f_index <- paste0("f", f)
+  observation_on_current_stimulus <- model$`f_index`[model$stimulus_idx == i][!is.na(model$`f_index`[model$stimulus_idx == i])]
+  
+  #calculate: lp(z|y=1) and lp(z|y=0)
+  lp_z_given_y$z_given_y_ONE = rowSums(sapply(observation_on_current_stimulus, 
                                               function(x){ score_z_ij_given_y(x, 1, grid_epsilon)}))
-      lp_z_given_y$z_given_y_ZERO = rowSums(sapply(observation_on_current_stimulus, 
+  lp_z_given_y$z_given_y_ZERO = rowSums(sapply(observation_on_current_stimulus, 
                                                function(x){ score_z_ij_given_y(x, 0, grid_epsilon)}))
-      
-      # clever expansion with cached likelihoods
-      lp_z_y_theta <- expand_grid(lp_y_given_theta, lp_z_given_y)
+
+  # combining with lp(y=1|theta) and lp(y=0|theta)
+  lp_z_y_theta <- expand_grid(lp_y_given_theta, lp_z_given_y)
   
-      # update current observation
-      this_lp_z_given_theta$lp_z_y_ZERO <- lp_z_y_theta$lp_y_ZERO_given_theta + lp_z_y_theta$z_given_y_ZERO
-      this_lp_z_given_theta$lp_z_y_ONE <- lp_z_y_theta$lp_y_ONE_given_theta + lp_z_y_theta$z_given_y_ONE
+  # calculate p(z|theta) = p(z|y=1) p(y=1|theta) + p(z|y = 0)p(y=0|theta) 
+  lp_z_y_theta$lp_z_y_ONE <- lp_z_y_theta$lp_y_ONE_given_theta + lp_z_y_theta$z_given_y_ONE
+  lp_z_y_theta$lp_z_y_ZERO <- lp_z_y_theta$lp_y_ZERO_given_theta + lp_z_y_theta$z_given_y_ZERO
+  lp_z_y_theta$lp_z_given_theta <- rowLogSumExps(lx = as.matrix(this_lp_z_given_theta[,c("lp_z_y_ONE", "lp_z_y_ZERO")]))
   
-      # likelihood of all samples for current stimulus
-      this_lp_z_given_theta$lp_z_given_theta <- rowLogSumExps(lx = as.matrix(this_lp_z_given_theta[,c("lp_z_y_ONE", "lp_z_y_ZERO")]))
-      
-       lp_z_theta$z_theta  <-  lp_z_theta$z_theta  +  this_lp_z_given_theta$lp_z_given_theta
+  return(lp_z_y_theta)
   
-    }
-  
-  
-  }
-return(lp_z_theta)
 }
+
+score_z_given_theta_for_concept <- function(f, concept, current_combo, model, 
+                         lp_z_given_y, lp_y_given_theta){
+  
+  # looping through # of the stimuli that has been seen
+  stimulus_idx_from_concept <- which(current_combo == concept)
+  
+  # setting up for accumulating across different stimuli on the concept 
+  all_lp_z_theta <- expand_grid(theta = grid_theta, 
+                          epsilon = grid_epsilon)
+  all_lp_z_theta$lp_z_given_theta <- rep(0, length(all_lp_z_theta$theta))
+  
+  for (i in stimulus_idx_from_concept){
+    this_lp_z_given_theta <- score_all_observations_from_this_stimulus(f, model, 
+                                                         stimulus_idx = i, 
+                                                        lp_z_given_y, 
+                                                        lp_y_given_theta)
+    # accumulating across stimulus from same concept   
+    all_lp_z_theta$lp_z_given_theta  <-  all_lp_z_theta$lp_z_given_theta  +  this_lp_z_given_theta$lp_z_given_theta
+  }
+  
+  return(all_lp_z_theta)
+}
+
+# calculating p(\theta_{gamma} | \bar{z})
+
+posterior <- expand_grid(theta = grid_theta,
+                              epsilon = grid_epsilon)
+  # not sure when do we really need the non-log one, save some $$$  
+posterior$unnormalized_log_posterior <- NA_real_
+posterior$log_posterior <- NA_real_
+posterior$posterior <- NA_real_
+
+score_posterior_for_concept <- function(concept_prior, concept_likelihood, concept_posterior){
+  # likelihood * prior
+  concept_posterior$unnormalized_log_posterior <- concept_likelihood$lp_z_given_theta + 
+    concept_prior$lp_theta + 
+    concept_prior$lp_epsilon
+  
+  # normalize
+  concept_posterior$log_posterior <- concept_posterior$unnormalized_log_posterior - matrixStats::logSumExp(concept_posterior$unnormalized_log_posterior)
+  concept_posterior$posterior <- exp(concept_posterior$log_posterior)
+  return(concept_posterior)
+}
+
 ```
 
 
+some psuedo code for how are we going about this 
+```{r}
+# observing a new thing 
+# OBS
+# FIGURE OUT WHICH TRIALS WE ARE ON
+all_possible_combination <- initialize_two_concepts_combinations(n_of_trials)
 
+
+
+# Set up a bunch of dataframe to be reused 
+lp_z_given_y = tibble(epsilon = grid_epsilon)
+lp_y_given_theta = tibble(theta = grid_theta, 
+                            lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, 
+                                                                     theta = grid_theta), 
+                            lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0,
+                                                                         theta = grid_theta)) 
+
+
+lp_z_theta <- expand_grid(theta = grid_theta, 
+                          epsilon = grid_epsilon)
+lp_z_theta$z_theta <- rep(0, length(lp_z_theta$theta))
+
+
+posterior <- expand_grid(theta = grid_theta,
+                              epsilon = grid_epsilon)
+  # not sure when do we really need the non-log one, save some $$$  
+posterior$unnormalized_log_posterior <- NA_real_
+posterior$log_posterior <- NA_real_
+posterior$posterior <- NA_real_
+
+
+# loop through all features 
+for (f in ALL_FEATURES){
+  
+   # do some calulcation for the one concept world 
+  #[ CALCULATION GFOR ONE CONCEPT WORLD]
+  
+  # do some calculation for the two concept world 
+  # for each feature loop through all possible combinations
+  for(i in nrow(all_possible_combination)){
+    
+    # first figure out which combo we are on
+    current_combo <- current_stimulus_two_concept_combination[i, ]
+    
+    # calculate posterior for concept one 
+    likelihood_for_concept_one <- score_z_given_theta_for_concept(...)
+    posterior_for_concept_one <- score_posterior_for_concept(...)
+    
+    # calculate posterior for concept two 
+    likelihood_for_concept_two <- score_z_given_theta_for_concept(...)
+    posterior_for_concept_two <- score_posterior_for_concept(...)
+  
+    # figure out how many lamda to attach to 
+    
+    
+    
+  }
+  
+  
+  
+  
+}
+
+```
 
 
 now we are going to pretend that we are in a two concepts only world 
