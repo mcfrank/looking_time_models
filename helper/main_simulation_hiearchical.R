@@ -23,6 +23,18 @@ main_simulation_hiearchical <- function(params = df,
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                          theta = grid_theta))
   
+  lp_y_given_theta_one = tibble(theta = grid_theta, 
+                            lp_y_ONE_given_theta_ONE = score_yi_given_theta(yi = 1, 
+                                                                        theta = grid_theta), 
+                            lp_y_ZERO_given_theta_ONE = score_yi_given_theta(yi = 0, 
+                                                                         theta = grid_theta))
+  
+  lp_y_given_theta_two = tibble(theta = grid_theta, 
+                                lp_y_ONE_given_theta_TWO = score_yi_given_theta(yi = 1, 
+                                                                            theta = grid_theta), 
+                                lp_y_ZERO_given_theta_TWO = score_yi_given_theta(yi = 0, 
+                                                                             theta = grid_theta))
+  
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
   t <- 1
@@ -59,70 +71,70 @@ main_simulation_hiearchical <- function(params = df,
       # do some calulcation for the one concept world 
       ONE_CONCEPT_WORLD_RESULTS <- SOME_CALC
       
-      # TWO CONCEPT CALUCLATION, PROBABLY SHOULD GO TO A FUNCTION LATER 
+      ##### TWO CONCEPT CALUCLATION ##### 
       
-      for(i in nrow(current_trial_all_possible_combinations)){
-          
-          # first figure out which combo we are on
-          current_combo <- current_trial_all_possible_combinations[i, ]
-          
-          
-          # figure out how many lambda to attach to 
-          # this is buggy, needs to take into acount of the 0 
-          n_concept_one_occurence <- length(which(current_combo == 1))
-          n_concept_two_occurence <- length(which(current_combo == 2))
-          
-          
-          # figure out the p(y|theta_1) p(y|theta_2) components 
-          lp_y_ONE_theta_1 <- lp_y_given_theta_one$lp_y_ONE_given_theta_ONE
-          lp_y_ONE_theta_2 <- lp_y_given_theta$lp_y_ONE_given_theta_TWO
-          
-          lp_y_ZERO_theta_1 <- lp_y_given_theta_one$lp_y_ZERO_given_theta_ONE
-          lp_y_ZERO_theta_2 <- lp_y_given_theta$lp_y_ZERO_given_theta_TWO
-          
-          likelihood_with_two_concepts <- vector(mode = "list", 
-                                                 length = nrow(current_trial_all_possible_combinations))
-          
-          select_y_val_theta <- function(lp_y_given_theta, concept, y_val){
-            if(y_val == 0 & concept == 2){
-              lp_y_ZERO_theta_2
-            }else if(y_val == 1 & concept == 2){
-              lp_y_ONE_theta_2
-            }else if(y_val == 1 & concept == 1){
-              lp_y_ONE_theta_1
-            }else if(y_val == 0 & concept == 1){
-              lp_y_ZERO_theta_1
-            }
-          }
-          
-          
-        
-            
-            
-            # first figure out all the observation related stuff, put it in a list to be used later  
-            ldf_lp_z_given_y <- ACC_LIST 
-            for (i in 1:nrow(current_trial_all_y_value_combinations)){
+      #two accumulators
+      # this one takes care of all the lp(z|y = 1) lp(z|y=0)
+      ldf_lp_z_given_y <- vector(mode = "list", 
+                                 length = nrow(current_trial_all_y_value_combinations))
+      # this one takes care of all the lp(y|theta)lp(gamma)
+      ldf_lp_y_given_theta <- vector(mode = "list", 
+                                     length = nrow(current_trial_all_y_value_combinations))
       
-              # the inner loop tries to figure out the observation part (p(z|y))
-              lp_z_given_y_acc <- ACC 
-              for (trial_n in 1:length(current_trial_all_y_value_combinations[i, ])){
+      
+      # first filling in all the lp(z|y)
+      # each row is one possibilities, later needs to be combined with p(y|theta)p(gamma)
+      # so temporarily just being put into the list
+      for (i in 1:length(ldf_lp_z_given_y)){
+          # the inner loop tries to figure out the observation part (p(z|y))
+          # this is an accumulator 
+          lp_z_given_y_acc <- rep(0, length(grid_epsilon)) 
+          for (trial_n in 1:stimulus_idx){
                 observations_on_this_trial <-  filter(model, stimulus_idx == trial_n) %>%
                   select(paste0("f", f)) %>%
                   pull()
                 z_bar_given_y <- rowSums(sapply(observations_on_this_trial, 
                                                 function(x){ score_z_ij_given_y(x, 
-                                                                                current_trial_all_y_value_combinations[i, trial_n], 
+                                                                                yi = current_trial_all_y_value_combinations[i, trial_n], 
                                                                                 grid_epsilon)}))
                 lp_z_given_y_acc <- lp_z_given_y_acc + z_bar_given_y
+                
               }
+          df_lp_z_given_y <- tibble(
+            epsilon = grid_epsilon, 
+            lp_z_given_y = lp_z_given_y_acc 
+          )
+          ldf_lp_z_given_y[[i]] <- df_lp_z_given_y
+      }
+      
+      # then filling in all the p(y|theta)p(gamma)
+      # also needs to loop through all the possible combination of y values 
+      for (j in 1:length(ldf_lp_y_given_theta)){
+        # first figure out what's the current combination 
+        current_y_value_combo <- current_trial_all_y_value_combinations[j, ]
+        ldf_lp_y_given_theta[[j]] <- get_y_theta_combination(current_y_value_combo, 
+                                                             all_theta_value_combo = current_trial_all_possible_combinations, 
+                                                             lp_gamma_1, 
+                                                             lp_gamma_2)
+      }
+      
+      
               
-              ldf_lp_z_given_y[i] <- lp_z_given_y_acc
+              # ASSERTING TWO LISTS SAME LENGTH 
+              VAL_ACC <- ACC
+              for(i in 1:length(ldf_lp_z_given_y)){
+                VAL_ACC[i] <- ldf_lp_y_given_theta[[i]] + ldf_lp_z_given_y[[i]]
+              }
+              rowLogSum(VAL_ACC)
+              
+              
+              
+          
+              
             }
             
             
-            # then figure out the middle part 
-            ldf_lp_y_given_theta <- ACC_LIST 
-            
+           
            
             
             for (i in 1:nrow(current_trial_all_y_value_combinations)){
@@ -132,6 +144,7 @@ main_simulation_hiearchical <- function(params = df,
               
               for(theta_p in 1:nrow(current_trial_all_possible_combinations)){
         
+                
               
                 for (j in 1:length(current_trial_all_y_value_combinations[i,])){
                   current_lp_y_theta <- select_y_val_theta(lp_y_given_theta, 
