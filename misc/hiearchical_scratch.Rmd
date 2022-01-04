@@ -40,18 +40,7 @@ test_model
 # all for single concept right now, 
 
 ```{r}
-# a list of dataframes that keep tracks of all the combinations possible 
-# index corresponds to trial number 
-# dataframes correspond to 
-initialize_two_concepts_combinations <- function(total_trial_number){
-  
-  lapply(1:total_trial_number, 
-         function(trial_number){
-            as.matrix(expand.grid(as.data.frame(sapply(1:trial_number, 
-                  FUN = function(i){c(1,2)}))))
-         })
-  
-}
+
 all_two_concepts_combination <- initialize_two_concepts_combinations(4)
 current_stimulus_two_concept_combination <- all_two_concepts_combination[[4]]
 
