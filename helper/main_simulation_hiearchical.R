@@ -171,12 +171,14 @@ main_simulation_hiearchical <- function(params = df,
        df_for_likelihood$final_likelihood <- rowLogSumExps(lx = m_for_likelihood[,])
       
       # CALCULATE POSTERIOR 
+       posterior_df <- df_for_likelihood
        
+       posterior_df$unnormalized_log_posterior <-  df_for_likelihood$final_likelihood + df_for_likelihood$lp_lambda + 
+         df_for_likelihood$lp_theta_zero + df_for_likelihood$lp_theta_one + df_for_likelihood$lp_theta_two
       
-       unnormalized_log_posterior <-  df_for_likelihood$final_likelihood + df_for_likelihood$lp_lambda + 
-        df_for_likelihood$lp_theta_zero + df_for_likelihood$lp_theta_one + df_for_likelihood$lp_theta_two
-      
-       log_posterior <- unnormalized_log_posterior - matrixStats::logSumExp(unnormalized_log_posterior)
+       posterior_df$log_posterior <- posterior_df$unnormalized_log_posterior - matrixStats::logSumExp( posterior_df$unnormalized_log_posterior)
+         
+
       
     }
     
