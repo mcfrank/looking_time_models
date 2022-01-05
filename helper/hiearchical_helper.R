@@ -17,6 +17,19 @@ select_y_val_theta <- function(lp_y_given_theta_one,
 }
 
 
+# this function takes a list of dataframe and put them into a matrix and do rowLogSumExp
+logSumExp_for_list <- function(l_df, column_idx){
+  m <- lapply(l_df, 
+         function(x){x[,column_idx]}) %>% 
+    bind_cols() %>% 
+    as.matrix()
+  
+  rowLogSumExps(lx = m[,])
+  
+}
+
+
+
 # this function returns the value of /SUM/PRODp(y|theta) for a set of particular value of y 
 get_y_theta_combination <- function(current_y_value_combo, 
                                     all_theta_value_combo, 
@@ -44,6 +57,12 @@ get_y_theta_combination <- function(current_y_value_combo,
       lp_y_theta_gamma = lp_y_theta_acc + (lp_gamma_1 * n_concept_one_occurence) + (lp_gamma_2 * n_concept_two_occurence) 
     ) 
   }
-  #res <- logSumExp(l_concept_combo_list)
+  
+  res <- tibble(
+    theta = grid_theta, 
+    lp_y_theta_gamma = logSumExp_for_list(l_concept_combo_list, 2)) #first column is theta
   return (res)
 }
+
+
+
