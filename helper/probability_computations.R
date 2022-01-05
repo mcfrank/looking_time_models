@@ -105,6 +105,30 @@ score_prior <- function(grid_theta, grid_epsilon,
   return(lp_theta_epsilon) 
 }
 
+# ---------------- score_hierarchical_prior ---------------------
+
+score_hierarchical_prior <- function(grid_theta, grid_epsilon, grid_lambda, 
+         alpha_prior_theta_zero, beta_prior_theta_zero,
+         alpha_prior_theta_one, beta_prior_theta_one,
+         alpha_prior_theta_two, beta_prior_theta_two,
+         alpha_lambda, beta_lambda, 
+         alpha_epsilon, beta_epsilon) {
+  
+  thetas = tibble(theta = grid_theta, 
+                  lp_theta_zero = score_theta(grid_theta, alpha_prior_theta_zero, beta_prior_theta_zero), 
+                  lp_theta_one = score_theta(grid_theta, alpha_prior_theta_one, beta_prior_theta_one), 
+                  lp_theta_two = score_theta(grid_theta, alpha_prior_theta_two, beta_prior_theta_two)
+                  )
+  epsilons = tibble(epsilon = grid_epsilon, 
+                    lp_epsilon = score_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
+  
+  lambdas = tibble(lambda = grid_labmda, 
+                   lp_lambda = score_lambda(grid_lambda, alpha_lambda, beta_lambda))
+  
+  lp_thetas_epsilon_lambda = expand_grid(thetas, epsilons, lambdas)
+  return(lp_thetas_epsilon_lambda) 
+}
+
 # ---------------- rectified_luce_choice ----------------
 # this crazy function is necessary because if the values get too close to 0, 
 # this can be > 1 or < 0
@@ -129,6 +153,11 @@ score_theta <- function(theta, alpha_theta, beta_theta){
 # ---------------- score_epsilon ---------------------
 score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
   dbeta(x = epsilon, shape1 = alpha_epsilon, shape2 = beta_epsilon, log = TRUE)
+}
+
+# ---------------- score_lambda ---------------------
+score_lambda <- function(lambda, alpha_lambda, beta_lambda){
+  dbeta(x = lambda, shape1 = alpha_lambda, shape2 = beta_lambda, log = TRUE)
 }
 
 # ---------------- compute KL divergence ---------------------
