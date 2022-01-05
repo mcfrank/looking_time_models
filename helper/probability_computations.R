@@ -122,7 +122,7 @@ score_hierarchical_prior <- function(grid_theta, grid_epsilon, grid_lambda,
   epsilons = tibble(epsilon = grid_epsilon, 
                     lp_epsilon = score_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
   
-  lambdas = tibble(lambda = grid_labmda, 
+  lambdas = tibble(lambda = grid_lambda, 
                    lp_lambda = score_lambda(grid_lambda, alpha_lambda, beta_lambda))
   
   lp_thetas_epsilon_lambda = expand_grid(thetas, epsilons, lambdas)
