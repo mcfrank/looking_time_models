@@ -136,8 +136,8 @@ main_simulation_hiearchical <- function(params = df,
         current_y_value_combo <- current_trial_all_y_value_combinations[j, ]
         ldf_lp_y_given_theta[[j]] <- get_y_theta_combination(current_y_value_combo, 
                                                              all_theta_value_combo = current_trial_all_possible_combinations, 
-                                                             lp_gamma_1, 
-                                                             lp_gamma_2)
+                                                             log(params$p_gamma), 
+                                                             log(1-params$p_gamma))
       }
       
       # Now we have two lists, we want to expand the dataframe to put element from 
@@ -155,23 +155,28 @@ main_simulation_hiearchical <- function(params = df,
         tibble(
           theta = ldf_lp_z_y_theta_gamma[[1]]$theta, 
           epsilon = ldf_lp_z_y_theta_gamma[[1]]$epsilon,
-          likelihood = logSumExp_for_list(ldf_lp_z_y_theta_gamma, 
+          lp_z_given_theta_gamma = logSumExp_for_list(ldf_lp_z_y_theta_gamma, 
                              3)
         )
         
+       df_for_likelihood <- left_join(ONE_CONCEPT_WORLD, TWO_CONCEPT_WORLD, 
+                 by = c("theta", "epsilon")) %>% 
+       left_join(lp_prior, by = c("theta", "epsilon"))
       
-      
-      
+       m_for_likelihood <- cbind(
+         df_for_likelihood$lp_z_given_theta + log(df_for_likelihood$lambda),
+         df_for_likelihood$lp_z_given_theta_gamma + log(1-df_for_likelihood$lambda)
+       )
      
+       df_for_likelihood$final_likelihood <- rowLogSumExps(lx = m_for_likelihood[,])
       
+      # CALCULATE POSTERIOR 
+       
       
-    
-      FINAL_RESULTS <- logSumExp((ONE_CONCEPT_WORLD + LOG_LAMBDA), 
-                                 (TWO_CONCEPT_WORLD + LOG(1-LAMBDA)))
+       unnormalized_log_posterior <-  df_for_likelihood$final_likelihood + df_for_likelihood$lp_lambda + 
+        df_for_likelihood$lp_theta_zero + df_for_likelihood$lp_theta_one + df_for_likelihood$lp_theta_two
       
-      
-      
-      
+       log_posterior <- unnormalized_log_posterior - matrixStats::logSumExp(unnormalized_log_posterior)
       
     }
     
