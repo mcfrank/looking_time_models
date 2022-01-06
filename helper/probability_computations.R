@@ -114,18 +114,23 @@ score_hierarchical_prior <- function(grid_theta, grid_epsilon, grid_lambda,
          alpha_lambda, beta_lambda, 
          alpha_epsilon, beta_epsilon) {
   
-  thetas = tibble(theta = grid_theta, 
-                  lp_theta_zero = score_theta(grid_theta, alpha_prior_theta_zero, beta_prior_theta_zero), 
-                  lp_theta_one = score_theta(grid_theta, alpha_prior_theta_one, beta_prior_theta_one), 
-                  lp_theta_two = score_theta(grid_theta, alpha_prior_theta_two, beta_prior_theta_two)
-                  )
+  theta_zero = tibble(theta = grid_theta, 
+                      lp_theta_zero = score_theta(grid_theta, alpha_prior_theta_zero, beta_prior_theta_zero))
+  
+  theta_one = tibble(theta_one = grid_theta, 
+                     lp_theta_one = score_theta(grid_theta, alpha_prior_theta_one, beta_prior_theta_one))
+  
+  theta_two = tibble(theta_two = grid_theta, 
+                     lp_theta_two = score_theta(grid_theta, alpha_prior_theta_two, beta_prior_theta_two))
+  
+  
   epsilons = tibble(epsilon = grid_epsilon, 
                     lp_epsilon = score_epsilon(grid_epsilon, alpha_epsilon, beta_epsilon))
   
   lambdas = tibble(lambda = grid_lambda, 
                    lp_lambda = score_lambda(grid_lambda, alpha_lambda, beta_lambda))
   
-  lp_thetas_epsilon_lambda = expand_grid(thetas, epsilons, lambdas)
+  lp_thetas_epsilon_lambda = expand_grid(theta_zero, theta_one, theta_two, epsilons, lambdas)
   return(lp_thetas_epsilon_lambda) 
 }
 

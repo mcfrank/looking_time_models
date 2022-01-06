@@ -1,17 +1,16 @@
 
 # this function returns the corresponding vector of p(y|theta) given the concept value and the y_value  
-select_y_val_theta <- function(lp_y_given_theta_one, 
-                               lp_y_given_theta_two, 
+select_y_val_theta <- function(lp_y_given_theta_two_concepts,
                                concept, y_val){
 
   if(y_val == 0 & concept == 2){
-    selected_y_theta <- lp_y_given_theta_two$lp_y_ZERO_given_theta_TWO
+    selected_y_theta <- lp_y_given_theta_two_concepts$lp_y_ZERO_given_theta_TWO
   }else if(y_val == 1 & concept == 2){
-    selected_y_theta <- lp_y_given_theta_two$lp_y_ONE_given_theta_TWO
+    selected_y_theta <- lp_y_given_theta_two_concepts$lp_y_ONE_given_theta_TWO
   }else if(y_val == 1 & concept == 1){
-    selected_y_theta <- lp_y_given_theta_one$lp_y_ONE_given_theta_ONE
+    selected_y_theta <- lp_y_given_theta_two_concepts$lp_y_ONE_given_theta_ONE
   }else if(y_val == 0 & concept == 1){
-    selected_y_theta <-  lp_y_given_theta_one$lp_y_ZERO_given_theta_ONE
+    selected_y_theta <-  lp_y_given_theta_two_concepts$lp_y_ZERO_given_theta_ONE
   }
   return(selected_y_theta)
 }
@@ -42,10 +41,9 @@ get_y_theta_combination <- function(current_y_value_combo,
   for (i in 1:nrow(all_theta_value_combo)){
     n_concept_one_occurence <- length(which(all_theta_value_combo[i, ] == 1))
     n_concept_two_occurence <- length(which(all_theta_value_combo[i, ] == 2))
-    lp_y_theta_acc <- rep(0, length(grid_theta)) 
+    lp_y_theta_acc <- rep(0, nrow(lp_y_given_theta_two_concepts)) 
     for (j in 1:length(current_y_value_combo)){
-      lp_y_theta <- select_y_val_theta(lp_y_given_theta_one, 
-                                       lp_y_given_theta_two,
+      lp_y_theta <- select_y_val_theta(lp_y_given_theta_two_concepts,
                                        concept = all_theta_value_combo[i, j], 
                                        y_val = current_y_value_combo[j])
       lp_y_theta_acc <- lp_y_theta_acc + lp_y_theta
@@ -53,14 +51,16 @@ get_y_theta_combination <- function(current_y_value_combo,
     }
     
     l_concept_combo_list[[i]] <- tibble(
-      theta = grid_theta, 
+      theta_one = lp_y_given_theta_two_concepts$theta_one,
+      theta_two = lp_y_given_theta_two_concepts$theta_two,
       lp_y_theta_gamma = lp_y_theta_acc + (lp_gamma_1 * n_concept_one_occurence) + (lp_gamma_2 * n_concept_two_occurence) 
     ) 
   }
   
   res <- tibble(
-    theta = grid_theta, 
-    lp_y_theta_gamma = logSumExp_for_list(l_concept_combo_list, 2)) #first column is theta
+    theta_one = lp_y_given_theta_two_concepts$theta_one, 
+    theta_two = lp_y_given_theta_two_concepts$theta_two,
+    lp_y_theta_gamma = logSumExp_for_list(l_concept_combo_list, 3)) #first column is theta
   return (res)
 }
 
