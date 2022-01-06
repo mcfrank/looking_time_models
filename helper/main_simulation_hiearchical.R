@@ -29,17 +29,20 @@ main_simulation_hiearchical <- function(params = df,
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                          theta = grid_theta))
   
-  lp_y_given_theta_one = tibble(theta = grid_theta, 
+  lp_y_given_theta_one = tibble(theta_one = grid_theta, 
                             lp_y_ONE_given_theta_ONE = score_yi_given_theta(yi = 1, 
                                                                         theta = grid_theta), 
                             lp_y_ZERO_given_theta_ONE = score_yi_given_theta(yi = 0, 
                                                                          theta = grid_theta))
   
-  lp_y_given_theta_two = tibble(theta = grid_theta, 
+  lp_y_given_theta_two = tibble(theta_two = grid_theta, 
                                 lp_y_ONE_given_theta_TWO = score_yi_given_theta(yi = 1, 
                                                                             theta = grid_theta), 
                                 lp_y_ZERO_given_theta_TWO = score_yi_given_theta(yi = 0, 
                                                                              theta = grid_theta))
+  
+  lp_y_given_theta_two_concepts <- expand_grid(lp_y_given_theta_one, 
+                                               lp_y_given_theta_two)
   
   
   #keep track of z given theta for one concept world case 
@@ -148,20 +151,21 @@ main_simulation_hiearchical <- function(params = df,
         
         ldf_lp_z_y_theta_gamma[[i]]$lp_z_given_theta <- ldf_lp_z_y_theta_gamma[[i]]$lp_z_given_y + ldf_lp_z_y_theta_gamma[[i]]$lp_y_theta_gamma
         ldf_lp_z_y_theta_gamma[[i]] <- ldf_lp_z_y_theta_gamma[[i]] %>% 
-          select(theta, epsilon, lp_z_given_theta)
+          select(theta_one, theta_two, epsilon, lp_z_given_theta)
       }
       
       TWO_CONCEPT_WORLD <- 
         tibble(
-          theta = ldf_lp_z_y_theta_gamma[[1]]$theta, 
+          theta_one = ldf_lp_z_y_theta_gamma[[1]]$theta_one, 
+          theta_two = ldf_lp_z_y_theta_gamma[[1]]$theta_two,
           epsilon = ldf_lp_z_y_theta_gamma[[1]]$epsilon,
           lp_z_given_theta_gamma = logSumExp_for_list(ldf_lp_z_y_theta_gamma, 
-                             3)
+                             4)
         )
         
        df_for_likelihood <- left_join(ONE_CONCEPT_WORLD, TWO_CONCEPT_WORLD, 
-                 by = c("theta", "epsilon")) %>% 
-       left_join(lp_prior, by = c("theta", "epsilon"))
+                 by = c("epsilon")) %>% 
+       left_join(lp_prior, by = c("theta", "theta_one", "theta_two","epsilon"))
       
        m_for_likelihood <- cbind(
          df_for_likelihood$lp_z_given_theta + log(df_for_likelihood$lambda),
