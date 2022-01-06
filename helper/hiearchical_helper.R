@@ -32,6 +32,7 @@ logSumExp_for_list <- function(l_df, column_idx){
 # this function returns the value of /SUM/PRODp(y|theta) for a set of particular value of y 
 get_y_theta_combination <- function(current_y_value_combo, 
                                     all_theta_value_combo, 
+                                    lp_y_given_theta_two_concepts,
                                     lp_gamma_1, 
                                     lp_gamma_2){
   

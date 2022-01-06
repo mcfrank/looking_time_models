@@ -1,6 +1,6 @@
 main_simulation_hiearchical <- function(params = df,
-                            grid_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = seq(0.001, 1, 0.01)) {
+                            grid_theta = seq(0.001, 1, 0.2),
+                            grid_epsilon = seq(0.001, 1, 0.2)) {
   
   ### BOOK-KEEPING 
   
@@ -49,6 +49,13 @@ main_simulation_hiearchical <- function(params = df,
   lp_z_given_theta <- initialize_z_given_theta(grid_theta, grid_epsilon, 
                                                params$max_observation, 
                                                params$n_features)
+  
+  #for testing purpose, keep track of all the df posterior 
+  MAX_TIMEPOINT <- 6
+  lp_df <- vector(mode = "list", 
+                  length = MAX_TIMEPOINT)
+  
+  
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
   t <- 1
@@ -57,7 +64,8 @@ main_simulation_hiearchical <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+ # while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+  while(stimulus_idx < MAX_TIMEPOINT && t < MAX_TIMEPOINT){
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
     
@@ -139,6 +147,7 @@ main_simulation_hiearchical <- function(params = df,
         current_y_value_combo <- current_trial_all_y_value_combinations[j, ]
         ldf_lp_y_given_theta[[j]] <- get_y_theta_combination(current_y_value_combo, 
                                                              all_theta_value_combo = current_trial_all_possible_combinations, 
+                                                             lp_y_given_theta_two_concepts,
                                                              log(params$p_gamma), 
                                                              log(1-params$p_gamma))
       }
@@ -182,7 +191,7 @@ main_simulation_hiearchical <- function(params = df,
       
        posterior_df$log_posterior <- posterior_df$unnormalized_log_posterior - matrixStats::logSumExp( posterior_df$unnormalized_log_posterior)
          
-
+       lp_df[[t]] <- posterior_df
       
     }
     
@@ -192,25 +201,28 @@ main_simulation_hiearchical <- function(params = df,
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
-    model$EIG[t] <- sum(p_post_new * kl_new)
+   # model$EIG[t] <- sum(p_post_new * kl_new)
     
     # luce choice probability whether to look away
-    model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
-                                                 y = model$EIG[t])
+  #  model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
+                                                 #y = model$EIG[t])
     
     
     # actual choice of whether to look away is sampled here
-    model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
+    #model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
     
     # if look away, increment
-    if (model$look_away[t] == TRUE) {
-      stimulus_idx <- stimulus_idx + 1
-    }
+  #  if (model$look_away[t] == TRUE) {
+    #  stimulus_idx <- stimulus_idx + 1
+    #}
     
-    
+    print(t)
+    print(stimulus_idx)
     t <- t+1
+    stimulus_idx = stimulus_idx + 1
     
   } # FINISH HUGE WHILE LOOP
-  
-  return(model)  
+
+  return(lp_df)
+  #return(model)  
 }
