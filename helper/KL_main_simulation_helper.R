@@ -3,9 +3,9 @@
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
-main_simulation <- function(params = df,
+KL_main_simulation <- function(params = df,
                             grid_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = seq(0.001, 1, 0.01), 
+                            grid_epsilon = seq(0.001, 1, 0.01) 
                             ) {
   
   ### BOOK-KEEPING 
@@ -14,6 +14,9 @@ main_simulation <- function(params = df,
   # df for keeping track of model behavior
   model <-  initialize_model(params$world_EIG, params$max_observation, 
                              params$n_features)
+  
+  # if use KL: 
+  model$KL <- rep(NA,max_observation)
   
   # list of lists of df for the posteriors and likelihoods
   lp_post <- initialize_posterior(grid_theta, grid_epsilon, 
@@ -35,6 +38,9 @@ main_simulation <- function(params = df,
   p_post_new <- matrix(data = NA, nrow = nrow(possible_observations), 
                        ncol = params$n_features)
   kl_new <- matrix(data = NA, nrow = nrow(possible_observations), 
+                   ncol = params$n_features)
+  # keep track of all KLs rather than just the next observation 
+  kl_all <- matrix(data = NA, nrow = max_observation + 1, 
                    ncol = params$n_features)
   
   # dataframes of thetas and epsilons, and y given theta (these don't change)
@@ -90,50 +96,32 @@ main_simulation <- function(params = df,
       
     }
     
-    # -compute new posterior grid over all possible outcomes
-    # -compute KL between old and new posterior 
-    model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
-    for (o in 1:nrow(possible_observations)) { 
-      for (f in 1:params$n_features) {
-        # pretend that the possible observation has truly been observed
-        # note that's observed from the same stimulus as the previous one
-        model[t+1, paste0("f", f)] <- as.logical(possible_observations[o,f])
+    # Calculate a KL between last two time points and decide if we want to move on 
+    for (f in 1:params$n_features) {
+      # if it is a KL, then the first KL should be between t = 1 and the  
+      if (t == 1){
+        lp_prior$prior_dist <- exp((lp_prior$lp_theta + lp_prior$lp_epsilon) - logSumExp((lp_prior$lp_theta + lp_prior$lp_epsilon)))
+        kl_all[t, f] <- kl_div(lp_post[[t]][[f]]$posterior,
+                               lp_prior$prior_dist)
+      }else{
+        kl_all[t, f] <- kl_div(lp_post[[t]][[f]]$posterior,
+                               lp_post[[t-1]][[f]]$posterior)
         
-        # get upcoming likelihood
-        lp_z_given_theta_new[[o]][[f]] <- 
-          score_z_given_theta(t = t+1, f = f,
-                              lp_y_given_theta = lp_y_given_theta,
-                              lp_z_given_theta = lp_z_given_theta,
-                              model = model)
-        
-        
-        # upcoming posterior
-        lp_post_new[[o]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta_new[[o]][[f]], 
-                                            lp_prior = lp_prior, 
-                                            lp_post = lp_post_new[[o]][[f]])
-        
-        
-        
-        # posterior predictive
-        p_post_new[o,f] <- get_post_pred(lp_post[[t]][[f]], 
-                                         heads = possible_observations[o,f]) 
-        
-        # kl between old and new posteriors
-        kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
-                              lp_post[[t]][[f]]$posterior)
-        
-      
       }
     }
     
     
-    # compute EIG
+    
+
+  
+    
+    # compute KL across features 
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
-    model$EIG[t] <- sum(p_post_new * kl_new)
+    model$KL[t] <- sum(kl_all[t, ])
     
     # luce choice probability whether to look away
     model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
-                                                 y = model$EIG[t])
+                                                 y = model$KL[t])
 
     
     # actual choice of whether to look away is sampled here
