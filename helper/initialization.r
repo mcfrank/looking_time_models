@@ -65,14 +65,21 @@ initialize_z_given_theta <- function(grid_theta, grid_epsilon, max_observation, 
 }
 
 # model data frame, includes observations
-initialize_model <- function(eig_from_world, max_observation, n_features) {
+initialize_model <- function(eig_from_world, max_observation, n_features, measurement = "EIG") {
   
     model <- tibble(t = rep(NA,max_observation),
                     stimulus_idx = rep(NA,max_observation), 
-                    EIG = rep(NA,max_observation), 
                     EIG_from_world = rep(eig_from_world,max_observation),
                     p_look_away = rep(NA,max_observation), 
                     look_away = rep(NA,max_observation)) 
+    
+    if(measurement == "EIG"){
+      model$EIG = rep(NA,max_observation)
+    }else if(measurement == "KL"){
+      model$KL = rep(NA,max_observation)
+    }else if(measurement == "surprisal"){
+      model$surprisal = rep(NA,max_observation)
+    }
   
   # initialize columns for observations
   model[,paste("f", 1:n_features, sep="")] <- NA

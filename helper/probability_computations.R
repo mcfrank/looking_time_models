@@ -192,3 +192,6 @@ get_post_pred <- function(lp_post, heads = TRUE) {
   ifelse(heads, p_1, 1 - p_1)
 }
 
+
+
+
