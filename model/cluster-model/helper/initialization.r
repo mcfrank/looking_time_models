@@ -1,5 +1,32 @@
 # ALL FUNCTIONS DEALING WITH INITIALIZING MODEL COMPUTATION
 
+
+# a list of dataframes that keep tracks of all the combinations possible 
+# index corresponds to trial number 
+# dataframes correspond to the possible concept1 vs concept2 combination
+initialize_two_concepts_combinations <- function(total_trial_number){
+  
+  lapply(1:total_trial_number, 
+         function(trial_number){
+           as.matrix(expand.grid(as.data.frame(sapply(1:trial_number, 
+                                                      FUN = function(i){c(1,2)}))))
+         })
+  
+}
+
+# a list of dataframe that keep tracks of all the y = 0 y = 1 combinations 
+# index corresponds to trial number 
+initialize_y_value_combinations <- function(total_trial_number){
+
+  lapply(1:total_trial_number, 
+         function(trial_number){
+           as.matrix(expand.grid(as.data.frame(sapply(1:trial_number, 
+                                                      FUN = function(i){c(0,1)}))))
+         })
+  
+}
+
+
 initialize_posterior <- function(grid_theta, grid_epsilon, max_observation, feature_number){
   posterior <- expand_grid(theta = grid_theta,
                               epsilon = grid_epsilon)
@@ -38,14 +65,21 @@ initialize_z_given_theta <- function(grid_theta, grid_epsilon, max_observation, 
 }
 
 # model data frame, includes observations
-initialize_model <- function(eig_from_world, max_observation, n_features) {
+initialize_model <- function(eig_from_world, max_observation, n_features, measurement = "EIG") {
   
     model <- tibble(t = rep(NA,max_observation),
                     stimulus_idx = rep(NA,max_observation), 
-                    EIG = rep(NA,max_observation), 
                     EIG_from_world = rep(eig_from_world,max_observation),
                     p_look_away = rep(NA,max_observation), 
                     look_away = rep(NA,max_observation)) 
+    
+    if(measurement == "EIG"){
+      model$EIG = rep(NA,max_observation)
+    }else if(measurement == "KL"){
+      model$KL = rep(NA,max_observation)
+    }else if(measurement == "surprisal"){
+      model$surprisal = rep(NA,max_observation)
+    }
   
   # initialize columns for observations
   model[,paste("f", 1:n_features, sep="")] <- NA

@@ -61,6 +61,9 @@ if (ON_CLUSTER){
   source(here("helper/initialization.r"))
   source(here("helper/probability_computations.R"))
   source(here("helper/main_simulation_helper.R"))
+  source(here("helper/backward_IM_main_simulation_helper.R"))
+  
+  im_type = "KL"
   
   alpha_epsilons = c(1)
   beta_epsilons = c(10)
@@ -104,11 +107,11 @@ full_params_df <- make_simulation_params(n_sim = 200,
 
 
 all_sims_params <- full_params_df %>%
-  mutate(sim_id = row_number()) %>% 
+  mutate(sim_id = row_number(), 
+         measurement = im_type) %>% 
   group_by(sim_id,stim_info, params_info) %>% 
   nest() 
 
-all_sims_params$measurement <- im_type
 
 all_res <- foreach(i = 1:(max(all_sims_params$sim_id)), .combine=rbind, .errorhandling = "remove") %dopar% {
   
