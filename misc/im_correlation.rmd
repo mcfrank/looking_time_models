@@ -1,0 +1,133 @@
+---
+title: "im_correlation"
+author: "anjie & gal"
+date: "1/10/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(partitions)
+library(tictoc)
+library(LaplacesDemon)
+library(Brobdingnag)
+
+source(here("helper/make_scheme_and_params.R"))
+source(here("helper/initialization.R"))
+source(here("helper/probability_computations.R"))
+source(here("helper/main_simulation_helper_tracking_ims.R"))
+```
+
+using best parameter after the grid search: 
+ae_1_be_10_ap_1_bp_8_np_0.05_wEIG_0.008
+
+```{r}
+alpha_epsilons = c(1)
+beta_epsilons = c(10)
+alpha_priors = c(1)
+beta_priors = c(8)
+noise_parameters = c(0.05)
+world_EIGs = c(0.008)
+max_observation = 3000
+
+model_params <- set_model_params(alpha_priors, beta_priors, 
+                alpha_epsilons, beta_epsilons, 
+                noise_parameters, world_EIGs, max_observation)
+
+
+# set stimuli-related parameters 
+features_df <- tibble(
+  n_features = c(1), 
+  on_features_n = c(1)
+)
+sequence_scheme = c("BBBBBB","BBBBBD", "BDBBBB", "BBBDBB")
+
+stims_df <- set_stim_params(sequence_scheme, features_df)
+
+
+full_params_df <- make_simulation_params(n_sim = 200,
+                                        model_params, 
+                                        stims_df)
+```
+
+
+```{r}
+all_sims_res <- full_params_df %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation_traking_ims(params = df))) %>%
+  unnest(cols = c(data, results))
+```
+
+
+```{r}
+im_long <- all_sims_res %>%
+  filter(!is.na(EIG)) %>% 
+  pivot_longer(cols = c(kl, surprisal, EIG), 
+               names_to = "im_type", 
+               values_to = "im_value") 
+
+
+im_long %>% 
+  filter(im_type != "surprisal") %>% 
+  ggplot(aes(x = t, y = im_value)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
+  facet_grid(stimulus_idx~im_type, scales = "free")
+```
+
+```{r}
+all_sims_res <- all_sims_res %>%
+  filter(!is.na(EIG))
+
+# scale kl and surprisal for plotting 
+scaled_im_long <- im_long %>% 
+  group_by(im_type) %>% 
+  summarise(
+    mean_val = mean(im_value), # m2
+    sd_val = sd(im_value), # s2
+  ) 
+
+scaled_all_sim_res <- all_sims_res %>% 
+  mutate(scaled_kl = 
+            (scaled_im_long %>% filter(im_type == "EIG"))$mean_val + (kl - (scaled_im_long %>% filter(im_type == "kl"))$mean_val) * (scaled_im_long %>% filter(im_type == "EIG"))$sd_val / (scaled_im_long %>% filter(im_type == "kl"))$sd_val, 
+         scaled_surprisal = 
+           (scaled_im_long %>% filter(im_type == "EIG"))$mean_val + (surprisal - (scaled_im_long %>% filter(im_type == "surprisal"))$mean_val) * (scaled_im_long %>% filter(im_type == "EIG"))$sd_val / (scaled_im_long %>% filter(im_type == "surprisal"))$sd_val
+         )
+
+
+scaled_sim_long <- scaled_all_sim_res %>% 
+  pivot_longer(cols = c(scaled_kl, scaled_surprisal, EIG), 
+               names_to = "im_type", 
+               values_to = "im_value_scaled") 
+```
+
+
+```{r}
+
+scaled_sim_long %>% 
+  ggplot(aes(x = t, y = im_value_scaled, color = im_type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) 
+  #facet_wrap(~sequence_scheme)
+
+scaled_sim_long %>% 
+  ggplot(aes(x = t, y = im_value_scaled, color = im_type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
+  facet_wrap(~sequence_scheme)
+```
+zoom in on one participants 
+
+```{r}
+scaled_sim_long %>% 
+  filter(row_number < 5) %>% 
+  ggplot(aes(x = t, y = im_value_scaled, color = im_type)) + 
+  geom_point() + 
+  geom_line()+ 
+  facet_grid(~row_number) + 
+  labs(title = "single participant")
+```
+
+
