@@ -175,6 +175,8 @@ all_sims_res %>%
 # Surprisal 
 
 ```{r}
+source(here("helper/backward_IM_main_simulation_helper.R"))
+
 
 # set model-related parameters 
 alpha_epsilons = c(1)
@@ -182,7 +184,7 @@ beta_epsilons = c(10)
 alpha_priors = c(1)
 beta_priors = c(10)
 noise_parameters = c(0.01)
-world_EIGs = c(0.01)
+world_EIGs = c(0.8, 1, 1.2)
 max_observation = 500
 
 model_params <- set_model_params(alpha_priors, beta_priors, 
@@ -200,7 +202,7 @@ sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-full_params_df <- make_simulation_params(n_sim = 100,
+full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
 
@@ -210,7 +212,7 @@ full_params_df <- make_simulation_params(n_sim = 100,
 # option 2: having all features flipped, when plausible. then poses a limitation on the number of features turned on (n_on <= n_total * .5)
   # currently following the option 2. if it is above n_total * .5 then flip the maximum of the feature 
 
-
+full_params_df$measurement <- "surprisal"
 
 ```
 
@@ -225,7 +227,7 @@ all_sims_res <- full_params_df %>%
   group_by(row_number) %>% 
   nest() %>%
   mutate(results = map(data,
-                       function(df) S_main_simulation(params = df))) %>%
+                       function(df) backward_IM_main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
 toc()
 ```

@@ -3,7 +3,7 @@
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
-main_simulation <- function(params = df,
+main_simulation_traking_ims <- function(params = df,
                             grid_theta = seq(0.001, 1, 0.01),
                             grid_epsilon = seq(0.001, 1, 0.01)
                             ) {
@@ -14,6 +14,10 @@ main_simulation <- function(params = df,
   # df for keeping track of model behavior
   model <-  initialize_model(params$world_EIG, params$max_observation, 
                              params$n_features)
+  
+  # keeping track of the backward looking ims 
+  model$kl <- rep(NA,params$max_observation)
+  model$surprisal <- rep(NA,params$max_observation)
   
   # list of lists of df for the posteriors and likelihoods
   lp_post <- initialize_posterior(grid_theta, grid_epsilon, 
@@ -37,10 +41,16 @@ main_simulation <- function(params = df,
   kl_new <- matrix(data = NA, nrow = nrow(possible_observations), 
                    ncol = params$n_features)
   
+  kl_for_all_features <- matrix(data = NA, nrow = 1, ncol = params$n_features)
+  surprisal_for_all_features <- matrix(data = NA, nrow = 1, ncol = params$n_features)
+  
   # dataframes of thetas and epsilons, and y given theta (these don't change)
   lp_prior <- score_prior(grid_theta, grid_epsilon, 
                                   params$alpha_prior,  params$beta_prior, 
                                   params$alpha_epsilon, params$beta_epsilon)
+  
+  lp_prior$prior_dist <- exp((lp_prior$lp_theta + lp_prior$lp_epsilon) - logSumExp((lp_prior$lp_theta + lp_prior$lp_epsilon)))
+  
   lp_y_given_theta = tibble(theta = grid_theta, 
                             lp_y_ONE_given_theta = score_yi_given_theta(yi = 1, 
                                                                      theta = grid_theta), 
@@ -88,7 +98,32 @@ main_simulation <- function(params = df,
       
       
       
+      # compute the actual KL and surprisal 
+      if (t == 1){
+        kl_for_all_features[1, f] <-  kl_div(lp_post[[t]][[f]]$posterior,
+                                             lp_prior$prior_dist)
+        
+        
+        p_1 = exp(matrixStats::logSumExp( log(1 - lp_prior$epsilon) + log(lp_prior$theta) + log(lp_prior$prior_dist))) + 
+          +     exp(matrixStats::logSumExp((log(lp_prior$epsilon) + log(1-lp_prior$theta) + log(lp_prior$prior_dist))))
+        
+        surprisal_for_all_features[1, f] <- -log(ifelse(current_observation[f], p_1, 1 - p_1))
+        
+      }else{
+        kl_for_all_features[1, f] <- kl_div(lp_post[[t]][[f]]$posterior,
+               lp_post[[t-1]][[f]]$posterior)
+        
+        surprisal_for_all_features[1, f] <- -log(get_post_pred(lp_post[[t-1]][[f]], 
+                                                                heads = current_observation[f])) 
+        
+      }
+      
     }
+    
+    
+    model$kl[t] <- sum(kl_for_all_features[1, ])
+    model$surprisal[t] <- sum(surprisal_for_all_features[1, ])
+    
     
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 

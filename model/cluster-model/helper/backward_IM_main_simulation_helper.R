@@ -108,11 +108,25 @@ backward_IM_main_simulation <- function(params = df,
     for (f in 1:params$n_features) {
       # if it is a KL, then the first KL should be between t = 1 and the prior   
       if (t == 1){
-        im_all[t, f] <- kl_div(lp_post[[t]][[f]]$posterior,
-                               lp_prior$prior_dist)
+        if(params$measurement == "KL"){
+          im_all[t, f] <- kl_div(lp_post[[t]][[f]]$posterior,
+                                 lp_prior$prior_dist)
+        }else if (params$measurement == "surprisal"){
+          p_1 = exp(matrixStats::logSumExp( log(1 - lp_prior$epsilon) + log(lp_prior$theta) + log(lp_prior$prior_dist))) + 
+            +     exp(matrixStats::logSumExp((log(lp_prior$epsilon) + log(1-lp_prior$theta) + log(lp_prior$prior_dist))))
+          im_all[t, f] <- -log(p_1)
+        }
+        
+       
       }else{
+        if(params$measurement == "KL"){
         im_all[t, f] <- kl_div(lp_post[[t]][[f]]$posterior,
                                lp_post[[t-1]][[f]]$posterior)
+        
+        }else if (params$measurement == "surprisal"){
+        im_all[t, f] <- -log(get_post_pred(lp_post[[t-1]][[f]], 
+                                           heads = current_observation[f]))
+        }
         
       }
     }
