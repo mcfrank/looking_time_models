@@ -57,8 +57,8 @@ model_params <- set_model_params(alpha_priors, beta_priors,
 
 # set stimuli-related parameters
 features_df <- tibble(
-  n_features = c(6, 1),
-  on_features_n = c(6, 3)
+  n_features = c(6, 6),
+  on_features_n = c(1, 3)
 )
 sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
 
