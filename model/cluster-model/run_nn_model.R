@@ -8,7 +8,7 @@ library(foreach)
 registerDoParallel(cores=32)
 getDoParWorkers()
 
-ON_CLUSTER = TRUE
+ON_CLUSTER = FALSE
 
 if (ON_CLUSTER){
   source("~/poke_model/helper/make_scheme_and_params.r") # can't believe it's case sensitive on the server!
@@ -30,14 +30,14 @@ if (ON_CLUSTER){
   source(here("helper/make_scheme_and_params.r"))
   source(here("helper/initialization.r"))
   source(here("helper/probability_computations.R"))
-  source(here("helper/main_simulation_helper.R"))
+  source(here("helper/main_simulation_helper_no_noise.R"))
   
   alpha_epsilons = c(1)
   beta_epsilons = c(10)
   alpha_priors = c(1)
-  beta_priors = c(30)
-  noise_parameters = c(0.01, 0.05)
-  world_EIGs = c(0.005, 0.1)
+  beta_priors = c(4)
+  noise_parameters = c(0)
+  world_EIGs = c(0.01)
   
 }
 
@@ -77,7 +77,7 @@ all_sims_params <- full_params_df %>%
 
 
 
-all_res <- foreach(i = 1:(max(all_sims_params$sim_id)), .combine=rbind, .errorhandling = "remove") %dopar% {
+all_res <- foreach(i = 1:(max(all_sims_params$sim_id)), .combine=rbind, .errorhandling = "stop") %dopar% {
   
   res <- all_sims_params[i, ] %>% 
     mutate(res = main_simulation_no_noise(params = (all_sims_params[i, ]$data)[[1]]) %>% nest(res = everything()))
