@@ -33,10 +33,19 @@
   lp_z_given_y = tibble(epsilon = grid_epsilon)
   
   # compute probabilities over all observations of this stimulus
-  lp_z_given_y$z_given_y_ONE = rowSums(sapply(observations_this_stimulus, 
-                                              function(x){ score_z_ij_given_y(x, 1, grid_epsilon)}))
-  lp_z_given_y$z_given_y_ZERO = rowSums(sapply(observations_this_stimulus, 
-                                               function(x){ score_z_ij_given_y(x, 0, grid_epsilon)}))
+  if(length(grid_epsilon) == 1){
+    lp_z_given_y$z_given_y_ONE = sum(sapply(observations_this_stimulus, 
+                                                function(x){ score_z_ij_given_y(x, 1, grid_epsilon)}))
+    lp_z_given_y$z_given_y_ZERO = sum(sapply(observations_this_stimulus, 
+                                                 function(x){ score_z_ij_given_y(x, 0, grid_epsilon)}))
+  }else{
+    lp_z_given_y$z_given_y_ONE = rowSums(sapply(observations_this_stimulus, 
+                                                function(x){ score_z_ij_given_y(x, 1, grid_epsilon)}))
+    lp_z_given_y$z_given_y_ZERO = rowSums(sapply(observations_this_stimulus, 
+                                                 function(x){ score_z_ij_given_y(x, 0, grid_epsilon)}))
+  }
+  
+  
   
   # clever expansion with cached likelihoods
   lp_z_y_theta <- expand_grid(lp_y_given_theta, lp_z_given_y)
@@ -59,6 +68,68 @@
   return(this_lp_z_given_theta)
 }
 
+  
+  
+score_z_given_theta_no_noise <- function(t, # timestep
+                                  f, # feature
+                                  lp_y_given_theta, # cached likelihoods
+                                  lp_z_given_theta, # likelihoods
+                                  model) {
+    
+    # set up current variables
+    this_lp_z_given_theta <- lp_z_given_theta[[t]][[f]]
+    grid_epsilon <- unique(this_lp_z_given_theta$epsilon)
+    grid_theta <- unique(this_lp_z_given_theta$theta)
+    this_stimulus_idx <- model$stimulus_idx[t]
+    
+    # need to compute over all noisy observations of this stimulus
+    observations_this_stimulus <- filter(model, stimulus_idx == this_stimulus_idx) %>%
+      select(paste0("f", f)) %>%
+      pull()
+    
+    # no noise not operating in log space 
+    p_z_given_y = tibble(epsilon = grid_epsilon)
+    
+    # compute probabilities over all observations of this stimulus
+    if(length(grid_epsilon) == 1){
+      p_z_given_y$z_given_y_ONE = prod(sapply(observations_this_stimulus, 
+                                              function(x){ score_z_ij_given_y_no_noise(x, 1, grid_epsilon)}))
+      p_z_given_y$z_given_y_ZERO = prod(sapply(observations_this_stimulus, 
+                                               function(x){ score_z_ij_given_y_no_noise(x, 0, grid_epsilon)}))
+    }else{
+      p_z_given_y$z_given_y_ONE = rowProds(sapply(observations_this_stimulus, 
+                                                  function(x){ score_z_ij_given_y_no_noise(x, 1, grid_epsilon)}))
+      p_z_given_y$z_given_y_ZERO = rowProds(sapply(observations_this_stimulus, 
+                                                   function(x){ score_z_ij_given_y_no_noise(x, 0, grid_epsilon)}))
+    }
+    
+    
+    
+    # clever expansion with cached likelihoods
+    p_y_given_theta <- lp_y_given_theta
+    p_y_given_theta$p_y_ONE_given_theta <- exp(lp_y_given_theta$lp_y_ONE_given_theta)
+    p_y_given_theta$p_y_ZERO_given_theta <- exp(lp_y_given_theta$lp_y_ZERO_given_theta)
+    
+    p_z_y_theta <- expand_grid(p_y_given_theta, p_z_given_y)
+    
+    # update current observation
+    this_lp_z_given_theta$p_z_y_ZERO <- p_z_y_theta$p_y_ZERO_given_theta * p_z_y_theta$z_given_y_ZERO
+    this_lp_z_given_theta$p_z_y_ONE <- p_z_y_theta$p_y_ONE_given_theta * p_z_y_theta$z_given_y_ONE
+    
+    # likelihood of all samples for current stimulus
+    this_lp_z_given_theta$lp_z_given_theta <- 
+      log(this_lp_z_given_theta$p_z_y_ZERO +  this_lp_z_given_theta$p_z_y_ONE)
+    
+    # add in likelihood for last sample from last stimulus, which includes all prior obs
+    if (this_stimulus_idx > 1) {
+      last_stim_last_t <- max(model$t[model$stimulus_idx == this_stimulus_idx - 1], na.rm=TRUE)
+      this_lp_z_given_theta$lp_z_given_theta <- this_lp_z_given_theta$lp_z_given_theta + 
+        lp_z_given_theta[[last_stim_last_t]][[f]]$lp_z_given_theta
+    }
+    
+    return(this_lp_z_given_theta)
+  }
+  
 # ---------------- score_post ---------------------
 # update posterior
 # rolls in likelihood and prior, does logsumexp
@@ -79,7 +150,7 @@ score_post <- function(lp_z_given_theta, lp_prior, lp_post) {
 }
 
 # ---------------- score_z_ij_given_y ---------------------
-# p(z_ij | y)
+# lp(z_ij | y)
 score_z_ij_given_y <- function(zij, yi, epsilon) {
   
   if (zij == yi){
@@ -88,6 +159,16 @@ score_z_ij_given_y <- function(zij, yi, epsilon) {
     log(epsilon)
   }
 }
+  
+# this returns the acutal p not the lp 
+score_z_ij_given_y_no_noise <- function(zij, yi, epsilon) {
+    
+    if (zij == yi){
+      1
+    }else{
+      0
+    }
+  }
 
 
 # ---------------- score_prior ---------------------

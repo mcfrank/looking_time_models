@@ -3,9 +3,9 @@
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
-main_simulation <- function(params = df,
+main_simulation_no_noise <- function(params = df,
                             grid_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = seq(0.001, 1, 0.01)
+                            grid_epsilon = c(0)
                             ) {
   
   ### BOOK-KEEPING 
@@ -76,7 +76,7 @@ main_simulation <- function(params = df,
       # update likelihood
      
       lp_z_given_theta[[t]][[f]] <- 
-        score_z_given_theta(t = t, f = f,
+        score_z_given_theta_no_noise(t = t, f = f,
                             lp_y_given_theta = lp_y_given_theta,
                             lp_z_given_theta = lp_z_given_theta,
                             model = model)
@@ -84,7 +84,7 @@ main_simulation <- function(params = df,
       # update posterior
       lp_post[[t]][[f]] <- score_post(lp_z_given_theta = lp_z_given_theta[[t]][[f]], 
                                       lp_prior = lp_prior, 
-                                      lp_post = lp_post[[t]][[f]])
+                                      lp_post = lp_post[[t]][[f]]) 
       
       
       
