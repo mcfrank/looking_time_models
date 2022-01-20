@@ -5,7 +5,7 @@
 # takes a df of parameters and some globals
 main_simulation_no_noise <- function(params = df,
                             grid_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = c(0.000001)
+                            grid_epsilon = c(0.0001)
                             ) {
   
   ### BOOK-KEEPING 

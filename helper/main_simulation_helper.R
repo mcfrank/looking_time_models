@@ -101,7 +101,7 @@ main_simulation <- function(params = df,
         
         # get upcoming likelihood
         lp_z_given_theta_new[[o]][[f]] <- 
-          score_z_given_theta_no_noise(t = t+1, f = f,
+          score_z_given_theta(t = t+1, f = f,
                               lp_y_given_theta = lp_y_given_theta,
                               lp_z_given_theta = lp_z_given_theta,
                               model = model)
