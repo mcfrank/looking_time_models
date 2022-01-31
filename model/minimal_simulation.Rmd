@@ -57,7 +57,7 @@ sequence_scheme = c("BBBBD")
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-full_params_df <- make_simulation_params(n_sim = 1,
+full_params_df <- make_simulation_params(n_sim = 20,
                                         model_params, 
                                         stims_df)
 ```
