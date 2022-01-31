@@ -50,7 +50,35 @@ set_stim_params <- function(sequence_scheme, features_df){
   return(stimulus_sequence_df)
 }
 
+set_stim_params_by_block <- function(sequence_scheme, features_df){
+  
+  
+  
+  stimulus_sequence_df <- expand_grid(sequence_scheme, features_df)%>% 
+    rowwise() %>% 
+    mutate(
+      block_length = nchar(sequence_scheme),
+      stimuli_sequence = nest(scheme_to_stimuli(sequence_scheme, 
+                                                n_features = n_features, 
+                                                on_features_n = on_features_n), data = everything())) %>% 
+    ungroup() %>% 
+    mutate(stim_info = paste("nf", n_features, 
+                             "of", on_features_n, 
+                             "ss", sequence_scheme, 
+                             sep = "_"),
+           block_number = row_number()) 
+  
 
+  
+  # now extend it into a block 
+  lapply(stimulus_sequence_df$stimuli_sequence$data, function(x){x}) %>% 
+    bind_rows() %>% 
+    mutate(trial_number = row_number(), 
+           trial_number_in_block = )
+  
+  
+  return(stimulus_sequence_df)
+}
 
 
 
