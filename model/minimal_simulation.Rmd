@@ -1,5 +1,5 @@
 ---
-title: "Fitting model to data"
+title: "RANCH Comparison"
 author: "anjie"
 date: "8/26/2021"
 output: html_document
@@ -20,7 +20,6 @@ source(here("helper/initialization.R"))
 source(here("helper/probability_computations.R"))
 source(here("helper/main_simulation_helper.R"))
 
-d <- read_csv(here("data/processed_rt_task_data.csv"))
 
 # set up multicore sims
 #future::plan(multicore)
@@ -28,7 +27,9 @@ d <- read_csv(here("data/processed_rt_task_data.csv"))
 
 Figuring out the sequence and generate the stimuli sequence with all the parameters 
 
-# EIG w/ KL 
+# RANCH 
+
+## EIG 
 
 ```{r}
 
@@ -59,20 +60,10 @@ stims_df <- set_stim_params(sequence_scheme, features_df)
 full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
-
-# option 1: make sure the simple and the complex one has the same number of flipped feature 
-  # should reinforce in the feature_df section to make sure simulations are relatively independent of each other? 
-
-# option 2: having all features flipped, when plausible. then poses a limitation on the number of features turned on (n_on <= n_total * .5)
-  # currently following the option 2. if it is above n_total * .5 then flip the maximum of the feature 
-
-
-
 ```
 
 
 
-Running the simulation. 
 
 ```{r}
 tic()
@@ -102,51 +93,18 @@ all_sims_res %>%
 ```
 
 
-# KL 
+## Surprisal 
 
 ```{r}
 
-# set model-related parameters 
-alpha_epsilons = c(1)
-beta_epsilons = c(10)
-alpha_priors = c(1)
-beta_priors = c(10)
-noise_parameters = c(0.01)
-world_EIGs = c(0.005)
-max_observation = 500
-
-model_params <- set_model_params(alpha_priors, beta_priors, 
-                alpha_epsilons, beta_epsilons, 
-                noise_parameters, world_EIGs, max_observation)
+model_params$measurement <- "surprisal"
 
 
-# set stimuli-related parameters 
-features_df <- tibble(
-  n_features = c(6, 6), 
-  on_features_n = c(1, 3)
-)
-sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
-
-stims_df <- set_stim_params(sequence_scheme, features_df)
-
-
-full_params_df <- make_simulation_params(n_sim = 100,
+full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
-
-# option 1: make sure the simple and the complex one has the same number of flipped feature 
-  # should reinforce in the feature_df section to make sure simulations are relatively independent of each other? 
-
-# option 2: having all features flipped, when plausible. then poses a limitation on the number of features turned on (n_on <= n_total * .5)
-  # currently following the option 2. if it is above n_total * .5 then flip the maximum of the feature 
-
-
-
 ```
 
-
-
-Running the simulation. 
 
 ```{r}
 tic()
@@ -155,11 +113,11 @@ all_sims_res <- full_params_df %>%
   group_by(row_number) %>% 
   nest() %>%
   mutate(results = map(data,
-                       function(df) KL_main_simulation(params = df))) %>%
+                       function(df) backward_IM_main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
 toc()
-```
 
+```
 
 ```{r}
 all_sims_res %>% 
@@ -172,53 +130,16 @@ all_sims_res %>%
 
 ```
 
-# Surprisal 
+
+## KL 
 
 ```{r}
-source(here("helper/backward_IM_main_simulation_helper.R"))
-
-
-# set model-related parameters 
-alpha_epsilons = c(1)
-beta_epsilons = c(10)
-alpha_priors = c(1)
-beta_priors = c(10)
-noise_parameters = c(0.01)
-world_EIGs = c(0.8, 1, 1.2)
-max_observation = 500
-
-model_params <- set_model_params(alpha_priors, beta_priors, 
-                alpha_epsilons, beta_epsilons, 
-                noise_parameters, world_EIGs, max_observation)
-
-
-# set stimuli-related parameters 
-features_df <- tibble(
-  n_features = c(6, 6), 
-  on_features_n = c(1, 3)
-)
-sequence_scheme = c("BDBBBB", "BBBDBB", "BBBBBD", "BBBBBB")
-
-stims_df <- set_stim_params(sequence_scheme, features_df)
-
-
+model_params$measurement <- "KL"
 full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
 
-# option 1: make sure the simple and the complex one has the same number of flipped feature 
-  # should reinforce in the feature_df section to make sure simulations are relatively independent of each other? 
-
-# option 2: having all features flipped, when plausible. then poses a limitation on the number of features turned on (n_on <= n_total * .5)
-  # currently following the option 2. if it is above n_total * .5 then flip the maximum of the feature 
-
-full_params_df$measurement <- "surprisal"
-
 ```
-
-
-
-Running the simulation. 
 
 ```{r}
 tic()
@@ -240,5 +161,32 @@ all_sims_res %>%
   ggplot(aes(x = stimulus_idx, y = sample_n, group = as.factor(on_features_n))) + 
   stat_summary(aes(color = as.factor(on_features_n)), position =position_dodge(width = .1),  fun.data = "mean_cl_boot") + 
   facet_wrap(~sequence_scheme)
-
 ```
+
+# BASELINE
+
+## No noise
+To implement no noise, set epsilon = 0, change the grid_epsilon = c(0.000001) (for numerical stability)
+
+## Random 
+
+```{r}
+all_sims_res <- full_params_df %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation_random_looking(params = df))) %>%
+  unnest(cols = c(data, results))
+
+all_sims_res %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme, stimulus_idx) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, group = as.factor(on_features_n))) + 
+  stat_summary(aes(color = as.factor(on_features_n)), position =position_dodge(width = .1),  fun.data = "mean_cl_boot") + 
+  facet_wrap(~sequence_scheme)
+```
+
+
+

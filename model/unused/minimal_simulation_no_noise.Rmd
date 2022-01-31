@@ -36,7 +36,7 @@ Figuring out the sequence and generate the stimuli sequence with all the paramet
 alpha_epsilons = c(1)
 beta_epsilons = c(10)
 alpha_priors = c(1)
-beta_priors = c(10)
+beta_priors = c(4)
 noise_parameters = c(0)
 world_EIGs = c(0.01)
 max_observation = 500
@@ -48,15 +48,15 @@ model_params <- set_model_params(alpha_priors, beta_priors,
 
 # set stimuli-related parameters 
 features_df <- tibble(
-  n_features = c(1), 
+  n_features = c(2), 
   on_features_n = c(1)
 )
-sequence_scheme = c("BBBBD")
+sequence_scheme = c("BBBBBB")
 
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-full_params_df <- make_simulation_params(n_sim = 1,
+full_params_df <- make_simulation_params(n_sim = 100,
                                         model_params, 
                                         stims_df)
 
@@ -87,6 +87,14 @@ toc()
 ```
 
 Clean and visualize. 
+```{r}
+all_sims_res %>% 
+  filter(!is.na(EIG)) %>% 
+  ggplot(aes(x = t, y = EIG)) + 
+  geom_point(alpha = .3, color = stimulus_idx)
+```
+
+
 
 ```{r}
 all_sims_res %>% 

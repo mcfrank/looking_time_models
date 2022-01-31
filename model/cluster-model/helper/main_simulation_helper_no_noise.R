@@ -76,7 +76,7 @@ main_simulation_no_noise <- function(params = df,
       # update likelihood
      
       lp_z_given_theta[[t]][[f]] <- 
-        score_z_given_theta_no_noise(t = t, f = f,
+        score_z_given_theta(t = t, f = f,
                             lp_y_given_theta = lp_y_given_theta,
                             lp_z_given_theta = lp_z_given_theta,
                             model = model)
@@ -101,7 +101,7 @@ main_simulation_no_noise <- function(params = df,
         
         # get upcoming likelihood
         lp_z_given_theta_new[[o]][[f]] <- 
-          score_z_given_theta_no_noise(t = t+1, f = f,
+          score_z_given_theta(t = t+1, f = f,
                               lp_y_given_theta = lp_y_given_theta,
                               lp_z_given_theta = lp_z_given_theta,
                               model = model)
@@ -121,11 +121,15 @@ main_simulation_no_noise <- function(params = df,
         # kl between old and new posteriors
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
+        #reset the model so that it doesn't behave weird in the end 
+        model[t+1, paste0("f", f)] <- NA
         
       
       }
     }
     
+    # reset the model stimulus so that it doesn't behave weird at the last stimulus 
+    model$stimulus_idx[t+1] <- NA_real_ 
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
