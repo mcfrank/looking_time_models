@@ -5,7 +5,7 @@
 # takes a df of parameters and some globals
 main_simulation_no_noise <- function(params = df,
                             grid_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = c(0.0001)
+                            grid_epsilon = c(0.0000001)
                             ) {
   
   ### BOOK-KEEPING 
@@ -76,7 +76,7 @@ main_simulation_no_noise <- function(params = df,
       # update likelihood
      
       lp_z_given_theta[[t]][[f]] <- 
-        score_z_given_theta_no_noise(t = t, f = f,
+        score_z_given_theta(t = t, f = f,
                             lp_y_given_theta = lp_y_given_theta,
                             lp_z_given_theta = lp_z_given_theta,
                             model = model)
@@ -101,7 +101,7 @@ main_simulation_no_noise <- function(params = df,
         
         # get upcoming likelihood
         lp_z_given_theta_new[[o]][[f]] <- 
-          score_z_given_theta_no_noise(t = t+1, f = f,
+          score_z_given_theta(t = t+1, f = f,
                               lp_y_given_theta = lp_y_given_theta,
                               lp_z_given_theta = lp_z_given_theta,
                               model = model)
