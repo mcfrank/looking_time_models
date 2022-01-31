@@ -35,10 +35,10 @@ Figuring out the sequence and generate the stimuli sequence with all the paramet
 
 # set model-related parameters 
 alpha_epsilons = c(1)
-beta_epsilons = c(10)
+beta_epsilons = c(4)
 alpha_priors = c(1)
 beta_priors = c(10)
-noise_parameters = c(0.01)
+noise_parameters = c(0.065)
 world_EIGs = c(0.01)
 max_observation = 500
 
@@ -49,12 +49,14 @@ model_params <- set_model_params(alpha_priors, beta_priors,
 
 # set stimuli-related parameters 
 features_df <- tibble(
-  n_features = c(1), 
-  on_features_n = c(1)
+  n_features = c(3), 
+  on_features_n = c(1,2)
 )
-sequence_scheme = c("BBBBD")
+sequence_scheme = c("BBBBBD", "BBBBBB")
 
 stims_df <- set_stim_params(sequence_scheme, features_df)
+
+
 
 
 full_params_df <- make_simulation_params(n_sim = 20,
