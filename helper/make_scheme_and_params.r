@@ -46,6 +46,7 @@ set_stim_params <- function(sequence_scheme, features_df){
                              "of", on_features_n, 
                              "ss", sequence_scheme, 
                              sep = "_"))
+
   
   return(stimulus_sequence_df)
 }
@@ -68,16 +69,28 @@ set_stim_params_by_block <- function(sequence_scheme, features_df){
                              sep = "_"),
            block_number = row_number()) 
   
-
+  block_info <- tibble(
+    sequence_scheme = paste(stimulus_sequence_df$sequence_scheme, collapse = "")
+  )
   
   # now extend it into a block 
-  lapply(stimulus_sequence_df$stimuli_sequence$data, function(x){x}) %>% 
+
+  
+  block_stimuli_sequence <- block_info %>% 
+    mutate(
+      stimuli_sequence = nest(lapply(seq(1, length(stimulus_sequence_df$stimuli_sequence$data)), 
+         function(i){stimulus_sequence_df$stimuli_sequence$data[[i]] %>% 
+             mutate(block_number = i)}) %>% 
     bind_rows() %>% 
-    mutate(trial_number = row_number(), 
-           trial_number_in_block = )
+    mutate(trial_number_in_block = trial_number,
+           trial_number = row_number()), 
+    data = everything()), 
+    n_features = stimulus_sequence_df$n_features[[1]]
+    )
   
   
-  return(stimulus_sequence_df)
+  
+  return(block_stimuli_sequence)
 }
 
 
@@ -93,6 +106,20 @@ make_simulation_params <- function(n_sim,
   
 }
 
+
+make_simulation_params_block <- function(n_sim,
+                                   model_params, 
+                                   stim_params
+){
+  
+  model_params %>% 
+    mutate(stimuli_sequence = nest(stim_params)) %>% 
+    
+  
+  expand_grid(model_params, stim_params) %>% 
+    left_join(expand_grid(sub_id = 1:n_sim, params_id = model_params$params_id))
+  
+}
 
 
 
