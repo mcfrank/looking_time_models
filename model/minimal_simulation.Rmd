@@ -49,17 +49,17 @@ model_params <- set_model_params(alpha_priors, beta_priors,
 
 # set stimuli-related parameters 
 features_df <- tibble(
-  n_features = c(3), 
-  on_features_n = c(1,2)
+  n_features = c(1), 
+  on_features_n = c(1)
 )
-sequence_scheme = c("BBBBBD", "BBBBBB")
+sequence_scheme = c("BBBBBB","BBBBBB")
+
+#stims_df_block <- set_stim_params_by_block(sequence_scheme, features_df)
 
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-
-
-full_params_df <- make_simulation_params(n_sim = 20,
+full_params_df <- make_simulation_params(n_sim = 10,
                                         model_params, 
                                         stims_df)
 ```
@@ -67,19 +67,21 @@ full_params_df <- make_simulation_params(n_sim = 20,
 
 
 
-```{r}
-tic()
-all_sims_res <- full_params_df %>%
-  mutate(row_number = row_number()) %>% 
-  group_by(row_number) %>% 
-  nest() %>%
-  mutate(results = map(data,
-                       function(df) main_simulation(params = df))) %>%
-  unnest(cols = c(data, results))
-toc()
-```
+
 
 Clean and visualize. 
+
+```{r}
+all_sims_res %>% 
+  group_by(row_number, params_id, n_features, sequence_scheme, stimulus_idx) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
+  facet_wrap(~sequence_scheme)
+
+```
+
 
 ```{r}
 all_sims_res %>% 
