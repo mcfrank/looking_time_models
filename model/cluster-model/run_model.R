@@ -16,43 +16,13 @@ if (ON_CLUSTER){
   source("~/poke_model/helper/probability_computations.R")
   source("~/poke_model/helper/main_simulation_helper.R")
   
-  # prior search upper bound 
-  ps_ub = 3
-  # prior search lower bound
-  ps_lb = 1
-  # prior search step 
-  ps_s = 0.5
-  alpha_epsilons = seq(ps_lb, ps_ub, ps_s)
-  beta_epsilons = seq(ps_lb, ps_ub, ps_s)
-  alpha_priors = seq(ps_lb, ps_ub, ps_s)
-  beta_priors = seq(ps_lb, ps_ub, ps_s)
-  
-  # noise search upper bound 
-  ns_ub = 0.08
-  # noise search lower bound 
-  ns_lb = 0.01
-  # noise search step
-  ns_s = 0.05
-  noise_parameters = seq(ns_lb, ns_ub, ns_s)
-  
-  # wEIG upper bound 
-  weig_ub = 0.005
-  # wEIG lower bound
-  weig_lb = 0.001
-  # wEIG 
-  weig_s = 0.001
-  
-  weig_parameters = seq(weig_lb, weig_ub, weig_s)
-  
-  # delete laterr when i actually know how to do paremeter search 
   alpha_epsilons = c(1)
-  beta_epsilons = c(10)
+  beta_epsilons = c(4)
   alpha_priors = c(1)
-  beta_priors = c(30)
-  alpha_priors = c(1)
-  beta_priors = c(30)
-  noise_parameters = c(0.01, 0.05)
-  world_EIGs = c(0.005, 0.01)
+  beta_priors = c(10)
+  noise_parameters = c(0.065)
+  world_EIGs = c(0.01)
+  forced_exposure_n = c(1, 5, 30)
   
   
 }else{
@@ -73,7 +43,7 @@ if (ON_CLUSTER){
 }
 
 
-max_observation = c(3000) # some combination of the prams are going to end up having very high observation
+max_observation = c(1000) # some combination of the prams are going to end up having very high observation
 
 
 
@@ -96,7 +66,7 @@ sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-full_params_df <- make_simulation_params(n_sim = 200,
+full_params_df <- make_simulation_params(n_sim = 500,
                                          model_params,
                                          stims_df)
 
@@ -130,5 +100,5 @@ tidy_sim <- left_join(sim_res,
 
 
 
-saveRDS(tidy_sim, "tidy_sim.RDS")
+saveRDS(tidy_sim, "forced_exp_sim.RDS")
 
