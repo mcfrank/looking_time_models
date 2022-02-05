@@ -126,19 +126,31 @@ main_simulation <- function(params = df,
         kl_new[o,f] <- kl_div(lp_post_new[[o]][[f]]$posterior,
                               lp_post[[t]][[f]]$posterior)
         
+        model[t+1, paste0("f", f)] <- NA
       
       }
     }
-    
+    model$stimulus_idx[t+1] <- NA_real_ 
     
     # compute EIG
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
     model$EIG[t] <- sum(p_post_new * kl_new)
     
-    # luce choice probability whether to look away
-    model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
-                                                 y = model$EIG[t])
-
+    
+    # forced choice options
+    if (t < params$forced_exposure_n){
+      # less than the forced exposure n OR at the forced exposure n, should not to look away
+      model$p_look_away[t] = 0
+    }else if (t == params$forced_exposure_n){
+      # when finally at the last one, definitely needs to look away
+      model$p_look_away[t] = 1
+    }else{
+      # anything afterwards are all normal; also when forced_exposure_n = 0 it's all normal 
+      model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
+                                                   y = model$EIG[t])
+    }
+    
+   
     
     # actual choice of whether to look away is sampled here
     model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
@@ -147,6 +159,7 @@ main_simulation <- function(params = df,
     if (model$look_away[t] == TRUE) {
       stimulus_idx <- stimulus_idx + 1
     }
+  
     
 
     t <- t+1
@@ -308,6 +321,18 @@ backward_IM_main_simulation <- function(params = df,
     }
     
     
+    # forced choice options
+    if (t < params$forced_exposure_n){
+      # less than the forced exposure n OR at the forced exposure n, should not to look away
+      model$p_look_away[t] = 0
+    }else if (t == params$forced_exposure_n){
+      # when finally at the last one, definitely needs to look away
+      model$p_look_away[t] = 1
+    }else{
+      # anything afterwards are all normal; also when forced_exposure_n = 0 it's all normal 
+      model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
+                                                   y = model$EIG[t])
+    }
     
     
     # actual choice of whether to look away is sampled here

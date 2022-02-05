@@ -6,7 +6,8 @@ set_model_params <- function(alpha_priors,
                              beta_epsilosn, 
                              noise_parameters, 
                              world_EIGs, 
-                             max_observation){
+                             max_observation, 
+                             forced_exposure_n){
   
   model_params_df <- crossing(
     alpha_prior = alpha_priors,
@@ -15,14 +16,17 @@ set_model_params <- function(alpha_priors,
     beta_epsilon = beta_epsilosn,
     noise_parameter = noise_parameters,
     world_EIG = world_EIGs, 
-    max_observation = max_observation
+    max_observation = max_observation, 
+    forced_exposure_n = forced_exposure_n
   ) %>% 
     mutate(params_info = paste("ae", alpha_epsilon, 
                                "be", beta_epsilon, 
                                "ap", alpha_prior, 
                                "bp", beta_prior, 
                                "np", noise_parameter, 
-                               "wEIG", world_EIG, sep = "_"),
+                               "wEIG", world_EIG, 
+                               "fexp", forced_exposure_n, 
+                               sep = "_"),
            params_id = row_number())
   
   return(model_params_df)
