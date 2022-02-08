@@ -22,23 +22,23 @@ if (ON_CLUSTER){
   beta_priors = c(10)
   noise_parameters = c(0.065)
   world_EIGs = c(0.01)
-  forced_exposure_n = c(1, 5, 30)
+  forced_exposure_n = c(0)
   
   
 }else{
+  library(here)
   source(here("helper/make_scheme_and_params.r"))
   source(here("helper/initialization.r"))
   source(here("helper/probability_computations.R"))
   source(here("helper/main_simulation_helper.R"))
   
   alpha_epsilons = c(1)
-  beta_epsilons = c(10)
+  beta_epsilons = c(4)
   alpha_priors = c(1)
-  beta_priors = c(30)
-  alpha_priors = c(1)
-  beta_priors = c(30)
-  noise_parameters = c(0.01, 0.05)
-  world_EIGs = c(0.005, 0.1)
+  beta_priors = c(10)
+  noise_parameters = c(0.065)
+  world_EIGs = c(0.01)
+  forced_exposure_n = c(10)
   
 }
 
@@ -50,7 +50,8 @@ max_observation = c(1000) # some combination of the prams are going to end up ha
 
 model_params <- set_model_params(alpha_priors, beta_priors,
                                  alpha_epsilons, beta_epsilons,
-                                 noise_parameters, world_EIGs, max_observation) %>% 
+                                 noise_parameters, world_EIGs, 
+				 max_observation,forced_exposure_n) %>% 
   filter(alpha_prior < beta_prior, alpha_epsilon < beta_epsilon) %>% 
   mutate(params_id = row_number() 
   )
@@ -58,15 +59,20 @@ model_params <- set_model_params(alpha_priors, beta_priors,
 
 # set stimuli-related parameters
 features_df <- tibble(
-  n_features = c(6, 1),
-  on_features_n = c(6, 3)
+  n_features = c(6, 6),
+  on_features_n = c(1, 3)
+)
+
+features_df <- tibble(
+  n_features = c(6),
+  on_features_n = c(1)
 )
 sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
 
 stims_df <- set_stim_params(sequence_scheme, features_df)
 
 
-full_params_df <- make_simulation_params(n_sim = 500,
+full_params_df <- make_simulation_params(n_sim = 5,
                                          model_params,
                                          stims_df)
 
@@ -77,13 +83,14 @@ all_sims_params <- full_params_df %>%
   nest() 
 
 
-
+tic()
 all_res <- foreach(i = 1:(max(all_sims_params$sim_id)), .combine=rbind, .errorhandling = "remove") %dopar% {
   
   res <- all_sims_params[i, ] %>% 
     mutate(res = main_simulation(params = (all_sims_params[i, ]$data)[[1]]) %>% nest(res = everything()))
   
 } 
+toc()
 
 # this indirect approach is to prevent weird unnesting behavior 
 sim_res <- all_res$res %>% 
@@ -100,5 +107,5 @@ tidy_sim <- left_join(sim_res,
 
 
 
-saveRDS(tidy_sim, "forced_exp_sim.RDS")
+saveRDS(tidy_sim, "no_forced_cp_small_forced_exp_sim.RDS")
 
