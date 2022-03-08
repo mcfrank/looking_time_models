@@ -1,0 +1,112 @@
+---
+title: "Gaussian_conjugate_analysis.R"
+author: "Gal"
+date: "3/7/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rethinking)
+library(bayesAB)
+```
+
+
+## Introduction
+This RMarkdown consists of two parts: First, we'll go through the general cause of closed-form Bayesian updating of our beliefs when trying to estimate the mean and standard deviation of a Gaussian process. Then we'll apply it to our specific case in which the Gaussian process is corrupted by Gaussian noise.
+
+# Prior
+The conjugate prior for a Gaussian distribution with unknown mean and variance is the Normal-inverse gamma (NIG) distribution, which has four parameters: $m$, $V$, $a$ and $b$. Note we could also use the Normal gamma as a conjugate prior for a normal distribution parameterized with \mu and \lambda [precision], but we're avoiding this here to not get into trouble later with adjusting for the noisy sampling. It gives a probability distribution over passible values of $\mu$ and $\sigma$ for our concept.
+```{r}
+
+# parameters for prio
+m_0 = 1
+V_0 = 1
+a_0 = 1 
+b_0 = 1
+
+# normal prior for mean is anormal distribution with mean m and sd sqrt of V^-1
+plotNormal(m_0, sqrt(1/V_0))
+
+# gamma prior for sd is a gamma distribution with shape parameters a and b
+plotInvGamma(a_0,b_0)
+
+# the prior over btoh is a normal gamma distribution with all of these parameters
+plotNormalInvGamma(m_0, 1/V_0, a_0, b_0)
+
+```
+The updating of these parameters after an observation have already been derived in https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf. The parameter updates are as below.
+\begin{aligned}
+p\left(\mu, \sigma^{2} \mid D\right) &=N I G\left(m_{n}, V_{n}, a_{n}, b_{n}\right) \\
+V_{n}^{-1} &=V_{0}^{-1}+n \\
+\frac{m_{n}}{V_{n}} &=V_{0}^{-1} m_{0}+n \bar{x} \\
+a_{n} &=a_{0}+n / 2 \\
+b_{n} &=b_{0}+\frac{1}{2}\left[m_{0}^{2} V_{0}^{-1}+\sum_{i} x_{i}^{2}-m_{n}^{2} V_{n}^{-1}\right]
+\end{aligned}
+
+where n are the number of samples taken, and \bar{x} is the sample mean.
+
+In code, after some re-arranging, for a sample X:
+
+```{r}
+set.seed(1)
+X = rnorm(100, 5, 3)
+x_bar = mean(X)
+n = length(X)
+
+V_n = 1 / (1/V_0 + n)
+m_n = V_n * (1/V_0 * m_0 + n*x_bar)
+a_n = a_0 + n/2
+b_n = b_0 + 1/2 * (m_0^2 * 1/V_0 + sum(X^2) - m_n^2 * 1/V_n)
+
+# Visualize update
+
+# Mean is shifted by positive observations (was 1, now around 4, halfway between prior and sample)
+plotNormal(m_n, sqrt(1/V_n)) 
+
+# variance is shifted to be larger by higher variance observations (had a peak at 0 for a = 1, b = 1, now it's at 7.4, around the variance of X)
+plotInvGamma(a_n, b_n)
+
+# combined normal inverse gamma distribution (don't know why it gets cut off)
+plotNormalInvGamma(m_n, 1/V_n, a_n, b_n)
+
+
+```
+
+# Posterior predictive
+The posterior predictive of an observation given a the normal-inverse-gamma distribution is the probability density of the sample mean under a Student's t distribution with $df = 2a_n$, $\mu = m_n$, and $\sigma = \frac{b_n(1+V_n)}{a_n}$, see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf
+```{r}
+# compute parameters
+df = 2*a_n
+mu = m_n
+sigma = b_n*(1+V_n) / (a_n)
+
+# get posterior density of a random observation
+dstudent(0.123, df,mu,sigma, log = FALSE)
+
+
+
+```
+
+## Step 2: Applying this to our case:
+
+\textbf{Problem}: We want to learn the $\mu$ and $\sigma$ of Gaussian random variable $y$ via Bayesian inference. We have some prior beliefs $P(\mu)$ and $P(\sigma)$ about the distribution of $y$, which I want to update from observations. 
+However, we cannot observe $y$ directly. Instead, we can only take noisy samples $z = y + \epsilon$, where $\epsilon$ is Gaussian noise, which itself has $\mu_{\epsilon}=0$ and a (Gaussian) distribution $P(\sigma_{\epsilon})$ with known, fixed parameters (i.e. we are not trying to estimate this noise).
+
+Given a noisy sample $z$, is there a closed form to compute $P(\mu|z)$ and $P(\sigma|z)$? 
+
+\textbf{Answer}: The key to this is to recognize that $z$ itself is a Gaussian random variable whose parameters we can derive from the distribution that generated $y$. 
+
+Since the sum of two Gaussians is another Gaussian with their means and variances added, the parameters of $z$ will be:
+\begin{eqnarray}
+    \mu_z &= \mu_y, \\
+    \sigma_z &= \sigma_y  + \sigma_{\epsilon}
+\end{eqnarray}
+
+From this, to get our likelihood, we can write:
+
+\begin{eqnarray}
+P(z|\mu, \sigma) = Normal(z; \mu_z, \sigma_z)
+\end{eqnarray}
+
+When doing the analytic updating, we should only be working in the space of the z-distribution. So the prior will be distributed $N(\mu_0, \sqrt(\sigma_0^2 + \sigma_e^2))$, and the ultimate posterior over \mu_n and \sig_n will describe the posterior over the z-distribution — but we can then work backwards to get the parameterization of the distribution of interest, y.
