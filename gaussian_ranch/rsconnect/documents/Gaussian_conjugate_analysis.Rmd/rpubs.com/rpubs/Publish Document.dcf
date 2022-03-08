@@ -1,0 +1,11 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/875320/28797ad5b18c4feca43b853aa953905c
+bundleId: https://api.rpubs.com/api/v1/document/875320/28797ad5b18c4feca43b853aa953905c
+url: http://rpubs.com/galraz/875320/edit
+when: 1646758399.96571
+lastSyncTime: 1646758399.96572
