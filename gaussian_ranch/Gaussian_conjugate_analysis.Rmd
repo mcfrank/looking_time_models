@@ -19,13 +19,13 @@ This RMarkdown consists of two parts: First, we'll go through the general cause 
 The conjugate prior for a Gaussian distribution with unknown mean and variance is the Normal-inverse gamma (NIG) distribution, which has four parameters: $m$, $V$, $a$ and $b$. Note we could also use the Normal gamma as a conjugate prior for a normal distribution parameterized with \mu and \lambda [precision], but we're avoiding this here to not get into trouble later with adjusting for the noisy sampling. It gives a probability distribution over passible values of $\mu$ and $\sigma$ for our concept.
 ```{r}
 
-# parameters for prio
+# parameters for prior
 m_0 = 1
 V_0 = 1
 a_0 = 1 
 b_0 = 1
 
-# normal prior for mean is anormal distribution with mean m and sd sqrt of V^-1
+# normal prior for mean is a normal distribution with mean m and sd sqrt of V^-1
 plotNormal(m_0, sqrt(1/V_0))
 
 # gamma prior for sd is a gamma distribution with shape parameters a and b
@@ -76,9 +76,10 @@ plotNormalInvGamma(m_n, 1/V_n, a_n, b_n)
 # Posterior predictive
 The posterior predictive of an observation given a the normal-inverse-gamma distribution is the probability density of the sample mean under a Student's t distribution with $df = 2a_n$, $\mu = m_n$, and $\sigma = \frac{b_n(1+V_n)}{a_n}$, see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf
 ```{r}
-# compute parameters
 normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
-   df = 2*a_n
+  
+  # compute parameters of student's t dist
+  df = 2*a_n
   mu = m_n
   sigma = b_n*(1+V_n) / (a_n)
 
@@ -131,7 +132,6 @@ print(normal_inverse_gamma_KL(m_p+5, m_q, V_p, V_q, a_p, a_q, b_p+2, b_q))
 # EIG
 EIG would be a grid over possible observations, and taking the  product between the outputs of `normal_inverse_gamma_post_pred`  and `normal_inverse_gamma_KL` for each observation.  
 
-
 ## Step 2: Applying this to our case:
 
 \textbf{Problem}: We want to learn the $\mu$ and $\sigma$ of Gaussian random variable $y$ via Bayesian inference. We have some prior beliefs $P(\mu)$ and $P(\sigma)$ about the distribution of $y$, which I want to update from observations. 
@@ -155,3 +155,44 @@ P(z|\mu, \sigma) = Normal(z; \mu_z, \sigma_z)
 
 When doing the analytic updating, we should only be working in the space of the z-distribution. So the prior will be distributed $N(\mu_0, \sqrt(\sigma_0^2 + \sigma_e^2))$, and the ultimate posterior over \mu_n and \sig_n will describe the posterior over the z-distribution — but we can then work backwards to get the parameterization of the distribution of interest, y.
 
+In code:
+```{r}
+# Prior parameters (without noise)
+m_0 = 0
+V_0 = 1
+a_0 = 1 
+b_0 = 1
+
+# Noise contribution
+m_e = 0
+sigma_e = 0.1
+
+# plot prior over mean and SD
+plotNormal(m_0, sqrt(1/V_0))
+plotInvGamma(a_0, b_0)
+plotNormalInvGamma(m_0, 1/V_0, a_0, b_0)
+
+
+
+```
+
+Of interest: There are different ways to think about what noise is here - 
+
+1) we can define it intuitively as pertubations to the input, with a given mean and standard deviation. That would make it so that we have to scale the inverse gamma part of the distribution by $\sigma_e^2$. That's okay in terms of updating, but I think it might mess up the KL calculation, or at least we will no longer be able to use the closed form, since the mean of the gamma distribution isn't a standalone parameter there that we could modify. This might be fine, since we can compute KL numerically.
+
+2) We can define noise as pertubations directly to a_0 and b_0, such that the PDF of the inverse gamma would shift a bit. Note that it's not possible to do this without also changing the shape of the curve - so this wouldn't be 'pure noise', it would be a more complicated change in our beliefs about the SD of the feature.
+
+3) There is a 3-parameter gamma function which includes a location parameter, i.e. a parameter that allows us to shift the mean of the distribution without touching the shape of the curve. I'm not sure how to use this parameterization while retaining the definition of the parameter updates and KL. I suspect it's hard but it might not be.
+
+
+Note: interpretation of parameters of normal gamma distribution, from [Wikipedia page](https://en.wikipedia.org/wiki/Normal-gamma_distribution#Posterior_distribution_of_the_parameters):
+
+The interpretation of parameters in terms of pseudo-observations is as follows:
+
+1) The new mean takes a weighted average of the old pseudo-mean and the observed mean, weighted by the number of associated (pseudo-)observations.
+
+2) The precision was estimated from $2\alpha$  pseudo-observations (i.e. possibly a different number of pseudo-observations, to allow the variance of the mean and precision to be controlled separately) with sample mean $\mu$ and sample variance $\frac {\beta }{\alpha }$ (i.e. with sum of squared deviations $2\beta$ ).
+
+3) The posterior updates the number of pseudo-observations ($\lambda _{0}$) simply by adding up the corresponding number of new observations ($n$).
+
+4) The new sum of squared deviations is computed by adding the previous respective sums of squared deviations. However, a third "interaction term" is needed because the two sets of squared deviations were computed with respect to different means, and hence the sum of the two underestimates the actual total squared deviation.
