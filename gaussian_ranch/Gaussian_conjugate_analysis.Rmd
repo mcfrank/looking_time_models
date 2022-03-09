@@ -13,7 +13,7 @@ library(bayesAB)
 
 
 ## Introduction
-This RMarkdown consists of two parts: First, we'll go through the general cause of closed-form Bayesian updating of our beliefs when trying to estimate the mean and standard deviation of a Gaussian process. Then we'll apply it to our specific case in which the Gaussian process is corrupted by Gaussian noise.
+This RMarkdown consists of two parts: First, we'll go through the general cause of closed-form Bayesian updating of our beliefs when trying to estimate the mean and standard deviation of a Gaussian process. Then we'll apply it to our specific case in which the Gaussian process is corrupted by Gaussian noise. Note that we are limiting ourselves to the univariate case for now.
 
 # Prior
 The conjugate prior for a Gaussian distribution with unknown mean and variance is the Normal-inverse gamma (NIG) distribution, which has four parameters: $m$, $V$, $a$ and $b$. Note we could also use the Normal gamma as a conjugate prior for a normal distribution parameterized with \mu and \lambda [precision], but we're avoiding this here to not get into trouble later with adjusting for the noisy sampling. It gives a probability distribution over passible values of $\mu$ and $\sigma$ for our concept.
@@ -77,16 +77,60 @@ plotNormalInvGamma(m_n, 1/V_n, a_n, b_n)
 The posterior predictive of an observation given a the normal-inverse-gamma distribution is the probability density of the sample mean under a Student's t distribution with $df = 2a_n$, $\mu = m_n$, and $\sigma = \frac{b_n(1+V_n)}{a_n}$, see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf
 ```{r}
 # compute parameters
-df = 2*a_n
-mu = m_n
-sigma = b_n*(1+V_n) / (a_n)
+normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
+   df = 2*a_n
+  mu = m_n
+  sigma = b_n*(1+V_n) / (a_n)
 
-# get posterior density of a random observation
-dstudent(0.123, df,mu,sigma, log = FALSE)
-
-
+  # get posterior density of x 
+  dstudent(x, df, mu, sigma, log = FALSE)
+}
+ 
 
 ```
+
+# KL-divergence
+The KL divergence between two normal gammas was derived [here](https://arxiv.org/pdf/1611.01437.pdf). The definition shuoldn't change for an normal inverse gamma (similar to how it doesn't change between gamma and inverse gamma distribution, see [here](https://en.wikipedia.org/wiki/Inverse-gamma_distribution#Properties)).
+
+The (multivariate) KL is defined as:
+
+\begin{aligned}
+\mathrm{KL}[P \| Q] &=\frac{1}{2} \frac{a_{1}}{b_{1}}\left[\left(\mu_{2}-\mu_{1}\right)^{T} V_{2}\left(\mu_{2}-\mu_{1}\right)\right]+\frac{1}{2} \operatorname{tr}\left(V_{2} V_{1}^{-1}\right)-\frac{1}{2} \ln \frac{\left|V_{2}\right|}{\left|V_{1}\right|}-\frac{k}{2} \\
+&+a_{2} \ln \frac{b_{1}}{b_{2}}-\ln \frac{\Gamma\left(a_{1}\right)}{\Gamma\left(a_{2}\right)}+\left(a_{1}-a_{2}\right) \psi\left(a_{1}\right)-\left(b_{1}-b_{2}\right) \frac{a_{1}}{b_{1}}
+\end{aligned}
+
+where "1" subscripts refer to parameters of distribution P, and "2" subscripts refer to parameters of distribution Q, \Gamma is the gamma function, and \psi is the digamma function. In code: 
+
+```{r}
+
+# slightly awkward way of writing it to be more modifiable for multivariate KL
+normal_inverse_gamma_KL <- function(m_p, m_q, V_p, V_q, a_p, a_q, b_p, b_q) {
+  KL = 1/2 * (a_p/b_p) * ((m_q - m_p) * V_q *(m_q - m_p)) + 1/2 * (V_q/V_p) - 1/2 * log(V_q/V_p) - 1/2 + a_q * log(b_p/b_q) - log(gamma(a_p)/gamma(a_q)) + (a_p - a_q) * digamma(a_p) - (b_p - b_q) * a_p/b_p
+
+}
+
+#parameters for P
+m_p = 5
+V_p = 5
+a_p = 5 
+b_p = 5
+
+#parameters for Q
+m_q = 5
+V_q = 5
+a_q = 5
+b_q = 5
+
+# should be 0, when distributions are the same
+print(normal_inverse_gamma_KL(m_p, m_q, V_p, V_q, a_p, a_q, b_p, b_q))
+
+# should be different, when distributions are the different
+print(normal_inverse_gamma_KL(m_p+5, m_q, V_p, V_q, a_p, a_q, b_p+2, b_q))
+```
+
+# EIG
+EIG would be a grid over possible observations, and taking the  product between the outputs of `normal_inverse_gamma_post_pred`  and `normal_inverse_gamma_KL` for each observation.  
+
 
 ## Step 2: Applying this to our case:
 
@@ -110,3 +154,4 @@ P(z|\mu, \sigma) = Normal(z; \mu_z, \sigma_z)
 \end{eqnarray}
 
 When doing the analytic updating, we should only be working in the space of the z-distribution. So the prior will be distributed $N(\mu_0, \sqrt(\sigma_0^2 + \sigma_e^2))$, and the ultimate posterior over \mu_n and \sig_n will describe the posterior over the z-distribution — but we can then work backwards to get the parameterization of the distribution of interest, y.
+
