@@ -35,6 +35,11 @@ assert_that(score_epsilon(10, 1, 1) == -Inf)
 assert_that(score_epsilon(-1, 1, 1) == -Inf)
 
 
+
+
+
+
+
 ### TEST score_z_ij_given_y
 # score_z_ij_given_y <- function(zij, yi, epsilon){}
 # this function return the log probability of perceiving or misperceiving the feature; 
