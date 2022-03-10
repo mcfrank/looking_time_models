@@ -95,6 +95,10 @@ normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
   df = 2*a_n
   mu = m_n
   sigma = b_n*(1+V_n) / (a_n)
+  
+  print(df)
+  print(mu)
+  print(sigma)
 
   # get posterior density of x 
   dstudent(x, df, mu, sigma, log = FALSE)
@@ -251,6 +255,7 @@ normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
 
   # get posterior density of x 
   dstudent(x, df, mu, sigma, log = FALSE)
+  
   #dt(x, df, ncp = m_n)
 }
  
@@ -290,15 +295,15 @@ main_update_function <- function(prior_mu,
   kls <- rep(NA, length(observations) + 1) 
   eigs <- rep(NA, length(observations) + 1)
   surprisals <- rep(NA, length(observations) + 1)
-  priors <- list()
-  posts <- list()
+  prior_post_pred <- rep(NA, length(observations) + 1)
+  priors <- vector(mode = "list", length = length(observations) + 1)
+  posts <- vector(mode = "list", length = length(observations) + 1)
   
   
   for (i in 1:length(observations)){
     
     current_observation = observations[i]
     current_post_parameter = nig_posterior(prior_mu, prior_V, prior_alpha, prior_beta, current_observation)
-   
     # calculate the KL divergence between the pre- and post-update 
     kl <- normal_inverse_gamma_KL(prior_mu, current_post_parameter[1], 
                                   prior_V, current_post_parameter[2], 
@@ -306,14 +311,15 @@ main_update_function <- function(prior_mu,
                                   prior_beta, current_post_parameter[4])
     
     eig <- getNIG_EIG(prior_mu, prior_V, prior_alpha, prior_beta)
-    surpirsal <- -log(norhmmal_inverse_gamma_post_pred(current_observation, prior_mu, prior_V, prior_alpha, prior_beta))
+    prior_post_pred[i] <- normal_inverse_gamma_post_pred(current_observation, prior_mu, prior_V, prior_alpha, prior_beta)
+    surprisal <- -log(prior_post_pred)
     
     priors[[i]] <- c(prior_mu, prior_V, prior_alpha, prior_beta)
     posts[[i]] <- current_post_parameter
     
     kls[i] <- kl
     eigs[i] <- eig
-    surprisals[i] <- surpirsal
+    surprisals[i] <- surprisal
     
     # use the posterior params as the priors for the next update 
     prior_mu = current_post_parameter[1]
@@ -330,7 +336,9 @@ main_update_function <- function(prior_mu,
     obs = c(observations, NA),
     kl = kls,
     s = surprisals,
-    eig = eigs
+    eig = eigs,
+    prior = priors,
+    prior_post_pred = prior_post_pred 
   )
   
   return (im_df)
