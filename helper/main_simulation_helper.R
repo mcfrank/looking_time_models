@@ -307,18 +307,7 @@ backward_IM_main_simulation <- function(params = df,
     
     # compute KL across features 
     # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
-    if(params$measurement == "KL"){
-      model$KL[t] <- sum(im_all[t, ]) 
-      # luce choice probability whether to look away
-      model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
-                                                   y = model$KL[t])
-      
-    }else if(params$measurement == "surprisal"){
-      model$surprisal[t] <- sum(im_all[t, ])  
-      # luce choice probability whether to look away
-      model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
-                                                   y = model$surprisal[t])
-    }
+    
     
     
     # forced choice options
@@ -330,8 +319,19 @@ backward_IM_main_simulation <- function(params = df,
       model$p_look_away[t] = 1
     }else{
       # anything afterwards are all normal; also when forced_exposure_n = 0 it's all normal 
-      model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
-                                                   y = model$EIG[t])
+      if(params$measurement == "KL"){
+        model$KL[t] <- sum(im_all[t, ]) 
+        # luce choice probability whether to look away
+        model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
+                                                     y = model$KL[t])
+        
+      }else if(params$measurement == "surprisal"){
+        model$surprisal[t] <- sum(im_all[t, ])  
+        # luce choice probability whether to look away
+        model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
+                                                     y = model$surprisal[t])
+      }
+      
     }
     
     

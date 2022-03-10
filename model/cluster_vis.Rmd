@@ -9,15 +9,202 @@ output: html_document
 library(tidyverse)
 library(here)
 
-sim_res <- readRDS(here("model/cached_data/basic_block_sim.RDS"))
+sim_res_a <- readRDS(here("model/cached_data/forced5_f3o1_forced_exp_sim.RDS"))
+sim_res_b <- readRDS(here("model/cached_data/f3o1_forced_exp_sim.RDS"))
+sim_res_c <- readRDS(here("model/cached_data/f3o1_0_forced_exp_sim.RDS"))
+sim_res_d <- readRDS(here("model/cached_data/f3o1_200_forced_exp_sim.RDS"))
+
+eig_sim_res <- readRDS(here("model/cached_data/fam_search_forced_exp_sim.RDS")) %>% mutate(im_type = "EIG")
+kl_sim_res <- readRDS(here("model/cached_data/kl_search_sim.RDS")) %>% mutate(im_type = "kl")
+surprisal_sim_res <- readRDS(here("model/cached_data/surprisal_search_sim_complex_w1.RDS")) %>% mutate(im_type = "surprisal")
+
+sim_res <- bind_rows(eig_sim_res, kl_sim_res, surprisal_sim_res)
+                      
+#sim_res <- readRDS(here("model/cached_data/scaled_continuous_model_res.RDS"))
+
 ```
+
 
 
 ```{r}
 sim_res %>% 
-  ggplot(aes(x = stimulus_idx, y = log(sample_n))) + 
-  stat_summary(fun.data = "mean_cl_boot")
+  mutate(
+    trial_type = case_when(
+      sequence_scheme == "BDBBBB" & trial_number == 2 ~ "D",
+      sequence_scheme == "BBBDBB" & trial_number == 4 ~ "D",
+      sequence_scheme == "BBBBBD" & trial_number == 6 ~ "D", 
+      TRUE ~ "B"
+    )
+  ) %>% 
+  filter(sequence_scheme == "BBBBBB" | trial_type == "D") %>% 
+  ggplot(aes(x = trial_number, y = log(sample_n), color = trial_type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) +
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5), geom = "line") + 
+  facet_wrap(complexity~im_type, scales = "free_y") + 
+  theme_classic()
 ```
+
+
+```{r}
+b_data <- read_csv(here("data/processed_rt_task_data.csv"))
+b_data %>% 
+  mutate(
+    trial_type = case_when(
+      deviant_position == "2" & trial_number == 2 ~ "D",
+      deviant_position == "4" & trial_number == 4 ~ "D",
+      deviant_position == "6" & trial_number == 6 ~ "D", 
+      TRUE ~ "B"
+    )
+  ) %>% 
+  filter(is.na(deviant_position) | trial_type == "D") %>% 
+  ggplot(aes(x = trial_number, y = log(trial_looking_time), color = trial_type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) +
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5), geom = "line") + 
+  facet_wrap(~block_type, scales = "free") + 
+  theme_classic()
+```
+
+```{r}
+condition_mean <- b_data %>% 
+  group_by(deviant_position, trial_number, trial_type, block_type) %>% 
+  summarise(condition_mean = mean(trial_looking_time)) %>% 
+  mutate(
+    stimuli_sequence = case_when(
+      deviant_position == 2 ~ "BDBBBB", 
+      deviant_position == 4 ~ "BBBDBB", 
+      deviant_position == 6 ~ "BBBBBD", 
+      is.na(deviant_position) ~ "BBBBBB"
+    ), 
+    complexity = case_when(
+      grepl("complex", block_type) ~ "complex", 
+      grepl("simple", block_type) ~ "simple"
+    )
+  ) %>% 
+  select(stimuli_sequence, complexity, trial_type, trial_number, condition_mean)
+write_csv(condition_mean, here("data/condition_mean.csv"))
+```
+
+
+
+```{r}
+sim_res <- sim_res %>% 
+  mutate(params_info_copy = params_info) %>% 
+  separate(params_info, into = c("ae", "ae_val", 
+                                 "be", "be_val", 
+                                 "ap", "ap_val", 
+                                 "bp", "bp_val", 
+                                 "np", "np_val", 
+                                 "wEIG", "wEIG_val", 
+                                 "fexp", "fexp_val"), 
+           sep = "_") %>% 
+  rename(params_info = params_info_copy) %>% 
+  select(sim_id, stimulus_idx, sample_n, stim_info, fexp_val, im_type) %>% 
+  filter(!is.na(fexp_val))
+```
+
+```{r}
+sim_res %>% 
+  filter(im_type == "kl") %>% 
+  filter(stimulus_idx == 2, fexp_val != 0) %>% 
+  mutate(second_trial_type = case_when(
+    stim_info == "nf_3_of_1_ss_BB" ~ "background", 
+    stim_info == "nf_3_of_1_ss_BD" ~ "deviant"
+  )) %>% 
+  ggplot(aes(x = as.numeric(fexp_val), y = sample_n, color = second_trial_type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  geom_hline(yintercept = mean(sim_res %>% filter(fexp_val == 0, im_type == "kl", stimulus_idx == 2, stim_info == "nf_3_of_1_ss_BB") %>% pull(sample_n)), 
+             color = "red") + 
+  geom_hline(yintercept = mean(sim_res %>% filter(fexp_val == 0, im_type == "kl",stimulus_idx == 2, stim_info == "nf_3_of_1_ss_BD") %>% pull(sample_n))) + 
+  theme_classic() + 
+  xlab("forced exposure samples at the first trial") + 
+  labs(title = "kl")
+```
+
+```{r}
+sim_res %>% 
+  filter(im_type == "surprisal") %>% 
+  filter(stimulus_idx == 2, fexp_val != 0) %>% 
+  mutate(second_trial_type = case_when(
+    stim_info == "nf_6_of_3_ss_BB" ~ "background", 
+    stim_info == "nf_6_of_3_ss_BD" ~ "deviant"
+  )) %>% 
+  ggplot(aes(x = as.numeric(fexp_val), y = sample_n, color = second_trial_type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  geom_hline(yintercept = mean(sim_res %>% filter(fexp_val == 0, im_type == "surprisal", stimulus_idx == 2, stim_info == "nf_6_of_3_ss_BB") %>% pull(sample_n))) + 
+  geom_hline(yintercept = mean(sim_res %>% filter(fexp_val == 0, im_type == "surprisal",stimulus_idx == 2, stim_info == "nf_6_of_3_ss_BD") %>% pull(sample_n))) + 
+  theme_classic() + 
+  xlab("forced exposure samples at the first trial") + 
+  labs(title = "surprisal")
+```
+
+```{r}
+sim_res %>% 
+  filter(im_type == "surprisal") %>% 
+  filter(stimulus_idx == 2, fexp_val != 0) %>% 
+  mutate(second_trial_type = case_when(
+    stim_info == "nf_6_of_3_ss_BB" ~ "background", 
+    stim_info == "nf_6_of_3_ss_BD" ~ "deviant"
+  )) %>% 
+  ggplot(aes(x = sample_n, fill = stim_info)) + 
+  geom_density(alpha = .5)
+   
+```
+
+
+
+```{r}
+
+tidy_sim_d <- bind_rows(sim_res_a, sim_res_b, sim_res_c, sim_res_d) %>% 
+  mutate(params_info_copy = params_info) %>% 
+  separate(params_info, into = c("ae", "ae_val", 
+                                 "be", "be_val", 
+                                 "ap", "ap_val", 
+                                 "bp", "bp_val", 
+                                 "np", "np_val", 
+                                 "wEIG", "wEIG_val", 
+                                 "fexp", "fexp_val"), 
+           sep = "_") %>% 
+  rename(params_info = params_info_copy) %>% 
+  select(sim_id, stimulus_idx, sample_n, stim_info, fexp_val) %>% 
+  filter(!is.na(fexp_val))
+  
+```
+
+
+
+
+```{r}
+tidy_sim_d %>% 
+  filter(fexp_val %in% c(0, 1, 200)) %>% 
+  mutate(fexp_val_print = case_when(
+    fexp_val == 0 ~ "self-paced", 
+    fexp_val == 1 ~ "forced 1 sample", 
+    fexp_val == 200 ~ "forced 200 sample"
+  )) %>% 
+  ggplot(aes(x = stimulus_idx, y = log(sample_n), color = fexp_val_print)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_wrap(~stim_info)  + 
+  theme_classic()
+  
+```
+
+```{r}
+tidy_sim_d %>% 
+  filter(fexp_val %in% c(0, 1, 200)) %>% 
+  mutate(fexp_val_print = case_when(
+    fexp_val == 0 ~ "self-paced", 
+    fexp_val == 1 ~ "forced 1 sample", 
+    fexp_val == 200 ~ "forced 200 sample"
+  )) %>% 
+  filter(grepl("BBBBBB", stim_info) | grepl("BDBBBB", stim_info)) %>% 
+  ggplot(aes(x = stimulus_idx, y = log(sample_n), color = stim_info)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_wrap(~fexp_val_print) + 
+  theme_classic()
+```
+
 
 
 ```{r}
