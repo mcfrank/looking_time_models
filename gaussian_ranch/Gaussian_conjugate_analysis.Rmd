@@ -12,16 +12,24 @@ library(bayesAB)
 ```
 
 
-## Introduction
+# Introduction
+
 This RMarkdown consists of two parts: First, we'll go through the general cause of closed-form Bayesian updating of our beliefs when trying to estimate the mean and standard deviation of a Gaussian process. Then we'll apply it to our specific case in which the Gaussian process is corrupted by Gaussian noise. Note that we are limiting ourselves to the univariate case for now.
 
-# Prior
+## General case 
+
+### Prior
 The conjugate prior for a Gaussian distribution with unknown mean and variance is the Normal-inverse gamma (NIG) distribution, which has four parameters: $m$, $V$, $a$ and $b$. Note we could also use the Normal gamma as a conjugate prior for a normal distribution parameterized with \mu and \lambda [precision], but we're avoiding this here to not get into trouble later with adjusting for the noisy sampling. It gives a probability distribution over passible values of $\mu$ and $\sigma$ for our concept.
+
 ```{r}
 
 # parameters for prior
 m_0 = 1
+<<<<<<< HEAD
 V_0 = 1 # 1/sigma^2
+=======
+V_0 = 2
+>>>>>>> 90bfc4cf270c3f9e82c1b9ddcb4d213002bab8a3
 a_0 = 1 
 b_0 = 1
 
@@ -78,7 +86,10 @@ plotNormalInvGamma(m_n, 1/V_n, a_n, b_n)
 
 ```
 
-# Posterior predictive
+
+
+### Posterior predictive
+
 The posterior predictive of an observation given a the normal-inverse-gamma distribution is the probability density of the sample mean under a Student's t distribution with $df = 2a_n$, $\mu = m_n$, and $\sigma = \frac{b_n(1+V_n)}{a_n}$, see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf
 ```{r}
 normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
@@ -95,8 +106,13 @@ normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
 
 ```
 
+<<<<<<< HEAD
 # KL-divergence
 The KL divergence between two normal gammas was derived [here](https://arxiv.org/pdf/1611.01437.pdf). The definition shouldn't change for an normal inverse gamma (similar to how it doesn't change between gamma and inverse gamma distribution, see [here](https://en.wikipedia.org/wiki/Inverse-gamma_distribution#Properties)).
+=======
+### KL-divergence
+The KL divergence between two normal gammas was derived [here](https://arxiv.org/pdf/1611.01437.pdf). The definition shuoldn't change for an normal inverse gamma (similar to how it doesn't change between gamma and inverse gamma distribution, see [here](https://en.wikipedia.org/wiki/Inverse-gamma_distribution#Properties)).
+>>>>>>> 90bfc4cf270c3f9e82c1b9ddcb4d213002bab8a3
 
 The (multivariate) KL is defined as:
 
@@ -134,10 +150,89 @@ print(normal_inverse_gamma_KL(m_p, m_q, V_p, V_q, a_p, a_q, b_p, b_q))
 print(normal_inverse_gamma_KL(m_p+5, m_q, V_p, V_q, a_p, a_q, b_p+2, b_q))
 ```
 
-# EIG
+
+
+### EIG
 EIG would be a grid over possible observations, and taking the  product between the outputs of `normal_inverse_gamma_post_pred`  and `normal_inverse_gamma_KL` for each observation.  
 
-## Step 2: Applying this to our case:
+
+
+
+
+
+
+### Detour: NIG vs NG 
+
+the relationship between NIG and NG confuses me from time to time, so as a little exercise here we want to see if we can show that NIG and NG, when served as the conjugate priors, are equivalent of one another. 
+
+to kickstart the detour, a little notation reminder / clarification:
+
+$\lambda$ : precision (when to be estimated)
+$\sigma^{2}$ : variance (when to be estimated)
+
+$V_0$: precision (when parameter)
+$\kappa$: variance (when parameter)
+$SD$ / $\sigma$: standard deviation 
+
+
+basic math but the relationships between those: 
+$\lambda = \frac{1}{\sigma^2}$
+
+So, what's the relationship between NIG and NG? 
+
+Normal-gamma distribution is the conjugate prior of a normal distribution with unknown mean ($\mu$) and precision ($\lambda$)
+
+Normal-Inverse-Gamma distribution is the conjugate prior of a normal distribution with unknown mean ($\mu$) and variance ($\sigma^2$)
+
+previous code chunks have demonstrated a toy example for using normal inverse gamma and assume that we want to learn about the variance. technically we can also get it to work with normal gamma distribution? 
+
+##### prior 
+
+```{r}
+
+# NG prior 
+mu_0 = 1
+kappa_0 = 1 
+alpha_0 = 1 
+beta_0 = 1
+
+lestat::normalgamma(mu_0, kappa_0, alpha_0, beta_0) %>% plot()
+```
+
+
+##### posterior 
+
+
+```{r}
+# NG posterior 
+
+set.seed(1)
+X = rnorm(100, 5, 3)
+x_bar = mean(X)
+n = length(X)
+
+mu_n = ((mu_0 * kappa_0) + n * x_bar) / (kappa_0 + n)
+kappa_n = kappa_0 + n 
+alpha_n = alpha_0 + n/2
+beta_n = beta_0 + 1/2 * sum((X - x_bar)^2) + (kappa_0*n*(x_bar - mu_0) ^ 2)/(2*(kappa_0 + n))
+  
+  
+# we get reasonable plotting if we assume that lambda is kappa. identical when all parameters = 1, but probably just some numerical coincidence. and lambda can't be just the inverse of kappa_n. it gets terrible plot 
+# don't really understand waht the normalgamma plots are
+
+#plotNormalInvGamma(mu = mu_n, 
+#                   lambda = kappa_n, 
+ #                  alpha = alpha_n, 
+ #                  beta = beta_n)
+
+lestat::normalgamma(mu_n, kappa_n, alpha_n, beta_n) %>% plot()
+
+```
+
+
+
+
+## Specific case 
 
 \textbf{Problem}: We want to learn the $\mu$ and $\sigma$ of Gaussian random variable $y$ via Bayesian inference. We have some prior beliefs $P(\mu)$ and $P(\sigma)$ about the distribution of $y$, which I want to update from observations. 
 However, we cannot observe $y$ directly. Instead, we can only take noisy samples $z = y + \epsilon$, where $\epsilon$ is Gaussian noise, which itself has $\mu_{\epsilon}=0$ and a (Gaussian) distribution $P(\sigma_{\epsilon})$ with known, fixed parameters (i.e. we are not trying to estimate this noise).
