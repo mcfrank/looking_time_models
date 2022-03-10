@@ -251,6 +251,7 @@ normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
 
   # get posterior density of x 
   dstudent(x, df, mu, sigma, log = FALSE)
+  #dt(x, df, ncp = m_n)
 }
  
 
@@ -262,6 +263,7 @@ info_gain_KL <- function(m_pre, m_post, V_pre, V_post, a_pre, a_post, b_pre, b_p
 
 getNIG_EIG <- function(m, V, a, b){
    hypothetical_obs <- -seq(-5, 5, by = 1)
+  #hypothetical_obs <- seq(.99, 1.01, by = 0.01)
    hypothetical_info_gain <- rep(NA, length(hypothetical_obs))
    post_pred <- normal_inverse_gamma_post_pred(hypothetical_obs, m, V, a, b)
    
@@ -287,6 +289,7 @@ main_update_function <- function(prior_mu,
   
   kls <- rep(NA, length(observations) + 1) 
   eigs <- rep(NA, length(observations) + 1)
+  surprisals <- rep(NA, length(observations) + 1)
   priors <- list()
   posts <- list()
   
@@ -303,12 +306,14 @@ main_update_function <- function(prior_mu,
                                   prior_beta, current_post_parameter[4])
     
     eig <- getNIG_EIG(prior_mu, prior_V, prior_alpha, prior_beta)
+    surpirsal <- -log(norhmmal_inverse_gamma_post_pred(current_observation, prior_mu, prior_V, prior_alpha, prior_beta))
     
     priors[[i]] <- c(prior_mu, prior_V, prior_alpha, prior_beta)
     posts[[i]] <- current_post_parameter
     
     kls[i] <- kl
     eigs[i] <- eig
+    surprisals[i] <- surpirsal
     
     # use the posterior params as the priors for the next update 
     prior_mu = current_post_parameter[1]
@@ -324,6 +329,7 @@ main_update_function <- function(prior_mu,
     t = 1:(length(observations) + 1),
     obs = c(observations, NA),
     kl = kls,
+    s = surprisals,
     eig = eigs
   )
   
@@ -333,11 +339,11 @@ main_update_function <- function(prior_mu,
 
 
 
-im_df <- main_update_function(prior_mu = 1, prior_V = 1, prior_alpha = 1, prior_beta = 1, observations = X)
+im_df <- main_update_function(prior_mu = 2, prior_V = 1, prior_alpha = 1, prior_beta = 1, observations = X)
 
 ```
 
-### plotting kl
+### plotting ims
 ```{r}
 
 im_df %>% 
@@ -347,6 +353,12 @@ im_df %>%
 
 im_df %>% 
   ggplot(aes(x = t, y = kl)) + 
+  geom_point() + 
+  geom_line()
+
+
+im_df %>% 
+  ggplot(aes(x = t, y = s)) + 
   geom_point() + 
   geom_line()
 
