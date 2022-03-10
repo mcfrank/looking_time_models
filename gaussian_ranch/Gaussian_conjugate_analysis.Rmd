@@ -226,16 +226,9 @@ lestat::normalgamma(mu_n, kappa_n, alpha_n, beta_n) %>% plot()
 ## Toy example: continuous vers. Poli model 
 
 ```{r}
-X = rnorm(100, 5, 3)
 x_bar = mean(X)
 n = length(X)
-
 X = rep(1, 100)
-
-V_n = 1 / (1/V_0 + n)
-m_n = V_n * (1/V_0 * m_0 + n*x_bar)
-a_n = a_0 + n/2
-b_n = b_0 + 1/2 * (m_0^2 * 1/V_0 + sum(X^2) - m_n^2 * 1/V_n)
 
 
 nig_posterior <- function(prior_mu, prior_V, prior_alpha, prior_beta, observations){
@@ -261,25 +254,27 @@ normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
 }
  
 
-normal_inverse_gamma_KL <- function(m_p, m_q, V_p, V_q, a_p, a_q, b_p, b_q) {
-  KL = 1/2 * (a_p/b_p) * ((m_q - m_p) * V_q *(m_q - m_p)) + 1/2 * (V_q/V_p) - 1/2 * log(V_q/V_p) - 1/2 + a_q * log(b_p/b_q) - log(gamma(a_p)/gamma(a_q)) + (a_p - a_q) * digamma(a_p) - (b_p - b_q) * a_p/b_p
+info_gain_KL <- function(m_pre, m_post, V_pre, V_post, a_pre, a_post, b_pre, b_post) {
+  
+  KL = 1/2 * (a_pre/b_pre) * ((m_post - m_pre) * V_post *(m_post - m_pre)) + 1/2 * (V_post/V_pre) - 1/2 * log(V_post/V_pre) - 1/2 + a_q * log(b_post/b_pre) - log(gamma(a_pre)/gamma(a_post)) + (a_pre - a_post) * digamma(a_pre) - (b_pre - b_post) * a_pre/b_pre
 
 }
 
-getNIG_EIG <- function(m_p, V_p, a_p, b_p){
-   hypothetical_obs <- -seq(-5, 5, by = 0.01)
-   hypothetical_kl <- rep(NA, length(hypothetical_obs))
-   post_pred <- normal_inverse_gamma_post_pred(hypothetical_obs, m_n, V_n, a_n, b_n)
-   print(post_pred)
+getNIG_EIG <- function(m, V, a, b){
+   hypothetical_obs <- -seq(-5, 5, by = 1)
+   hypothetical_info_gain <- rep(NA, length(hypothetical_obs))
+   post_pred <- normal_inverse_gamma_post_pred(hypothetical_obs, m, V, a, b)
+   
    for (i in hypothetical_obs) {
-        new_params <- nig_posterior( m_p, V_p, a_p, b_p, i)
-        hypothetical_kl[i] <- normal_inverse_gamma_KL(m_p, new_params[1], 
-                                                      V_p, new_params[2],
-                                                      a_p, new_params[3],
-                                                      b_p, new_params[4])
-        #print( hypothetical_kl[i] )
-   }
-   EIG = post_pred %*% hypothetical_kl
+        new_params <- nig_posterior(m, V, a, b, i)
+        hypothetical_info_gain[i] <- info_gain_KL(m, new_params[1],
+                                              V, new_params[2], 
+                                              a, new_params[3], 
+                                              b, new_params[4])
+
+           }
+   EIG = post_pred %*% hypothetical_info_gain
+   
    return(EIG)
 }
 
@@ -345,15 +340,22 @@ im_df <- main_update_function(prior_mu = 1, prior_V = 1, prior_alpha = 1, prior_
 ### plotting kl
 ```{r}
 
-kl_df %>% 
+im_df %>% 
   ggplot(aes(x = t, y = obs)) + 
   geom_point() + 
   geom_line()
 
-kl_df %>% 
+im_df %>% 
   ggplot(aes(x = t, y = kl)) + 
   geom_point() + 
   geom_line()
+
+im_df %>% 
+  ggplot(aes(x = t, y = eig)) + 
+  geom_point() + 
+  geom_line()
+
+
 ```
 
 
