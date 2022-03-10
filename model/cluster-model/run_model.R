@@ -64,7 +64,7 @@ features_df <- tibble(
 )
 
 features_df <- tibble(
-  n_features = c(6),
+  n_features = c(3),
   on_features_n = c(1)
 )
 sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
