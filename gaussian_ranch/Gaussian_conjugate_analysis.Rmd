@@ -21,9 +21,11 @@ The conjugate prior for a Gaussian distribution with unknown mean and variance i
 
 # parameters for prior
 m_0 = 1
-V_0 = 1
+V_0 = 1 # 1/sigma^2
 a_0 = 1 
 b_0 = 1
+
+# mean of inverse gamma = a/b+1
 
 # normal prior for mean is a normal distribution with mean m and sd sqrt of V^-1
 plotNormal(m_0, sqrt(1/V_0))
@@ -50,7 +52,10 @@ In code, after some re-arranging, for a sample X:
 
 ```{r}
 set.seed(1)
-X = rnorm(100, 5, 3)
+X = rnorm(100, mean = 5, sd = 3)
+
+# observe this X[1] 100x with noise 
+
 x_bar = mean(X)
 n = length(X)
 
@@ -91,7 +96,7 @@ normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
 ```
 
 # KL-divergence
-The KL divergence between two normal gammas was derived [here](https://arxiv.org/pdf/1611.01437.pdf). The definition shuoldn't change for an normal inverse gamma (similar to how it doesn't change between gamma and inverse gamma distribution, see [here](https://en.wikipedia.org/wiki/Inverse-gamma_distribution#Properties)).
+The KL divergence between two normal gammas was derived [here](https://arxiv.org/pdf/1611.01437.pdf). The definition shouldn't change for an normal inverse gamma (similar to how it doesn't change between gamma and inverse gamma distribution, see [here](https://en.wikipedia.org/wiki/Inverse-gamma_distribution#Properties)).
 
 The (multivariate) KL is defined as:
 
@@ -100,7 +105,7 @@ The (multivariate) KL is defined as:
 &+a_{2} \ln \frac{b_{1}}{b_{2}}-\ln \frac{\Gamma\left(a_{1}\right)}{\Gamma\left(a_{2}\right)}+\left(a_{1}-a_{2}\right) \psi\left(a_{1}\right)-\left(b_{1}-b_{2}\right) \frac{a_{1}}{b_{1}}
 \end{aligned}
 
-where "1" subscripts refer to parameters of distribution P, and "2" subscripts refer to parameters of distribution Q, \Gamma is the gamma function, and \psi is the digamma function. In code: 
+where "1" subscripts refer to parameters of distribution P, and "2" subscripts refer to parameters of distribution Q, $\Gamma$ is the gamma function, and $\psi$ is the digamma function. In code: 
 
 ```{r}
 
@@ -144,7 +149,9 @@ Given a noisy sample $z$, is there a closed form to compute $P(\mu|z)$ and $P(\s
 Since the sum of two Gaussians is another Gaussian with their means and variances added, the parameters of $z$ will be:
 \begin{eqnarray}
     \mu_z &= \mu_y, \\
-    \sigma_z &= \sigma_y  + \sigma_{\epsilon}
+    \sigma_z &= \sigma_y  + \sigma_{\epsilon} \\
+
+    
 \end{eqnarray}
 
 From this, to get our likelihood, we can write:
