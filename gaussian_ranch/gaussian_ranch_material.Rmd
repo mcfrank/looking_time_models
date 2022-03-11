@@ -1,0 +1,76 @@
+---
+title: "building blocks for gaussian ranch"
+author: "anjie & gal"
+date: "3/11/2022"
+output: html_document
+---
+```{r}
+library(tidyverse)
+```
+
+```{r}
+rnormgamma <- function(n, mu, lambda, alpha, beta) {
+  if (length(n) > 1) 
+    n <- length(n)
+  tau <- rgamma(n, alpha, beta)
+  x <- rnorm(n, mu, sqrt(1/(lambda*tau)))
+  data.frame(tau = tau, x = x)
+}
+```
+
+
+```{r}
+rnormgamma(100000, 1, 1, 1, 1) %>% 
+  ggplot(aes(x = x)) + 
+  geom_density()
+
+rnormgamma(100000, 1, 1, 1, 1) %>% 
+  ggplot(aes(x = tau)) + 
+  geom_density()
+
+rnormgamma(100000, 1, 1, 1, 1) %>% 
+  plot()
+```
+
+
+```{r}
+t = rnormgamma(100000, 1, 1, 1, 1)
+dt_x <- density(t$x)
+dt_tau <- density(t$tau)
+
+# multiplying prob together 
+
+
+dt_x$y * dt_tau$y
+
+plot(dt_x$y * dt_tau$y)
+```
+
+
+
+```{r}
+
+
+# ---------------- score_yi_given_theta ---------------------
+score_yi_given_theta <- function(yi, theta){
+  
+}
+
+# ---------------- score_theta ---------------------
+# normal inverse gamma function - conjugate priors 
+score_theta <- function(theta, mu, v, alpha, beta){
+  dbeta(x = theta, shape1 = alpha_theta, shape2 = beta_theta, log = TRUE)
+}
+
+# ---------------- score_epsilon ---------------------
+score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
+  dbeta(x = epsilon, shape1 = alpha_epsilon, shape2 = beta_epsilon, log = TRUE)
+}
+
+# ---------------- score_lambda ---------------------
+score_lambda <- function(lambda, alpha_lambda, beta_lambda){
+  dbeta(x = lambda, shape1 = alpha_lambda, shape2 = beta_lambda, log = TRUE)
+}
+
+```
+
