@@ -34,43 +34,71 @@ rnormgamma(100000, 1, 1, 1, 1) %>%
 
 
 ```{r}
-t = rnormgamma(100000, 1, 1, 1, 1)
-dt_x <- density(t$x)
-dt_tau <- density(t$tau)
-
-# multiplying prob together 
-
-
-dt_x$y * dt_tau$y
-
-plot(dt_x$y * dt_tau$y)
+bayesAB::plotNormalInvGamma()
 ```
 
+```{r}
+# this function taken from bayesAB
+d_normal_inverse_gamma <-function (input_x, input_sig_sq, mu, lambda, alpha, beta, log = TRUE){
+  steps <- 500
+  max_sig_sq <- qgamma(0.99, alpha, beta) * lambda
+  x_range <- c(mu - 5 * max_sig_sq, mu + 5 * max_sig_sq)
+  sig_sq_range <- c(0.001, max_sig_sq)
+  x <- seq(min(x_range), max(x_range), diff(x_range)/steps)
+  sig_sq <- seq(min(sig_sq_range), max(sig_sq_range), diff(sig_sq_range)/steps)
+  
+  inputs <- expand.grid(x, sig_sq)
+  xs <- inputs$Var1
+  sig_sqs <- inputs$Var2
+  
+  output <- sqrt(lambda)/(sqrt(sig_sqs) * sqrt(2 * pi)) * (beta^alpha)/gamma(alpha) * 
+    (1/sig_sqs)^(alpha + 1) * exp(-1 * (2 * beta + lambda * 
+    (xs - mu)^2)/(2 * sig_sqs))
+  
+  # find the closest value to x
+  x_approx <- xs[which.min(abs(xs-input_x))]
+  sig_approx <- sig_sqs[which.min(abs(sig_sqs-input_sig_sq))]
+  
+  dat <- data.frame(x = inputs$Var1, sig_sq = inputs$Var2, 
+    res = out)
+  
+  if(log){
+    return(log(dat[dat$x == x_approx & dat$sig_sq == sig_approx,]$res))
+  }else{
+      return (dat[dat$x == x_approx & dat$sig_sq == sig_approx,]$res)
+  }
+  
+}
+
+d_normal_inverse_gamma(input_x = 0, 
+                       input_sig_sq = 0.05,
+                       1, 1, 1, 1)
+```
 
 
 ```{r}
 
 
 # ---------------- score_yi_given_theta ---------------------
-score_yi_given_theta <- function(yi, theta){
-  
+# normal distribution 
+score_yi_given_theta <- function(yi, mu, sd){
+   dnorm(yi, mean = mu, sd = sd, log = TRUE)
 }
 
 # ---------------- score_theta ---------------------
 # normal inverse gamma function - conjugate priors 
-score_theta <- function(theta, mu, v, alpha, beta){
-  dbeta(x = theta, shape1 = alpha_theta, shape2 = beta_theta, log = TRUE)
+score_theta <- function(theta, sig_sq, mu, v, alpha, beta){
+  d_normal_inverse_gamma(input_x = theta, 
+                         input_sig_sq = sig_sq, 
+                         mu, v, alpha, beta, log = TRUE)
 }
 
 # ---------------- score_epsilon ---------------------
 score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
-  dbeta(x = epsilon, shape1 = alpha_epsilon, shape2 = beta_epsilon, log = TRUE)
+  #dbeta(x = epsilon, shape1 = alpha_epsilon, shape2 = beta_epsilon, log = TRUE)
 }
 
-# ---------------- score_lambda ---------------------
-score_lambda <- function(lambda, alpha_lambda, beta_lambda){
-  dbeta(x = lambda, shape1 = alpha_lambda, shape2 = beta_lambda, log = TRUE)
-}
+
 
 ```
 
