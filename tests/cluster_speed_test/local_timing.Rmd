@@ -1,0 +1,189 @@
+---
+title: "local timing (original vs forced)"
+author: "anjie & gal"
+date: "3/14/2022"
+output: html_document
+---
+
+# get packages and helper scripts 
+```{r}
+library(tidyverse)
+library(here)
+library(matrixStats)
+library(partitions)
+library(tictoc)
+library(LaplacesDemon)
+library(Brobdingnag)
+
+
+# these two files should be the same, so only importing one  
+source(here("tests/cluster_speed_test/forced_helper/initialization.R"))
+#source(here("tests/cluster_speed_test/old_helper/initialization.R"))
+
+#these two files should be the same, so only importing one 
+source(here("tests/cluster_speed_test/forced_helper/probability_computations.R"))
+#source(here("tests/cluster_speed_test/old_helper/probability_computations.R"))
+
+#these two files are different, one contains forced_set_model_params; the other contains old_set_model_params
+source(here("tests/cluster_speed_test/forced_helper/make_scheme_and_params.r"))
+source(here("tests/cluster_speed_test/old_helper/make_scheme_and_params.r"))
+
+# these two files are different, one contains: main_simulation_forced; the other contains: main_simulation_original
+source(here("tests/cluster_speed_test/forced_helper/main_simulation_helper.R"))
+source(here("tests/cluster_speed_test/old_helper/main_simulation_helper.R"))
+```
+
+
+# setting up 
+```{r}
+# set model-related parameters 
+alpha_epsilons = c(1)
+beta_epsilons = c(4)
+alpha_priors = c(1)
+beta_priors = c(10)
+noise_parameters = c(0.065)
+world_EIGs = c(0.01)
+forced_exposure_n = c(30)
+max_observation = 2000
+
+
+forced_model_params <- forced_set_model_params(alpha_priors, beta_priors, 
+                alpha_epsilons, beta_epsilons, 
+                noise_parameters, world_EIGs, max_observation, forced_exposure_n)
+old_model_params <- old_set_model_params(alpha_priors, beta_priors, 
+                alpha_epsilons, beta_epsilons, 
+                noise_parameters, world_EIGs, max_observation)
+
+```
+
+
+```{r}
+# set stimuli-related parameters 
+features_df <- tibble(
+  n_features = c(1, 3, 5), 
+  on_features_n = c(1)
+)
+sequence_scheme = c("BBB")
+
+#stims_df_block <- set_stim_params_by_block(sequence_scheme, features_df)
+
+stims_df <- set_stim_params(sequence_scheme, features_df)
+
+forced_full_params_df <- make_simulation_params(n_sim = 1,
+                                        forced_model_params, 
+                                        stims_df)
+old_full_params_df <- make_simulation_params(n_sim = 1,
+                                        old_model_params, 
+                                        stims_df)
+```
+
+
+# comparing local time 
+
+```{r}
+
+
+tic()
+all_sims_res <- forced_full_params_df %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation_forced(params = df))) %>%
+  unnest(cols = c(data, results))
+toc()
+
+tic()
+all_sims_res <- old_full_params_df %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) main_simulation_original(params = df))) %>%
+  unnest(cols = c(data, results))
+toc()
+
+# n_sim = 1; forced: 4.698 sec; original: 1.665 sec
+# n_sim = 10; forced: 24.715 sec, original = 27.699 sec 
+# ok came to the realization that using tic toc on 1 set of simulation is probably not a good idea, should time each run and do multiple rounds to get an average.. or see a spread 
+```
+
+
+```{r}
+
+estimate_time <- function(run_n, 
+                          forced_df, 
+                          original_df){
+  
+
+  n_features <- tibble(n_feature = 
+                         forced_df$n_features)
+  
+  run_t_df <- tibble(
+    sim_id = 1:run_n,
+    forced_t = rep(NA_real_, run_n), 
+    original_t = rep(NA_real_, run_n)
+  )
+  
+  for(nf in n_features$n_feature){
+    run_t_df_for_feature_n <- run_t_df %>% 
+      mutate(n_feature = nf)
+    
+    for(i in 1:run_n){
+      
+      t_forced <- system.time({all_sims_res <- forced_df %>%
+        filter(n_features == nf) %>% 
+        mutate(row_number = row_number()) %>% 
+        group_by(row_number) %>% 
+        nest() %>%
+        mutate(results = map(data,
+                             function(df) main_simulation_forced(params = df))) %>%
+        unnest(cols = c(data, results))})
+  
+     t_original <- system.time({all_sims_res <- original_df %>%
+        filter(n_features == nf) %>% 
+        mutate(row_number = row_number()) %>% 
+        group_by(row_number) %>% 
+        nest() %>%
+        mutate(results = map(data,
+                             function(df) main_simulation_original(params = df))) %>%
+        unnest(cols = c(data, results))})
+      
+     # the third element of the return object is time elapsed
+     run_t_df_for_feature_n$forced_t[[i]] <- t_forced[[3]]
+     run_t_df_for_feature_n$original_t[[i]] <- t_original[[3]] 
+    }
+    run_t_df <- bind_rows(run_t_df, run_t_df_for_feature_n)
+    
+  }
+  return (run_t_df)
+ 
+}
+
+estimate_time_df <- estimate_time(run_n = 5, 
+                                  forced_df = forced_full_params_df, 
+                                  original_df = old_full_params_df)
+
+
+
+```
+
+```{r}
+estimate_time_df
+```
+
+
+```{r}
+estimate_time_df %>% 
+  filter(!is.na(n_feature)) %>% 
+  pivot_longer(cols = c("forced_t", "original_t"), 
+              names_to = "model", 
+              values_to = "t") %>% 
+  ggplot(aes(x = t, fill = model)) + 
+  geom_histogram(alpha = .5) + 
+  facet_wrap(model~n_feature, scales = "free")
+```
+
+
+
+
