@@ -9,40 +9,22 @@ output: html_document
 library(tidyverse)
 library(here)
 
-sim_res_a <- readRDS(here("model/cached_data/forced5_f3o1_forced_exp_sim.RDS"))
-sim_res_b <- readRDS(here("model/cached_data/f3o1_forced_exp_sim.RDS"))
-sim_res_c <- readRDS(here("model/cached_data/f3o1_0_forced_exp_sim.RDS"))
-sim_res_d <- readRDS(here("model/cached_data/f3o1_200_forced_exp_sim.RDS"))
+#sim_res_a <- readRDS(here("model/cached_data/forced5_f3o1_forced_exp_sim.RDS"))
+#sim_res_b <- readRDS(here("model/cached_data/f3o1_forced_exp_sim.RDS"))
+#sim_res_c <- readRDS(here("model/cached_data/f3o1_0_forced_exp_sim.RDS"))
+#sim_res_d <- readRDS(here("model/cached_data/f3o1_200_forced_exp_sim.RDS"))
 
-eig_sim_res <- readRDS(here("model/cached_data/fam_search_forced_exp_sim.RDS")) %>% mutate(im_type = "EIG")
-kl_sim_res <- readRDS(here("model/cached_data/kl_search_sim.RDS")) %>% mutate(im_type = "kl")
-surprisal_sim_res <- readRDS(here("model/cached_data/surprisal_search_sim_complex_w1.RDS")) %>% mutate(im_type = "surprisal")
+kl_sim_res <- readRDS(here("model/cached_data/forced_sim_search_KL.RDS")) %>% mutate(im_type = "kl")
+s_sim_res <- readRDS(here("model/cached_data/forced_sim_search_surprisal.RDS")) %>% mutate(im_type = "s")
 
-sim_res <- bind_rows(eig_sim_res, kl_sim_res, surprisal_sim_res)
+sim_res <- bind_rows(kl_sim_res, s_sim_res)
                       
-#sim_res <- readRDS(here("model/cached_data/scaled_continuous_model_res.RDS"))
 
 ```
 
 
 
-```{r}
-sim_res %>% 
-  mutate(
-    trial_type = case_when(
-      sequence_scheme == "BDBBBB" & trial_number == 2 ~ "D",
-      sequence_scheme == "BBBDBB" & trial_number == 4 ~ "D",
-      sequence_scheme == "BBBBBD" & trial_number == 6 ~ "D", 
-      TRUE ~ "B"
-    )
-  ) %>% 
-  filter(sequence_scheme == "BBBBBB" | trial_type == "D") %>% 
-  ggplot(aes(x = trial_number, y = log(sample_n), color = trial_type)) + 
-  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) +
-  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5), geom = "line") + 
-  facet_wrap(complexity~im_type, scales = "free_y") + 
-  theme_classic()
-```
+
 
 
 ```{r}
@@ -105,19 +87,44 @@ sim_res <- sim_res %>%
 ```{r}
 sim_res %>% 
   filter(im_type == "kl") %>% 
-  filter(stimulus_idx == 2, fexp_val != 0) %>% 
-  mutate(second_trial_type = case_when(
-    stim_info == "nf_3_of_1_ss_BB" ~ "background", 
-    stim_info == "nf_3_of_1_ss_BD" ~ "deviant"
+  mutate(complexity = case_when(
+    grepl("nf_6_of_1", stim_info) ~ "simple", 
+    grepl("nf_6_of_3", stim_info) ~ "complex"
+  ), 
+  sequence = case_when(
+    grepl("BBBBBB", stim_info) ~ "BBBBBB", 
+    grepl("BDBBBB", stim_info) ~ "BDBBBB", 
+    grepl("BBBDBB", stim_info) ~ "BBBDBB", 
+    grepl("BBBBBD", stim_info) ~ "BBBBBD"
   )) %>% 
-  ggplot(aes(x = as.numeric(fexp_val), y = sample_n, color = second_trial_type)) + 
+  #filter(im_type == "kl") %>% 
+  ggplot(aes(x = stimulus_idx, y = log(sample_n), color = complexity)) + 
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
-  geom_hline(yintercept = mean(sim_res %>% filter(fexp_val == 0, im_type == "kl", stimulus_idx == 2, stim_info == "nf_3_of_1_ss_BB") %>% pull(sample_n)), 
-             color = "red") + 
-  geom_hline(yintercept = mean(sim_res %>% filter(fexp_val == 0, im_type == "kl",stimulus_idx == 2, stim_info == "nf_3_of_1_ss_BD") %>% pull(sample_n))) + 
+  stat_summary(geom = "line", fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
   theme_classic() + 
-  xlab("forced exposure samples at the first trial") + 
+  facet_grid(as.numeric(fexp_val)~sequence) + 
   labs(title = "kl")
+
+sim_res %>% 
+  filter(im_type == "s") %>% 
+  mutate(complexity = case_when(
+    grepl("nf_6_of_1", stim_info) ~ "simple", 
+    grepl("nf_6_of_3", stim_info) ~ "complex"
+  ), 
+  sequence = case_when(
+    grepl("BBBBBB", stim_info) ~ "BBBBBB", 
+    grepl("BDBBBB", stim_info) ~ "BDBBBB", 
+    grepl("BBBDBB", stim_info) ~ "BBBDBB", 
+    grepl("BBBBBD", stim_info) ~ "BBBBBD"
+  )) %>% 
+  #filter(im_type == "kl") %>% 
+  ggplot(aes(x = stimulus_idx, y = log(sample_n), color = complexity)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  stat_summary(geom = "line", fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  theme_classic() + 
+  facet_grid(as.numeric(fexp_val)~sequence) + 
+  labs(title = "surprisal")
+
 ```
 
 ```{r}
