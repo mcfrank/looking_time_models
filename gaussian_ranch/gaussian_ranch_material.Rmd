@@ -102,3 +102,22 @@ score_epsilon <- function(epsilon, alpha_epsilon, beta_epsilon){
 
 ```
 
+# likelihood function ingerdients 
+```{r}
+score_y_given_miu_sigma_sqr <- function(y_val, miu, sigma){
+ dnorm(y_val, mean = miu, sd = sigma, log = TRUE) 
+}
+
+score_z_given_y <- function(z_val, y_val, epsilon){
+  dnorm(z_val, mean = y_val, sd = epsilon, log = TRUE)
+}
+
+
+
+
+```
+
+
+
+
+
