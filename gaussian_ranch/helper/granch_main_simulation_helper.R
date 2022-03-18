@@ -3,6 +3,8 @@
 # 2. backward_IM_main_simulation (RANCH with KL and Surprisal)
 # 3. main_simulation_random_looking (Baseline No Learnign Model)
 
+source(here("helper/compute_prob.r"))
+
 
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
@@ -14,8 +16,10 @@ granch_main_simulation <- function(params = df,
   
   
   #--- calculate grid ---$
-  # use the priors to calculate a reasonable range for miu_theta and sigma_square_theta 
-   
+  # TODO: use the priors to calculate a reasonable range for miu_theta and sigma_square_theta 
+  # current: just some assumption 
+   grid_mu_theta = seq(-2, 2, 0.2) # dense grid laready takes too long at the prior stage, bad
+   grid_sig_sq = seq(0.001, 2, 0.2)
   
   
   ### BOOK-KEEPING 
@@ -41,8 +45,24 @@ granch_main_simulation <- function(params = df,
   # dataframes of thetas and epsilons, and y given theta (these don't change)
   
   # lp_prior ##DOABLE 
+  prior_df <- expand.grid(grid_mu_theta = grid_mu_theta,
+              grid_sig_sq = grid_sig_sq)
+  prior_df$lp_mu_sig_sq = mapply(score_mu_sig_sq, 
+                                 prior_df$grid_mu_theta, prior_df$grid_sig_sq, 
+                                 mu = 1, lambda = 1, alpha = 1, beta = 1, log = TRUE)
   
   # lp_y_given_miu_sig_sqr ##DOABLE
+  # first get a list of all the ranges 
+  grid_y_list <- mapply(get_grid_y_vector, prior_df$grid_mu_theta, prior_df$grid_sig_sq, step = 0.2)
+  prior_df$grid_y_length <- sapply(grid_y_list, function(x){length(x)})
+  prior_df$id <- seq.int(nrow(prior_df))  
+  prior_df <- prior_df[rep(row.names(prior_df),prior_df $grid_y_length), 1:3]
+  assertthat::assert_that(nrow(prior_df) == length(unlist(grid_y_list)))
+  prior_df$grid_y <- unlist(grid_y_list)
+  
+  prior_df$lp_y_given_miu_sig_sq <- mapply(score_y_given_miu_sigma_sqr, 
+                                           prior_df$grid_y, prior_df$grid_mu_theta, prior_df$grid_sig_sq)
+  df_y_given_miu_sig_sqr <- prior_df
   
   ### MAIN MODEL LOOP
   stimulus_idx <- 1

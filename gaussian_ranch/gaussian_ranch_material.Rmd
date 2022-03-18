@@ -39,7 +39,7 @@ bayesAB::plotNormalInvGamma()
 
 ```{r}
 # this function taken from bayesAB
-d_normal_inverse_gamma <-function (input_x, input_sig_sq, mu, lambda, alpha, beta, log = TRUE){
+score_mu_sig_sq <-function (input_x, input_sig_sq, mu, lambda, alpha, beta, log = TRUE){
   steps <- 500
   max_sig_sq <- qgamma(0.99, alpha, beta) * lambda
   x_range <- c(mu - 5 * max_sig_sq, mu + 5 * max_sig_sq)
