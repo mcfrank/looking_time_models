@@ -20,7 +20,7 @@ granch_main_simulation <- function(params = df,
   #--- calculate grid ---$
   # TODO: use the priors to calculate a reasonable range for mu_theta and sigma_square_theta 
   # current: just some assumption 
-   grid_mu_theta = seq(-2, 2, 0.2) # dense grid laready takes too long at the prior stage, bad
+   grid_mu_theta = seq(-2, 2, 0.2) # dense grid already takes too long at the prior stage, bad
    grid_sig_sq = seq(0.001, 2, 0.2)
   
   ## constant dataframes 
@@ -36,8 +36,8 @@ granch_main_simulation <- function(params = df,
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
   
   # df for keeping track of model behavior
-  model <-  initialize_model(params$world_EIG, params$max_observation, 
-                             params$n_features)
+  #model <-  initialize_model(params$world_EIG, params$max_observation, params$n_features)
+  model <- initialize_model(0.6, 500, 6)
   
   # list of lists of df for the posteriors and likelihoods
   # require new function to stored the existing calculations 
@@ -68,8 +68,10 @@ granch_main_simulation <- function(params = df,
     model$stimulus_idx[t] = stimulus_idx
     
     # get stimulus, observation, add to model
-    current_stimulus <- params$stimuli_sequence$data[[1]][stimulus_idx,]
-    #current_observation ##DOABLE, nees a newer observation function
+    #current_stimulus <- params$stimuli_sequence$data[[1]][stimulus_idx,]
+    current_stimulus <- c(0.6, 0.1, 0.2, 0.3, 0.4, 0.5)
+   # current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
+    current_observation <- noisy_observation(current_stimulus, epsilon =0.02)
     
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
     
