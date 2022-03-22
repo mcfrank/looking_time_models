@@ -49,6 +49,8 @@ score_z_given_mu_sig_sq <- function(t, # timestep
   })
  
   # since each column represents a given y value, we need to add the lp y given mu sig sq to each column 
+  # THIS IS WRONG: needs to figure out groupings of y (which ys come from which combo of mu and sig sq)
+  # should create a new table that each column is a combo of mu sig sq and each row is an epsilon value 
   m_lp_z_bar_given_mu_sig_sq <- t(t(m_lp_z_bar_given_this_y_vavlue) + df_y_given_mu_sig_sq$lp_y_given_mu_sig_sq)
   
   # then, we can do a logSum across the columns 
@@ -148,4 +150,8 @@ score_mu_sig_sq <-function (input_x, input_sig_sq, mu, lambda, alpha, beta, log 
     return (dat[dat$x == x_approx & dat$sig_sq == sig_approx,]$res)
   }
   
+}
+
+score_epsilon <- function(epsilon, mu_epsilon, sd_epsilon){
+  dnorm(x = epsilon, mean = mu_epsilon, sd = sd_epsilon, log = TRUE)
 }
