@@ -1,9 +1,8 @@
 
-initialize_z_given_mu_sig_sq <- function(prior_df, grid_epsilon, max_observation, feature_number){
+initialize_z_given_mu_sig_sq <- function(prior_df, max_observation, feature_number){
   
-  df <- merge(prior_df, as.data.frame(grid_epsilon))
-  
-  df$lp_z_bar_given_all_ys_mu_sig_sq <- rep(NA_real_, nrow(prior_df))
+  df <- prior_df
+  df$lp_z_bar_given_all_ys_mu_sig_sq <- rep(NA_real_, nrow(df))
   
   z_given_mu_sig_sq <- lapply(seq(1, max_observation, 1), 
                           function(x){

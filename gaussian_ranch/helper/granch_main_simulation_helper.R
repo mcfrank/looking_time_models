@@ -24,12 +24,26 @@ granch_main_simulation <- function(params = df,
    grid_sig_sq = seq(0.001, 2, 0.2)
 
   ## constant dataframes 
-   prior_df <- expand.grid(grid_mu_theta = grid_mu_theta,
+   lp_mu_sig_sq <- expand.grid(grid_mu_theta = grid_mu_theta,
                            grid_sig_sq = grid_sig_sq)
-   prior_df$lp_mu_sig_sq = mapply(score_mu_sig_sq, 
-                                  prior_df$grid_mu_theta, prior_df$grid_sig_sq, 
-                                  mu = 1, lambda = 1, alpha = 1, beta = 1, log = TRUE)
-   df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(prior_df)
+   lp_mu_sig_sq$lp_mu_sig_sq = mapply(score_mu_sig_sq, 
+                                      lp_mu_sig_sq$grid_mu_theta, lp_mu_sig_sq$grid_sig_sq, 
+                                  mu = params$data[[1]]$mu_prior, 
+                                  lambda = params$data[[1]]$V_prior, 
+                                  alpha = params$data[[1]]$alpha_prior, 
+                                  beta = params$data[[1]]$beta_prior, log = TRUE)
+   
+   df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(lp_mu_sig_sq)
+   
+   # needs to add lp_epsilon here 
+   lp_epsilon = tibble(grid_epsilon = grid_epsilon)
+   lp_epsilon$lp_epsilon = mapply(score_epsilon, 
+                                  lp_epsilon$grid_epsilon, mu = params$data[[1]]$mu_epsilon, sd = params$data[[1]]$sd_epsilon)
+   
+   
+   prior_df <- merge(lp_mu_sig_sq, lp_epsilon)
+   
+  
    
    
   ### BOOK-KEEPING 
@@ -41,9 +55,8 @@ granch_main_simulation <- function(params = df,
   # list of lists of df for the posteriors and likelihoods
   # require new function to stored the existing calculations 
   ll_z_given_mu_sig_sq <- initialize_z_given_mu_sig_sq(prior_df, 
-                                                       grid_epsilon,
-                                                       params$max_observation, 
-                                                       params$n_features)
+                                                       params$data[[1]]$max_observation, 
+                                                       params$data[[1]]$n_features)
   
   
   #  book-keeping for likelihoods and posteriors for new observations
