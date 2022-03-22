@@ -1,4 +1,20 @@
 
+# -- get posterior -- #
+
+score_post <- function(lp_z_given_mu_sig_sq,prior_df, post_df) {
+  
+  # likelihood * prior
+  post_df$unnormalized_log_posterior <- lp_z_given_mu_sig_sq$lp_z_bar_given_all_ys_mu_sig_sq + 
+    prior_df$lp_mu_sig_sq + 
+    prior_df$lp_epsilon # currently missing
+  
+  # normalize
+  post_df$log_posterior <- post_df$unnormalized_log_posterior - matrixStats::logSumExp(post_df$unnormalized_log_posterior)
+  post_df$posterior <- exp(lp_post$log_posterior)
+  
+  
+  return(post_df)
+}
 
 
 # -- get z_given_mu_sigsq -- #
@@ -6,12 +22,12 @@ score_z_given_mu_sig_sq <- function(t, # timestep
                                 f, # feature
                                 prior_df, 
                                 df_y_given_mu_sig_sqr, # cached likelihoods
-                                lp_z_given_mu_sig_sqr, # this is going to be a list of list storing all the relevant info
+                                ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
                                 model) {
   
   # set up current variables
-  this_lp_z_given_mu_sig_sq <- lp_z_given_mu_sig_sqr[[t]][[f]]
-  grid_epsilon <- unique(this_lp_z_given_mu_sig_sq$epsilon) # currently not implemented 
+  this_lp_z_given_mu_sig_sq <- ll_z_given_mu_sig_sq[[t]][[f]]
+  grid_epsilon <- unique(this_lp_z_given_mu_sig_sq$grid_epsilon) # currently not implemented 
   this_stimulus_idx <- model$stimulus_idx[t]
   
   # need to compute over all noisy observations of this stimulus

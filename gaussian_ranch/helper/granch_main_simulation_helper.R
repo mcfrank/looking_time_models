@@ -13,7 +13,7 @@ source(here("helper/compute_prob.r"))
 # takes a df of parameters and some globals
 granch_main_simulation <- function(params = df,
                             #grid_mu_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = seq(0.001, 1, 0.01) # doesn't need to be smaller than one 
+                            grid_epsilon = seq(0.001, 1, 0.2) # doesn't need to be smaller than one 
                             ) {
   
   
@@ -22,7 +22,7 @@ granch_main_simulation <- function(params = df,
   # current: just some assumption 
    grid_mu_theta = seq(-2, 2, 0.2) # dense grid already takes too long at the prior stage, bad
    grid_sig_sq = seq(0.001, 2, 0.2)
-  
+
   ## constant dataframes 
    prior_df <- expand.grid(grid_mu_theta = grid_mu_theta,
                            grid_sig_sq = grid_sig_sq)
@@ -36,12 +36,12 @@ granch_main_simulation <- function(params = df,
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
   
   # df for keeping track of model behavior
-  #model <-  initialize_model(params$world_EIG, params$max_observation, params$n_features)
-  model <- initialize_model(0.6, 500, 6)
-  
+  model <-  initialize_model(params$world_EIG, params$max_observation, params$n_features)
+
   # list of lists of df for the posteriors and likelihoods
   # require new function to stored the existing calculations 
   ll_z_given_mu_sig_sq <- initialize_z_given_mu_sig_sq(prior_df, 
+                                                       grid_epsilon,
                                                        params$max_observation, 
                                                        params$n_features)
   
@@ -68,8 +68,8 @@ granch_main_simulation <- function(params = df,
     model$stimulus_idx[t] = stimulus_idx
     
     # get stimulus, observation, add to model
-    #current_stimulus <- params$stimuli_sequence$data[[1]][stimulus_idx,]
-    current_stimulus <- c(0.6, 0.1, 0.2, 0.3, 0.4, 0.5)
+    current_stimulus <- params$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$stimuli_sequence$data[[1]]))]
+    #current_stimulus <- c(0.6, 0.1, 0.2, 0.3, 0.4, 0.5)
    # current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
     current_observation <- noisy_observation(current_stimulus, epsilon =0.02)
     
