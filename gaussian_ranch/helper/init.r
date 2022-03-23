@@ -1,9 +1,21 @@
 
-initialize_z_given_mu_sig_sq <- function(prior_df, grid_epsilon, max_observation, feature_number){
+initialize_post_df <- function(max_observation, feature_number){
+  ll_post_df <- lapply(seq(1, max_observation, 1), 
+                       function(x){
+                         lapply(seq(1, feature_number, 1), 
+                                function(y){
+                                  NULL
+                                })
+                       })
+  return(ll_post_df)
   
-  df <- merge(prior_df, as.data.frame(grid_epsilon))
+}
+
+
+initialize_z_given_mu_sig_sq <- function(prior_df, max_observation, feature_number){
   
-  df$lp_z_bar_given_all_ys_mu_sig_sq <- rep(NA_real_, nrow(prior_df))
+  df <- prior_df
+  df$lp_z_bar_given_all_ys_mu_sig_sq <- rep(NA_real_, nrow(df))
   
   z_given_mu_sig_sq <- lapply(seq(1, max_observation, 1), 
                           function(x){
@@ -41,3 +53,13 @@ initialize_model <- function(eig_from_world, max_observation, n_features, measur
   
   return(model)
 }
+
+
+
+get_all_possible_observations_for_stimulus <- function(stimulus, epsilon, grid_n){
+  lapply(stimulus, function(y){seq(y - epsilon *5, y + epsilon *5, epsilon * 10 / (grid_n - 1))}) %>% 
+    expand.grid() %>% 
+    rename_with(~gsub("Var", "V", .x))
+}
+
+

@@ -24,12 +24,26 @@ granch_main_simulation <- function(params = df,
    grid_sig_sq = seq(0.001, 2, 0.2)
 
   ## constant dataframes 
-   prior_df <- expand.grid(grid_mu_theta = grid_mu_theta,
+   lp_mu_sig_sq <- expand.grid(grid_mu_theta = grid_mu_theta,
                            grid_sig_sq = grid_sig_sq)
-   prior_df$lp_mu_sig_sq = mapply(score_mu_sig_sq, 
-                                  prior_df$grid_mu_theta, prior_df$grid_sig_sq, 
-                                  mu = 1, lambda = 1, alpha = 1, beta = 1, log = TRUE)
-   df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(prior_df)
+   lp_mu_sig_sq$lp_mu_sig_sq = mapply(score_mu_sig_sq, 
+                                      lp_mu_sig_sq$grid_mu_theta, lp_mu_sig_sq$grid_sig_sq, 
+                                  mu = params$data[[1]]$mu_prior, 
+                                  lambda = params$data[[1]]$V_prior, 
+                                  alpha = params$data[[1]]$alpha_prior, 
+                                  beta = params$data[[1]]$beta_prior, log = TRUE)
+   
+   df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(lp_mu_sig_sq)
+   
+   # needs to add lp_epsilon here 
+   lp_epsilon = tibble(grid_epsilon = grid_epsilon)
+   lp_epsilon$lp_epsilon = mapply(score_epsilon, 
+                                  lp_epsilon$grid_epsilon, mu = params$data[[1]]$mu_epsilon, sd = params$data[[1]]$sd_epsilon)
+   
+   
+   prior_df <- merge(lp_mu_sig_sq, lp_epsilon)
+   
+  
    
    
   ### BOOK-KEEPING 
@@ -41,11 +55,13 @@ granch_main_simulation <- function(params = df,
   # list of lists of df for the posteriors and likelihoods
   # require new function to stored the existing calculations 
   ll_z_given_mu_sig_sq <- initialize_z_given_mu_sig_sq(prior_df, 
-                                                       grid_epsilon,
-                                                       params$max_observation, 
-                                                       params$n_features)
+                                                       params$data[[1]]$max_observation, 
+                                                       params$data[[1]]$n_features)
   
-  
+  # could be further optimized
+  ll_post <- initialize_post_df(
+                                params$data[[1]]$max_observation, 
+                                params$data[[1]]$n_features)
   #  book-keeping for likelihoods and posteriors for new observations
   # needs to enumerates all possible z 
   
@@ -68,10 +84,14 @@ granch_main_simulation <- function(params = df,
     model$stimulus_idx[t] = stimulus_idx
     
     # get stimulus, observation, add to model
-    current_stimulus <- params$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$stimuli_sequence$data[[1]]))]
+    current_stimulus <-  params$data[[1]]$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$data[[1]]$stimuli_sequence$data[[1]]))]
     #current_stimulus <- c(0.6, 0.1, 0.2, 0.3, 0.4, 0.5)
    # current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
-    current_observation <- noisy_observation(current_stimulus, epsilon =0.02)
+    current_observation <- noisy_observation(current_stimulus, epsilon = params$data[[1]]$epsilon)
+    
+    all_posible_observations_on_current_stimulus <- get_all_possible_observations_for_stimulus(current_stimulus, 
+                                                                                               epsilon = params$data[[1]]$epsilon, 
+                                                                                               grid_n = 2)
     
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
     
@@ -81,19 +101,24 @@ granch_main_simulation <- function(params = df,
     for (f in 1:params$n_features) {
       # update likelihood
       ll_z_given_mu_sig_sq[[t]][[f]] <- score_z_given_mu_sig_sq(t, f, 
-                               prior_df, 
                                df_y_given_mu_sig_sq, # cached likelihoods
                                ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
                                            model) 
     
       # update posterior
-      
+      ll_post[[t]][[f]] <- score_post(ll_z_given_mu_sig_sq[[t]][[f]],
+                                      prior_df) 
+
       
       
     }
     
     
     # ---------- BELOW FOR EIG --------- #
+    
+    # get all possible observations 
+    
+    
     
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
