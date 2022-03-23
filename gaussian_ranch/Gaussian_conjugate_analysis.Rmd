@@ -312,7 +312,7 @@ main_update_function <- function(prior_mu,
     
     eig <- getNIG_EIG(prior_mu, prior_V, prior_alpha, prior_beta)
     prior_post_pred[i] <- normal_inverse_gamma_post_pred(current_observation, prior_mu, prior_V, prior_alpha, prior_beta)
-    surprisal <- -log(prior_post_pred)
+    surprisal <- -log(prior_post_pred[i])
     
     priors[[i]] <- c(prior_mu, prior_V, prior_alpha, prior_beta)
     posts[[i]] <- current_post_parameter
