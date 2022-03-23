@@ -53,3 +53,13 @@ initialize_model <- function(eig_from_world, max_observation, n_features, measur
   
   return(model)
 }
+
+
+
+get_all_possible_observations_for_stimulus <- function(stimulus, epsilon, grid_n){
+  lapply(stimulus, function(y){seq(y - epsilon *5, y + epsilon *5, epsilon * 10 / (grid_n - 1))}) %>% 
+    expand.grid() %>% 
+    rename_with(~gsub("Var", "V", .x))
+}
+
+
