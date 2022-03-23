@@ -1,16 +1,17 @@
 
 # -- get posterior -- #
 
-score_post <- function(lp_z_given_mu_sig_sq,prior_df, post_df) {
+score_post <- function(lp_z_given_mu_sig_sq,prior_df) {
   
+  post_df <- lp_z_given_mu_sig_sq %>% left_join(prior_df, by = c("grid_mu_theta", "grid_sig_sq", "grid_epsilon"))
   # likelihood * prior
-  post_df$unnormalized_log_posterior <- lp_z_given_mu_sig_sq$lp_z_bar_given_all_ys_mu_sig_sq + 
-    prior_df$lp_mu_sig_sq + 
-    prior_df$lp_epsilon # currently missing
+  post_df$unnormalized_log_posterior <- post_df$lp_z_given_mu_sig_sq + 
+    post_df$lp_mu_sig_sq + 
+    post_df$lp_epsilon # currently missing
   
   # normalize
   post_df$log_posterior <- post_df$unnormalized_log_posterior - matrixStats::logSumExp(post_df$unnormalized_log_posterior)
-  post_df$posterior <- exp(lp_post$log_posterior)
+  post_df$posterior <- exp(post_df$log_posterior)
   
   
   return(post_df)
@@ -20,7 +21,6 @@ score_post <- function(lp_z_given_mu_sig_sq,prior_df, post_df) {
 # -- get z_given_mu_sigsq -- #
 score_z_given_mu_sig_sq <- function(t, # timestep
                                 f, # feature
-                                prior_df, 
                                 df_y_given_mu_sig_sqr, # cached likelihoods
                                 ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
                                 model) {
@@ -36,7 +36,9 @@ score_z_given_mu_sig_sq <- function(t, # timestep
     pull()
   
   # initialize log p(z|y)
-  lp_z_given_y = tibble(epsilon = grid_epsilon)
+  lp_temp <- df_y_given_mu_sig_sq %>% left_join(this_lp_z_given_mu_sig_sq %>% 
+                                                  select(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon), 
+                                                by = c("grid_mu_theta", "grid_sig_sq"))
   
   # OPTIMIZATION POSSIBLE: 
   # - we are going to have a lot of overlapping y values 
@@ -47,23 +49,24 @@ score_z_given_mu_sig_sq <- function(t, # timestep
   m_lp_z_bar_given_this_y_vavlue <- sapply(df_y_given_mu_sig_sq$grid_y, function(y){
     score_z_bar_given_y(observations_this_stimulus, y, grid_epsilon)
   })
+  
+  lp_temp$lp_z_given_y <- sapply(observations_this_stimulus, score_z_bar_given_y, lp_temp$grid_y, lp_temp$grid_epsilon)
+  
+  lp_temp$lp_z_given_mu_sig_sq_for_y <- lp_temp$lp_z_given_y + lp_temp$lp_y_given_mu_sig_sq
  
-  # since each column represents a given y value, we need to add the lp y given mu sig sq to each column 
-  m_lp_z_bar_given_mu_sig_sq <- t(t(m_lp_z_bar_given_this_y_vavlue) + df_y_given_mu_sig_sq$lp_y_given_mu_sig_sq)
-  
-  # then, we can do a logSum across the columns 
-  # these are across all possible values of y, for each epsilon 
-  lp_z_given_y$lp_z_bar_given_all_ys_mu_sig_sq <- matrixStats::rowLogSumExps(m_lp_z_bar_given_mu_sig_sq)
-  
-  # use expansion to get back to the major grid 
-  this_lp_z_given_mu_sig_sq = merge(prior_df, lp_z_given_y) 
+
+  # adding together all the possible y values for each pair of mu and sig sq 
+  this_lp_z_given_mu_sig_sq <- lp_temp %>% 
+    group_by(grid_mu_theta, grid_sig_sq, grid_epsilon) %>% 
+    summarise(lp_z_given_mu_sig_sq = matrixStats::logSumExp(lp_z_given_mu_sig_sq_for_y))
+  # note that the extremely negative values will become -Inf If used regular log(sum(exp)), but the remaining values are the same
   
   
   # add in likelihood for last sample from last stimulus, which includes all prior obs
   if (this_stimulus_idx > 1) {
     last_stim_last_t <- max(model$t[model$stimulus_idx == this_stimulus_idx - 1], na.rm=TRUE)
-    this_lp_z_given_mu_sig_sq$lp_z_bar_given_all_ys_mu_sig_sq <- this_lp_z_given_theta$lp_z_bar_given_all_ys_mu_sig_sq + 
-      lp_z_given_mu_sig_sq[[last_stim_last_t]][[f]]$lp_z_bar_given_all_ys_mu_sig_sq
+    this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq_for_y <- this_lp_z_given_theta$lp_z_given_mu_sig_sq_for_y + 
+      lp_z_given_mu_sig_sq[[last_stim_last_t]][[f]]$lp_z_given_mu_sig_sq_for_y
   }
   
   return(this_lp_z_given_mu_sig_sq)
@@ -148,4 +151,8 @@ score_mu_sig_sq <-function (input_x, input_sig_sq, mu, lambda, alpha, beta, log 
     return (dat[dat$x == x_approx & dat$sig_sq == sig_approx,]$res)
   }
   
+}
+
+score_epsilon <- function(epsilon, mu_epsilon, sd_epsilon){
+  dnorm(x = epsilon, mean = mu_epsilon, sd = sd_epsilon, log = TRUE)
 }
