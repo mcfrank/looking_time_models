@@ -1,4 +1,17 @@
 
+initialize_post_df <- function(max_observation, feature_number){
+  ll_post_df <- lapply(seq(1, max_observation, 1), 
+                       function(x){
+                         lapply(seq(1, feature_number, 1), 
+                                function(y){
+                                  NULL
+                                })
+                       })
+  return(ll_post_df)
+  
+}
+
+
 initialize_z_given_mu_sig_sq <- function(prior_df, max_observation, feature_number){
   
   df <- prior_df

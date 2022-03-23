@@ -58,7 +58,10 @@ granch_main_simulation <- function(params = df,
                                                        params$data[[1]]$max_observation, 
                                                        params$data[[1]]$n_features)
   
-  
+  # could be further optimized
+  ll_post <- initialize_post_df(
+                                params$data[[1]]$max_observation, 
+                                params$data[[1]]$n_features)
   #  book-keeping for likelihoods and posteriors for new observations
   # needs to enumerates all possible z 
   
@@ -94,13 +97,14 @@ granch_main_simulation <- function(params = df,
     for (f in 1:params$n_features) {
       # update likelihood
       ll_z_given_mu_sig_sq[[t]][[f]] <- score_z_given_mu_sig_sq(t, f, 
-                               prior_df, 
                                df_y_given_mu_sig_sq, # cached likelihoods
                                ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
                                            model) 
     
       # update posterior
-      
+      ll_post[[t]][[f]] <- score_post(ll_z_given_mu_sig_sq[[t]][[f]],
+                                      prior_df) 
+
       
       
     }
