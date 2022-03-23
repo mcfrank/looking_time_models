@@ -84,10 +84,14 @@ granch_main_simulation <- function(params = df,
     model$stimulus_idx[t] = stimulus_idx
     
     # get stimulus, observation, add to model
-    current_stimulus <- params$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$stimuli_sequence$data[[1]]))]
+    current_stimulus <-  params$data[[1]]$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$data[[1]]$stimuli_sequence$data[[1]]))]
     #current_stimulus <- c(0.6, 0.1, 0.2, 0.3, 0.4, 0.5)
    # current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
-    current_observation <- noisy_observation(current_stimulus, epsilon =0.02)
+    current_observation <- noisy_observation(current_stimulus, epsilon = params$data[[1]]$epsilon)
+    
+    all_posible_observations_on_current_stimulus <- get_all_possible_observations_for_stimulus(current_stimulus, 
+                                                                                               epsilon = params$data[[1]]$epsilon, 
+                                                                                               grid_n = 2)
     
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
     
@@ -111,6 +115,10 @@ granch_main_simulation <- function(params = df,
     
     
     # ---------- BELOW FOR EIG --------- #
+    
+    # get all possible observations 
+    
+    
     
     # -compute new posterior grid over all possible outcomes
     # -compute KL between old and new posterior 
