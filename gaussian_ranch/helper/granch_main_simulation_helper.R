@@ -12,17 +12,12 @@ source(here("helper/compute_prob.r"))
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
 granch_main_simulation <- function(params = df,
-                            #grid_mu_theta = seq(0.001, 1, 0.01),
-                            grid_epsilon = seq(0.001, 1, 0.2) # doesn't need to be smaller than one 
+                                   grid_mu_theta = seq(-2, 2, 0.2), # actually not sure if we should treat these grid range as moving targets...
+                                   grid_sig_sq = seq(0.001, 2, 0.2),
+                                   grid_epsilon = seq(0.001, 1, 0.2), 
+                                   hypothetical_obs_grid_n = 3 # doesn't need to be smaller than one 
                             ) {
   
-  
-  #--- calculate grid ---$
-  # TODO: use the priors to calculate a reasonable range for mu_theta and sigma_square_theta 
-  # current: just some assumption 
-   grid_mu_theta = seq(-2, 2, 0.2) # dense grid already takes too long at the prior stage, bad
-   grid_sig_sq = seq(0.001, 2, 0.2)
-
   ## constant dataframes 
    lp_mu_sig_sq <- expand.grid(grid_mu_theta = grid_mu_theta,
                            grid_sig_sq = grid_sig_sq)
@@ -42,9 +37,7 @@ granch_main_simulation <- function(params = df,
    
    
    prior_df <- merge(lp_mu_sig_sq, lp_epsilon)
-   
-  
-   
+ 
    
   ### BOOK-KEEPING 
   total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
@@ -62,13 +55,13 @@ granch_main_simulation <- function(params = df,
   ll_post <- initialize_post_df(
                                 params$data[[1]]$max_observation, 
                                 params$data[[1]]$n_features)
-  #  book-keeping for likelihoods and posteriors for new observations
-  # needs to enumerates all possible z 
-  
-  # also needs to keep track of KLs/ pp / surprisals.... for future work 
-  
-  
  
+
+  
+  p_post_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$data[[1]]$n_features, 
+                       ncol =  params$data[[1]]$n_features)
+  kl_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$data[[1]]$n_features, 
+                   ncol =  params$data[[1]]$n_features)
   
 
   ### MAIN MODEL LOOP
@@ -85,16 +78,14 @@ granch_main_simulation <- function(params = df,
     
     # get stimulus, observation, add to model
     current_stimulus <-  params$data[[1]]$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$data[[1]]$stimuli_sequence$data[[1]]))]
-    #current_stimulus <- c(0.6, 0.1, 0.2, 0.3, 0.4, 0.5)
-   # current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
+  
     current_observation <- noisy_observation(current_stimulus, epsilon = params$data[[1]]$epsilon)
     
     all_posible_observations_on_current_stimulus <- get_all_possible_observations_for_stimulus(current_stimulus, 
                                                                                                epsilon = params$data[[1]]$epsilon, 
-                                                                                               grid_n = 2)
+                                                                                               grid_n = hypothetical_obs_grid_n)
     
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
-    
     
     # steps in calculating EIG
     # - compute current posterior grid
@@ -118,23 +109,36 @@ granch_main_simulation <- function(params = df,
     
     # get all possible observations 
     
-    
-    
-    # -compute new posterior grid over all possible outcomes
-    # -compute KL between old and new posterior 
-    
-    
     model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
-    for (o in 1:nrow(possible_observations)) { 
-      for (f in 1:params$n_features) {
-       
-        # A LOT OF CHANGE NEES TO HAPPEN
+    
+      
+    for (o in 1:nrow(all_posible_observations_on_current_stimulus)) { 
+      for (f in 1:params$data[[1]]$n_features) {
+        
+        model[t+1, paste0("f", f)] <- all_posible_observations_on_current_stimulus[o,f]
+        
+        hypothetical_obs_likelihood <- score_z_given_mu_sig_sq(t + 1, f, 
+                                                                df_y_given_mu_sig_sq, # cached likelihoods
+                                                                ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
+                                                                model) 
+        
+        hypothetical_obs_posterior <- score_post(hypothetical_obs_likelihood,
+                                        prior_df) 
+        
+        kl_new[o,f] <- kl_div(hypothetical_obs_posterior$posterior,
+                              ll_post[[t]][[f]]$posterior)
+        
+        # this might be problematic, how comes we can get value greater than 1 for posterior predictive?
+        p_post_new[o, f] <- get_post_pred(obs = all_posible_observations_on_current_stimulus[o,f], 
+                                              lp_post = ll_post[[t]][[f]] , 
+                                              df_y_given_mu_sig_sq)
+        
+  
       }
     }
-    model$stimulus_idx[t+1] <- NA_real_ 
+    model$stimulus_idx[t+1] <- NA_real_
+    model[t+1, paste0("f", f)] <- NA_real_
     
-    # compute EIG
-    # for math behind this simplification: https://www.overleaf.com/project/618b40890437e356dc66539d
     model$EIG[t] <- sum(p_post_new * kl_new)
     
     
@@ -161,12 +165,10 @@ granch_main_simulation <- function(params = df,
       stimulus_idx <- stimulus_idx + 1
     }
   
-    
-
+  
     t <- t+1
  
     } # FINISH HUGE WHILE LOOP
-  
   return(model)  
 }
 

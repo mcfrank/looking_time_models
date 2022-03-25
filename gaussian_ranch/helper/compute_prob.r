@@ -156,3 +156,18 @@ score_mu_sig_sq <-function (input_x, input_sig_sq, mu, lambda, alpha, beta, log 
 score_epsilon <- function(epsilon, mu_epsilon, sd_epsilon){
   dnorm(x = epsilon, mean = mu_epsilon, sd = sd_epsilon, log = TRUE)
 }
+
+
+get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq) {
+ 
+  # this is to make sure we have the right permutation of y to mu sig sq etc...
+  temp_df <- left_join(lp_post, df_y_given_mu_sig_sq)
+  temp_df$lp_z_given_y = score_z_ij_given_y(z_val = obs, y_val = temp_df$grid_y, epsilon = temp_df$grid_epsilon)
+  
+  return(exp(logSumExp(temp_df$lp_z_given_y +  temp_df$lp_y_given_mu_sig_sq + temp_df$log_posterior)))
+  
+}
+
+kl_div <- function (x, y) {
+  sum(x * log(x/y))
+}
