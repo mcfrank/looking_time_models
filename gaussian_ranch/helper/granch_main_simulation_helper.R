@@ -13,7 +13,8 @@ source(here("helper/compute_prob.r"))
 # takes a df of parameters and some globals
 granch_main_simulation <- function(params = df,
                                    grid_mu_theta = seq(-2, 2, 0.2), # actually not sure if we should treat these grid range as moving targets...
-                                   grid_sig_sq = seq(0.001, 2, 0.2),
+                                   grid_sig_sq = seq(0.01, 2, 0.2),
+                                   grid_y = seq(-2, 2, 0.2),
                                    grid_epsilon = seq(0.001, 1, 0.2), 
                                    hypothetical_obs_grid_n = 3 # doesn't need to be smaller than one 
                             ) {
@@ -28,7 +29,7 @@ granch_main_simulation <- function(params = df,
                                   alpha = params$data[[1]]$alpha_prior, 
                                   beta = params$data[[1]]$beta_prior, log = TRUE)
    
-   df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(lp_mu_sig_sq)
+   df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(lp_mu_sig_sq, grid_y)
    
    # needs to add lp_epsilon here 
    lp_epsilon = tibble(grid_epsilon = grid_epsilon)
@@ -40,10 +41,10 @@ granch_main_simulation <- function(params = df,
  
    
   ### BOOK-KEEPING 
-  total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
+  total_trial_number = max(params$data[[1]]$stimuli_sequence$data[[1]]$trial_number)
   
   # df for keeping track of model behavior
-  model <-  initialize_model(params$world_EIG, params$max_observation, params$n_features)
+  model <-  initialize_model( params$data[[1]]$world_EIG, params$data[[1]]$max_observation,  params$data[[1]]$n_features)
 
   # list of lists of df for the posteriors and likelihoods
   # require new function to stored the existing calculations 
@@ -72,7 +73,7 @@ granch_main_simulation <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+  while(stimulus_idx <= total_trial_number && t <= params$data[[1]]$max_observation) {
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
     
@@ -89,7 +90,7 @@ granch_main_simulation <- function(params = df,
     
     # steps in calculating EIG
     # - compute current posterior grid
-    for (f in 1:params$n_features) {
+    for (f in 1:params$data[[1]]$n_features) {
       # update likelihood
       ll_z_given_mu_sig_sq[[t]][[f]] <- score_z_given_mu_sig_sq(t, f, 
                                df_y_given_mu_sig_sq, # cached likelihoods
@@ -125,6 +126,11 @@ granch_main_simulation <- function(params = df,
         hypothetical_obs_posterior <- score_post(hypothetical_obs_likelihood,
                                         prior_df) 
         
+        
+        #approximate 0 with small value 
+        hypothetical_obs_posterior$posterior[hypothetical_obs_posterior$posterior == 0] <- .00001
+        ll_post[[t]][[f]]$posterior[ll_post[[t]][[f]]$posterior == 0] <- .00001
+        
         kl_new[o,f] <- kl_div(hypothetical_obs_posterior$posterior,
                               ll_post[[t]][[f]]$posterior)
         
@@ -132,10 +138,11 @@ granch_main_simulation <- function(params = df,
         p_post_new[o, f] <- get_post_pred(obs = all_posible_observations_on_current_stimulus[o,f], 
                                               lp_post = ll_post[[t]][[f]] , 
                                               df_y_given_mu_sig_sq)
-        
+        model[t+1, paste0("f", f)] <- NA_real_
   
       }
     }
+    
     model$stimulus_idx[t+1] <- NA_real_
     model[t+1, paste0("f", f)] <- NA_real_
     

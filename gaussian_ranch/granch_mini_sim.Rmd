@@ -13,7 +13,12 @@ source(here("helper/granch_sim_setup_helper.R")) # this will import functions th
 
 
 ```{r}
-# do we need to have priors over epsilon? 
+
+grid_mu_theta = seq(-2, 2, 0.2)
+grid_sig_sq = seq(0.01, 2, 0.2)
+grid_y = seq(-2, 2, 0.2)
+grid_epsilon = seq(0.001, 1, 0.2)
+hypothetical_obs_grid_n = 3 
 
 # set model-related parameters 
 
@@ -51,13 +56,7 @@ full_params_df <- make_simulation_params(n_sim = 1,
                                         stims_df)
 ```
 
-```{r}
-prior_df %>% 
-  group_by(grid_mu_theta) %>% 
-  summarise(p = sum(exp(lp_mu_sig_sq))) %>% 
-  ggplot(aes(x = grid_mu_theta, y = p)) + 
-  geom_point()
-```
+
 
 # this is to set up the datarframe for testing with main function 
 ```{r}
