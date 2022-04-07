@@ -1,0 +1,43 @@
+---
+title: "distance metrics comparison"
+author: "anjie &gal"
+date: '2022-03-29'
+output: html_document
+---
+
+Packages
+```{r}
+library(gplots)
+library(factoextra)
+```
+
+Heatmaps
+
+```{r}
+
+euc_dist <- read.csv('eucledian_distances.csv') 
+cosine_dist <- read.csv('cosine_distances.csv')
+
+euc_dist <- euc_dist[,-1] %>% as.matrix()
+cosine_dist <- cosine_dist[,-1] %>% as.matrix() 
+cosine_dist[cosine_dist < 0 ] = 0
+
+# euc_dist <- (euc_dist - mean(euc_dist)) / sd(euc_dist)
+# cosine_dist <-  (cosine_dist - mean(cosine_dist)) / sd(cosine_dist)
+
+
+heatmap.2(euc_dist,dendrogram='none', Rowv=FALSE, Colv=FALSE,trace='none') 
+heatmap.2(cosine_dist,dendrogram='none', Rowv=FALSE, Colv=FALSE,trace='none')
+
+```
+
+Clustering
+```{r}
+
+embeddings <- read.csv('embeddings.csv')
+embeddings <- embeddings[,-1]
+
+k2 <- kmeans(embeddings, centers = 2, nstart = 25)
+fviz_cluster( k2,data = embeddings)
+
+```
