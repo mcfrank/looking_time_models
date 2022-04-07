@@ -148,19 +148,11 @@ granch_main_simulation <- function(params = df,
     
     model$EIG[t] <- sum(p_post_new * kl_new)
     
-    
-    # forced choice options
-    if (t < params$forced_exposure_n){
-      # less than the forced exposure n OR at the forced exposure n, should not to look away
-      model$p_look_away[t] = 0
-    }else if (t == params$forced_exposure_n){
-      # when finally at the last one, definitely needs to look away
-      model$p_look_away[t] = 1
-    }else{
+   
       # anything afterwards are all normal; also when forced_exposure_n = 0 it's all normal 
-      model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
+      model$p_look_away[t] = rectified_luce_choice(x = model$EIG_from_world[t], 
                                                    y = model$EIG[t])
-    }
+  
     
    
     
