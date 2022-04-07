@@ -3,11 +3,11 @@
 
 score_post <- function(lp_z_given_mu_sig_sq,prior_df) {
   
-  post_df <- lp_z_given_mu_sig_sq %>% left_join(prior_df, by = c("grid_mu_theta", "grid_sig_sq", "grid_epsilon"))
+  post_df <- lp_z_given_mu_sig_sq %>% left_join(prior_df, by = c("grid_mu_theta", "grid_sig_sq", "grid_epsilon", "lp_epsilon"))
   # likelihood * prior
   post_df$unnormalized_log_posterior <- post_df$lp_z_given_mu_sig_sq + 
     post_df$lp_mu_sig_sq + 
-    post_df$lp_epsilon # currently missing
+    post_df$lp_epsilon
   
   # normalize
   post_df$log_posterior <- post_df$unnormalized_log_posterior - matrixStats::logSumExp(post_df$unnormalized_log_posterior)
@@ -21,7 +21,7 @@ score_post <- function(lp_z_given_mu_sig_sq,prior_df) {
 # -- get z_given_mu_sigsq -- #
 score_z_given_mu_sig_sq <- function(t, # timestep
                                 f, # feature
-                                df_y_given_mu_sig_sqr, # cached likelihoods
+                                df_y_given_mu_sig_sq, # cached likelihoods
                                 ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
                                 model) {
   
@@ -37,8 +37,10 @@ score_z_given_mu_sig_sq <- function(t, # timestep
   
   # initialize log p(z|y)
   lp_temp <- df_y_given_mu_sig_sq %>% left_join(this_lp_z_given_mu_sig_sq %>% 
+                                                  ungroup() %>% 
                                                   select(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon), 
                                                 by = c("grid_mu_theta", "grid_sig_sq"))
+  
   
   # OPTIMIZATION POSSIBLE: 
   # - we are going to have a lot of overlapping y values 
@@ -57,16 +59,19 @@ score_z_given_mu_sig_sq <- function(t, # timestep
 
   # adding together all the possible y values for each pair of mu and sig sq 
   this_lp_z_given_mu_sig_sq <- lp_temp %>% 
-    group_by(grid_mu_theta, grid_sig_sq, grid_epsilon) %>% 
+    group_by(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon) %>% 
     summarise(lp_z_given_mu_sig_sq = matrixStats::logSumExp(lp_z_given_mu_sig_sq_for_y))
   # note that the extremely negative values will become -Inf If used regular log(sum(exp)), but the remaining values are the same
   
   
   # add in likelihood for last sample from last stimulus, which includes all prior obs
   if (this_stimulus_idx > 1) {
+
+    
     last_stim_last_t <- max(model$t[model$stimulus_idx == this_stimulus_idx - 1], na.rm=TRUE)
-    this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq_for_y <- this_lp_z_given_theta$lp_z_given_mu_sig_sq_for_y + 
-      lp_z_given_mu_sig_sq[[last_stim_last_t]][[f]]$lp_z_given_mu_sig_sq_for_y
+    
+    this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq_for_y <- this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq + 
+      ll_z_given_mu_sig_sq[[last_stim_last_t]][[f]]$lp_z_given_mu_sig_sq
   }
   
   return(this_lp_z_given_mu_sig_sq)
@@ -136,7 +141,7 @@ score_mu_sig_sq <-function (input_x, input_sig_sq, mu, lambda, alpha, beta, log 
   sig_approx <- sig_sqs[which.min(abs(sig_sqs-input_sig_sq))]
   
   dat <- data.frame(x = inputs$Var1, sig_sq = inputs$Var2, 
-                    res = out)
+                    res = output)
   
   if(log){
     return(log(dat[dat$x == x_approx & dat$sig_sq == sig_approx,]$res))
@@ -168,4 +173,12 @@ get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq) {
 
 kl_div <- function (x, y) {
   sum(x * log(x/y))
+}
+
+
+# ---------------- rectified_luce_choice ----------------
+# this crazy function is necessary because if the values get too close to 0, 
+# this can be > 1 or < 0
+rectified_luce_choice <- function(x, y) {
+  max(min(x / (x + y), 1), 0)
 }
