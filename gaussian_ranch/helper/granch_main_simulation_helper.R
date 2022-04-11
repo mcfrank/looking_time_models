@@ -24,45 +24,45 @@ granch_main_simulation <- function(params = df,
                            grid_sig_sq = grid_sig_sq)
    lp_mu_sig_sq$lp_mu_sig_sq = mapply(score_mu_sig_sq, 
                                       lp_mu_sig_sq$grid_mu_theta, lp_mu_sig_sq$grid_sig_sq, 
-                                  mu = params$data[[1]]$mu_prior, 
-                                  lambda = params$data[[1]]$V_prior, 
-                                  alpha = params$data[[1]]$alpha_prior, 
-                                  beta = params$data[[1]]$beta_prior, log = TRUE)
+                                  mu = params$mu_prior, 
+                                  lambda = params$V_prior, 
+                                  alpha = params$alpha_prior, 
+                                  beta = params$beta_prior, log = TRUE)
    
    df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(lp_mu_sig_sq, grid_y)
    
    # needs to add lp_epsilon here 
    lp_epsilon = tibble(grid_epsilon = grid_epsilon)
    lp_epsilon$lp_epsilon = mapply(score_epsilon, 
-                                  lp_epsilon$grid_epsilon, mu = params$data[[1]]$mu_epsilon, sd = params$data[[1]]$sd_epsilon)
+                                  lp_epsilon$grid_epsilon, mu = params$mu_epsilon, sd = params$sd_epsilon)
    
    
    prior_df <- merge(lp_mu_sig_sq, lp_epsilon)
  
    
   ### BOOK-KEEPING 
-  total_trial_number = max(params$data[[1]]$stimuli_sequence$data[[1]]$trial_number)
+  total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
   
   # df for keeping track of model behavior
-  model <-  initialize_model( params$data[[1]]$world_EIG, params$data[[1]]$max_observation,  params$data[[1]]$n_features)
+  model <-  initialize_model( params$world_EIG, params$max_observation,  params$n_features)
 
   # list of lists of df for the posteriors and likelihoods
   # require new function to stored the existing calculations 
   ll_z_given_mu_sig_sq <- initialize_z_given_mu_sig_sq(prior_df, 
-                                                       params$data[[1]]$max_observation, 
-                                                       params$data[[1]]$n_features)
+                                                       params$max_observation, 
+                                                       params$n_features)
   
   # could be further optimized
   ll_post <- initialize_post_df(
-                                params$data[[1]]$max_observation, 
-                                params$data[[1]]$n_features)
+                                params$max_observation, 
+                                params$n_features)
  
 
   
-  p_post_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$data[[1]]$n_features, 
-                       ncol =  params$data[[1]]$n_features)
-  kl_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$data[[1]]$n_features, 
-                   ncol =  params$data[[1]]$n_features)
+  p_post_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$n_features, 
+                       ncol =  params$n_features)
+  kl_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$n_features, 
+                   ncol =  params$n_features)
   
 
   ### MAIN MODEL LOOP
@@ -73,24 +73,24 @@ granch_main_simulation <- function(params = df,
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$data[[1]]$max_observation) {
+  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
     
     # get stimulus, observation, add to model
-    current_stimulus <-  params$data[[1]]$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$data[[1]]$stimuli_sequence$data[[1]]))]
+    current_stimulus <-  params$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$stimuli_sequence$data[[1]]))]
   
-    current_observation <- noisy_observation(current_stimulus, epsilon = params$data[[1]]$epsilon)
+    current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
     
     all_posible_observations_on_current_stimulus <- get_all_possible_observations_for_stimulus(current_stimulus, 
-                                                                                               epsilon = params$data[[1]]$epsilon, 
+                                                                                               epsilon = params$epsilon, 
                                                                                                grid_n = hypothetical_obs_grid_n)
     
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
     
     # steps in calculating EIG
     # - compute current posterior grid
-    for (f in 1:params$data[[1]]$n_features) {
+    for (f in 1:params$n_features) {
       # update likelihood
       ll_z_given_mu_sig_sq[[t]][[f]] <- score_z_given_mu_sig_sq(t, f, 
                                df_y_given_mu_sig_sq, # cached likelihoods
@@ -114,7 +114,7 @@ granch_main_simulation <- function(params = df,
     
       
     for (o in 1:nrow(all_posible_observations_on_current_stimulus)) { 
-      for (f in 1:params$data[[1]]$n_features) {
+      for (f in 1:params$n_features) {
         
         model[t+1, paste0("f", f)] <- all_posible_observations_on_current_stimulus[o,f]
         
@@ -187,7 +187,7 @@ backward_IM_main_simulation <- function(params = df,
 ) {
   
   ### BOOK-KEEPING 
-  total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
+  total_trial_number = max(params$stimuli_sequence$trial_number)
   
   # df for keeping track of model behavior
   model <-  initialize_model(params$world_EIG, params$max_observation, 
@@ -369,7 +369,7 @@ main_simulation_random_looking <- function(params = df,
 ) {
   
   ### BOOK-KEEPING 
-  total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
+  total_trial_number = max(params$stimuli_sequence$trial_number)
   
   # df for keeping track of model behavior
   model <-  initialize_model(params$world_EIG, params$max_observation, 
