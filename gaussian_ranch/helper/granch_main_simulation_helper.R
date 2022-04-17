@@ -12,9 +12,9 @@ source(here("helper/compute_prob.r"))
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
 granch_main_simulation <- function(params = df,
-                                   grid_mu_theta = seq(-2, 2, 0.2), # actually not sure if we should treat these grid range as moving targets...
+                                   grid_mu_theta =c(-3.3449717, -1.3449717,0.6550283,2.6550283), # actually not sure if we should treat these grid range as moving targets...
                                    grid_sig_sq = seq(0.01, 2, 0.2),
-                                   grid_y = seq(-2, 2, 0.2),
+                                   grid_y = c(-3.3449717, -1.3449717,0.6550283,2.6550283),
                                    grid_epsilon = seq(0.001, 1, 0.2), 
                                    hypothetical_obs_grid_n = 3 # doesn't need to be smaller than one 
                             ) {
