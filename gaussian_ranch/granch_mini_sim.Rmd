@@ -30,16 +30,16 @@ hypothetical_obs_grid_n = 3
 
 mu_priors = c(1)
 V_priors = c(1) 
-alpha_priors = c(1, 2) 
+alpha_priors = c(1) 
 beta_priors = c(1) 
 epsilons = c(0.01) 
 mu_epsilon = c(1)
 sd_epsilon = c(0.1)
-world_EIGs = c(0.0000001) 
+world_EIGs = c(0.00001) 
 max_observation = 2000
 
 model_params <- set_granch_params(
-                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon,
+                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, hypothetical_obs_grid_n,
                 mu_priors, V_priors, 
                 alpha_priors, beta_priors, 
                 epsilons, mu_epsilon, sd_epsilon,
@@ -82,8 +82,8 @@ for(i in 1: nrow(model_params)){
 # needs to get the precalculated dataframes in here 
 
 
-
-
+model_params$df_y_given_mu_sig_sq <- lapply(ll_pre_calculated_df, function(x){x[[2]]})
+model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
 
 
 # stims df will be something that taking in embeddings, but let's just ignore that for now

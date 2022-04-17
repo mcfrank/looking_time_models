@@ -1,6 +1,6 @@
 
 set_granch_params <- function(
-                            grid_mu_theta, grid_sig_sq, grid_y,grid_epsilon,
+                            grid_mu_theta, grid_sig_sq, grid_y,grid_epsilon, hypothetical_obs_grid_n,
                             mu_priors, 
                              V_priors, 
                              alpha_priors, 
@@ -24,7 +24,9 @@ set_granch_params <- function(
     world_EIG = world_EIGs, 
     max_observation = max_observation
   ) %>% 
-    mutate(params_info = paste("mp", mu_prior, 
+    mutate(
+      hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
+      params_info = paste("mp", mu_prior, 
                                "vp", V_prior, 
                                "ap", alpha_prior, 
                                "bp", beta_prior, 
@@ -41,8 +43,8 @@ set_granch_params <- function(
            grid_sig_sq = list(grid_sig_sq), 
            grid_y = list(grid_y), 
            grid_epsilon = list(grid_epsilon)) %>% 
-    select(grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, mu_prior, V_prior, 
-           alpha_prior, beta_prior, epsilon, mu_epsilon, sd_epsilon, world_EIG, max_observation)
+    select(params_id, grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, mu_prior, V_prior, 
+           alpha_prior, beta_prior, epsilon, mu_epsilon, sd_epsilon, world_EIG, max_observation, hypothetical_obs_grid_n)
   
   
   return(model_params_df)

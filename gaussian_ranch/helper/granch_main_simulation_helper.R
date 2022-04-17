@@ -11,33 +11,18 @@ source(here("helper/compute_prob.r"))
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
-granch_main_simulation <- function(params = df,
-                                   grid_mu_theta =c(-3.3449717, -1.3449717,0.6550283,2.6550283), # actually not sure if we should treat these grid range as moving targets...
-                                   grid_sig_sq = seq(0.01, 2, 0.2),
-                                   grid_y = c(-3.3449717, -1.3449717,0.6550283,2.6550283),
-                                   grid_epsilon = seq(0.001, 1, 0.2), 
-                                   hypothetical_obs_grid_n = 3 # doesn't need to be smaller than one 
-                            ) {
+granch_main_simulation <- function(params = df) {
+  
+  # grid info 
+  grid_mu_theta <- (params$grid_mu_theta)[[1]]
+  grid_sig_sq <- (params$grid_sig_sq)[[1]]
+  grid_y <- (params$grid_y)[[1]]
+  grid_epsilon <- (params$grid_epsilon)[[1]]
+  hypothetical_obs_grid_n <- params$hypothetical_obs_grid_n
   
   ## constant dataframes 
-   lp_mu_sig_sq <- expand.grid(grid_mu_theta = grid_mu_theta,
-                           grid_sig_sq = grid_sig_sq)
-   lp_mu_sig_sq$lp_mu_sig_sq = mapply(score_mu_sig_sq, 
-                                      lp_mu_sig_sq$grid_mu_theta, lp_mu_sig_sq$grid_sig_sq, 
-                                  mu = params$mu_prior, 
-                                  lambda = params$V_prior, 
-                                  alpha = params$alpha_prior, 
-                                  beta = params$beta_prior, log = TRUE)
-   
-   df_y_given_mu_sig_sq <- get_df_y_given_mu_sig_sq(lp_mu_sig_sq, grid_y)
-   
-   # needs to add lp_epsilon here 
-   lp_epsilon = tibble(grid_epsilon = grid_epsilon)
-   lp_epsilon$lp_epsilon = mapply(score_epsilon, 
-                                  lp_epsilon$grid_epsilon, mu = params$mu_epsilon, sd = params$sd_epsilon)
-   
-   
-   prior_df <- merge(lp_mu_sig_sq, lp_epsilon)
+   df_y_given_mu_sig_sq <- (params$df_y_given_mu_sig_sq)[[1]]
+   prior_df <- (params$prior_df)[[1]]
  
    
   ### BOOK-KEEPING 
@@ -149,15 +134,18 @@ granch_main_simulation <- function(params = df,
     model$EIG[t] <- sum(p_post_new * kl_new)
     
    
-      # anything afterwards are all normal; also when forced_exposure_n = 0 it's all normal 
-      model$p_look_away[t] = rectified_luce_choice(x = model$EIG_from_world[t], 
-                                                   y = model$EIG[t])
+      # currently taking away the probabilistic decision-making process 
+    
+    model$look_away[t] = model$EIG[t] < model$EIG_from_world[t]
+    
+    #model$p_look_away[t] = rectified_luce_choice(x = model$EIG_from_world[t], 
+    #                                               y = model$EIG[t])
   
     
    
     
     # actual choice of whether to look away is sampled here
-    model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
+    #model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
     
     # if look away, increment
     if (model$look_away[t] == TRUE) {
