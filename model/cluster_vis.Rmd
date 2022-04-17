@@ -9,6 +9,7 @@ output: html_document
 library(tidyverse)
 library(here)
 
+
 #sim_res_a <- readRDS(here("model/cached_data/forced5_f3o1_forced_exp_sim.RDS"))
 #sim_res_b <- readRDS(here("model/cached_data/f3o1_forced_exp_sim.RDS"))
 #sim_res_c <- readRDS(here("model/cached_data/f3o1_0_forced_exp_sim.RDS"))
@@ -22,8 +23,31 @@ sim_res <- bind_rows(kl_sim_res, s_sim_res)
 
 ```
 
+```{r}
+t_d <- readRDS(here("model/cached_data/time_estimate.RDS"))
+t_d %>% 
+  filter(!is.na(forced_t)) %>% 
+  pivot_longer(cols = c("forced_t", "original_t"), 
+               names_to = "t_type", 
+               values_to = "t") %>% 
+  ggplot(aes(x = n_feature,  y = t, color = t_type)) + 
+  #geom_jitter(alpha = .1) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5))  + 
+  theme_classic()
+  
+```
 
 
+```{r}
+t_d %>% 
+  filter(!is.na(forced_t)) %>% 
+  pivot_longer(cols = c("forced_t", "original_t"), 
+               names_to = "t_type", 
+               values_to = "t") %>% 
+  ggplot(aes(x = t, fill = t_type)) + 
+  geom_density(alpha = .2)
+  
+```
 
 
 

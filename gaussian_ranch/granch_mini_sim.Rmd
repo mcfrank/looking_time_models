@@ -9,6 +9,7 @@ library(here)
 library(tictoc)
 library(tidyverse)
 library(matrixStats)
+source(here("helper/compute_prob.r"))
 source(here("helper/granch_main_simulation_helper.R")) # this will import other helper functions 
 source(here("helper/granch_sim_setup_helper.R")) # this will import functions that help with setting parameters 
 ```
@@ -18,17 +19,18 @@ source(here("helper/granch_sim_setup_helper.R")) # this will import functions th
 
 embedding_path <- here("embeddings/embedding_PCA.csv")
 
-grid_mu_theta = get_embedding_range(embedding_path, step = 2)
+grid_mu_theta = seq(-1, 1, 0.1)
 grid_sig_sq = seq(0.01, 2, 0.2)
 grid_y = get_embedding_range(embedding_path, step = 2)
 grid_epsilon = seq(0.001, 1, 0.2)
 hypothetical_obs_grid_n = 3 
 
+
 # set model-related parameters 
 
-mu_priors = c(0)
+mu_priors = c(1)
 V_priors = c(1) 
-alpha_priors = c(1) 
+alpha_priors = c(1, 2) 
 beta_priors = c(1) 
 epsilons = c(0.01) 
 mu_epsilon = c(1)
@@ -36,10 +38,51 @@ sd_epsilon = c(0.1)
 world_EIGs = c(0.0000001) 
 max_observation = 2000
 
-model_params <- set_granch_params(mu_priors, V_priors, 
+model_params <- set_granch_params(
+                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon,
+                mu_priors, V_priors, 
                 alpha_priors, beta_priors, 
                 epsilons, mu_epsilon, sd_epsilon,
                 world_EIGs, max_observation)
+
+
+
+# sketchy but works
+# first one lp_mu_sig_sq
+# second one df_y_given_mu_sig_sq
+# third one prior_df 
+ll_pre_calculated_df <- lapply(seq(1, nrow(model_params), 1), 
+                       function(x){
+                         lapply(seq(1, 3, 1), 
+                                function(x){
+                                  NULL
+                                })
+                       })
+
+for(i in 1: nrow(model_params)){
+  # 1st element lp_mu_sig_sq
+  ll_pre_calculated_df[[i]][[1]] <- make_lp_mu_sig_sq(model_params$grid_mu_theta[[i]], 
+                                                  model_params$grid_sig_sq[[i]], 
+                                                  model_params$mu_prior[[i]], model_params$V_prior[[i]], 
+                                                  model_params$alpha_prior[[i]], model_params$beta_prior[[i]])
+  
+  # 2nd element df_y_given_mu_sig_sq 
+  
+  ll_pre_calculated_df[[i]][[2]] <- make_df_y_given_mu_sig_sq(ll_pre_calculated_df[[i]][[1]], 
+                                                  model_params$grid_y[[i]])
+  
+
+  ll_pre_calculated_df[[i]][[3]] <- make_prior_df(ll_pre_calculated_df[[i]][[1]], 
+                                                  model_params$grid_epsilon[[i]], 
+                                                  model_params$mu_epsilon[[i]], 
+                                                  model_params$sd_epsilon[[i]])
+}
+
+
+# needs to get the precalculated dataframes in here 
+
+
+
 
 
 
@@ -56,7 +99,7 @@ stims_df <- tibble(sequence_scheme = "BBBBBB",
 
 
 
-full_params_df <- make_simulation_params(n_sim = 10,
+full_params_df <- make_simulation_params(n_sim = 50,
                                         model_params, 
                                         stims_df)
 # test_df <- full_params_df %>%
