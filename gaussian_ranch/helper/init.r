@@ -63,3 +63,16 @@ get_all_possible_observations_for_stimulus <- function(stimulus, epsilon, grid_n
 }
 
 
+
+initialize_model_testing_infrastructrue <- function(max_observation){
+  ll_model_testing <- lapply(seq(1, max_observation, 1), 
+                             function(x){
+                               lapply(seq(1, 4, 1), 
+                                      function(y){
+                                          NULL
+                                        })
+                                      
+                             })
+  
+  return(ll_model_testing)
+}

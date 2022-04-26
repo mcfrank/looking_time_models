@@ -17,26 +17,38 @@ source(here("helper/granch_sim_setup_helper.R")) # this will import functions th
 
 ```{r}
 
+```
+
+
+```{r}
+
 embedding_path <- here("embeddings/embedding_PCA.csv")
 
-grid_mu_theta = seq(-1, 1, 0.1)
-grid_sig_sq = seq(0.01, 2, 0.2)
-grid_y = get_embedding_range(embedding_path, step = 2)
+grid_mu_theta = get_embedding_range(embedding_path, step = 0.01)
+grid_sig_sq = seq(0.001, 2, 0.2)
+grid_y = get_embedding_range(embedding_path, step = 0.01)
 grid_epsilon = seq(0.001, 1, 0.2)
 hypothetical_obs_grid_n = 3 
 
 
+grid_mu_theta = c(0, 0.7)
+grid_y = c(0, 0.7)
+
 # set model-related parameters 
 
-mu_priors = c(1)
-V_priors = c(1) 
+em <- read_csv(embedding_path, col_names = FALSE)
+mean_em <- mean(as.matrix(em))
+sd_em <- sd(as.matrix(em))
+
+mu_priors = c(mean_em)
+V_priors = c(0.001) 
 alpha_priors = c(1) 
 beta_priors = c(1) 
-epsilons = c(0.01) 
-mu_epsilon = c(1)
-sd_epsilon = c(0.1)
-world_EIGs = c(0.00001) 
-max_observation = 2000
+epsilons = c(0.000001) 
+mu_epsilon = c(0.001)
+sd_epsilon = c(01)
+world_EIGs = c(0.0000000000000000001) 
+max_observation = 500
 
 model_params <- set_granch_params(
                 grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, hypothetical_obs_grid_n,
@@ -87,7 +99,8 @@ model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
 
 
 # stims df will be something that taking in embeddings, but let's just ignore that for now
-test_stim <- get_stimulus(1, 1, embedding_path)%>% pull()
+#test_stim <- get_stimulus(1, 1, embedding_path)%>% pull()
+test_stim <- 0.7
 stimuli_sequence <- tibble(V1 = rep(test_stim, 6), 
                    trial_number = seq(1, 6))
 
@@ -99,7 +112,7 @@ stims_df <- tibble(sequence_scheme = "BBBBBB",
 
 
 
-full_params_df <- make_simulation_params(n_sim = 50,
+full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
 # test_df <- full_params_df %>%
@@ -113,17 +126,6 @@ full_params_df <- make_simulation_params(n_sim = 50,
 
 
 
-# this is to set up the datarframe for testing with main function 
-```{r}
-test_df <- full_params_df %>%
-  mutate(row_number = row_number()) %>% 
-  group_by(row_number) %>% 
-  nest()
-
-params <- test_df[1, ]
-
-```
-
 
 ```{r}
 tic()
@@ -135,6 +137,61 @@ all_sims_res <- full_params_df %>%
                        function(df) granch_main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
 toc()
+```
+
+
+
+
+```{r}
+model <- all_sims_res$results[[2]]
+info <- all_sims_res$results[[1]]
+
+model %>% 
+  ggplot(aes(x = t, y  = EIG))+ 
+  geom_point()
+```
+
+```{r}
+model %>% 
+  filter(EIG < 0)
+```
+
+```{r}
+# posterior
+info[[10]][[1]]
+
+# kl
+info[[10]][[2]]
+
+# post pred 
+info[[10]][[3]]
+
+# hypothetical posterior 
+info[[10]][[4]]
+
+```
+
+
+```{r}
+kl_div(info[[10]][[4]][[1]]$posterior, info[[10]][[1]]$posterior)
+
+pruned_hypo_posterior <- info[[10]][[4]][[1]]
+pruned_posterior <- info[[10]][[1]]
+
+pruned_hypo_posterior$posterior[pruned_hypo_posterior$posterior == 0] <- .00001
+pruned_posterior$posterior[pruned_posterior$posterior == 0] <- .00001
+
+kl_div(pruned_hypo_posterior$posterior, pruned_posterior$posterior)
+
+```
+
+
+
+```{r}
+all_sims_res %>% 
+  ggplot(aes(x = t, y = EIG)) + 
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot")+ 
+  facet_wrap(~row_number)
 ```
 
 
