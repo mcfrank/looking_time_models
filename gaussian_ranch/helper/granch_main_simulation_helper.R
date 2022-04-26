@@ -11,7 +11,7 @@ source(here("helper/compute_prob.r"))
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
-granch_main_simulation <- function(params = df) {
+granch_main_simulation <- function(params = df, testing = TRUE) {
   
   # grid info 
   grid_mu_theta <- (params$grid_mu_theta)[[1]]
@@ -49,6 +49,18 @@ granch_main_simulation <- function(params = df) {
   kl_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$n_features, 
                    ncol =  params$n_features)
   
+  
+  
+  ## make a list of list that keeps track of: 
+  # at each time point t, (only looking at single fature case because it doesn't make too much sense to look at multiple )
+  # the real posterior 
+  # the kl 
+  # the posterior predictives 
+  ll_model_testing <- initialize_model_testing_infrastructrue(params$max_observation)
+  
+  
+  
+  
 
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
@@ -59,6 +71,9 @@ granch_main_simulation <- function(params = df) {
   # compute expected information gain
   # make a choice what to do
   while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+    
+    print("time: ")
+    print(t)
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
     
@@ -87,7 +102,7 @@ granch_main_simulation <- function(params = df) {
                                       prior_df) 
 
       
-      
+      ll_model_testing[[t]][[1]] <- ll_post[[t]][[f]]
     }
     
     
@@ -98,6 +113,8 @@ granch_main_simulation <- function(params = df) {
     model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
     
       
+    l_possible_obs_post <- lapply(seq(1, nrow(all_posible_observations_on_current_stimulus), 1), function(y){NULL})
+    
     for (o in 1:nrow(all_posible_observations_on_current_stimulus)) { 
       for (f in 1:params$n_features) {
         
@@ -111,6 +128,8 @@ granch_main_simulation <- function(params = df) {
         hypothetical_obs_posterior <- score_post(hypothetical_obs_likelihood,
                                         prior_df) 
         
+        
+        l_possible_obs_post[[o]] <- hypothetical_obs_posterior
         
         #approximate 0 with small value 
         hypothetical_obs_posterior$posterior[hypothetical_obs_posterior$posterior == 0] <- .00001
@@ -127,6 +146,10 @@ granch_main_simulation <- function(params = df) {
   
       }
     }
+    
+    ll_model_testing[[t]][[2]]<- kl_new 
+    ll_model_testing[[t]][[3]]<- p_post_new 
+    ll_model_testing[[t]][[4]] <- l_possible_obs_post
     
     model$stimulus_idx[t+1] <- NA_real_
     model[t+1, paste0("f", f)] <- NA_real_
@@ -156,7 +179,17 @@ granch_main_simulation <- function(params = df) {
     t <- t+1
  
     } # FINISH HUGE WHILE LOOP
-  return(model)  
+  
+  if(testing == TRUE){
+    testing_output <- list(ll_model_testing, 
+                           model)
+    return(testing_output)
+  }else{
+    return(model)  
+  }
+  
+  
+ 
 }
 
 

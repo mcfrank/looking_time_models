@@ -51,6 +51,10 @@ main_simulation <- function(params = df,
                             lp_y_ZERO_given_theta = score_yi_given_theta(yi = 0, 
                                                                       theta = grid_theta))
   
+  
+  
+  
+  
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
   t <- 1
