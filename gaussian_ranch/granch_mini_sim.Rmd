@@ -14,12 +14,6 @@ source(here("helper/granch_main_simulation_helper.R")) # this will import other 
 source(here("helper/granch_sim_setup_helper.R")) # this will import functions that help with setting parameters 
 ```
 
-
-```{r}
-
-```
-
-
 ```{r}
 
 embedding_path <- here("embeddings/embedding_PCA.csv")

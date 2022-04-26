@@ -20,10 +20,10 @@ score_post <- function(lp_z_given_mu_sig_sq,prior_df) {
 
 # -- get z_given_mu_sigsq -- #
 score_z_given_mu_sig_sq <- function(t, # timestep
-                                f, # feature
-                                df_y_given_mu_sig_sq, # cached likelihoods
-                                ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
-                                model) {
+                                    f, # feature
+                                    df_y_given_mu_sig_sq, # cached likelihoods
+                                    ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
+                                    model) {
   
   # set up current variables
   this_lp_z_given_mu_sig_sq <- ll_z_given_mu_sig_sq[[t]][[f]]
@@ -36,27 +36,24 @@ score_z_given_mu_sig_sq <- function(t, # timestep
     pull()
   
   # initialize log p(z|y)
-  lp_temp <- df_y_given_mu_sig_sq %>% left_join(this_lp_z_given_mu_sig_sq %>% 
-                                                  ungroup() %>% 
-                                                  select(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon), 
-                                                by = c("grid_mu_theta", "grid_sig_sq"))
+  lp_temp <- df_y_given_mu_sig_sq %>% 
+    left_join(this_lp_z_given_mu_sig_sq %>% 
+                ungroup() %>% 
+                select(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon), 
+              by = c("grid_mu_theta", "grid_sig_sq"))
   
   
   # OPTIMIZATION POSSIBLE: 
   # - we are going to have a lot of overlapping y values 
   # - calculate only unique y values
   # - but need to keep track of which row each element comes from 
- 
-  # this creates a matrix, that has (# of y value) columns and (# of epsilon value) rows
-  m_lp_z_bar_given_this_y_vavlue <- sapply(df_y_given_mu_sig_sq$y, function(y){
-    score_z_bar_given_y(observations_this_stimulus, y, grid_epsilon)
-  })
   
-  lp_temp$lp_z_given_y <- sapply(observations_this_stimulus, score_z_bar_given_y, lp_temp$y, lp_temp$grid_epsilon)
+  lp_temp$lp_z_given_y <- rowSums(sapply(observations_this_stimulus, score_z_bar_given_y, 
+                                 lp_temp$y, lp_temp$grid_epsilon))
   
   lp_temp$lp_z_given_mu_sig_sq_for_y <- lp_temp$lp_z_given_y + lp_temp$lp_y_given_mu_sig_sq
- 
-
+  
+  
   # adding together all the possible y values for each pair of mu and sig sq 
   this_lp_z_given_mu_sig_sq <- lp_temp %>% 
     group_by(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon) %>% 
@@ -66,8 +63,6 @@ score_z_given_mu_sig_sq <- function(t, # timestep
   
   # add in likelihood for last sample from last stimulus, which includes all prior obs
   if (this_stimulus_idx > 1) {
-
-    
     last_stim_last_t <- max(model$t[model$stimulus_idx == this_stimulus_idx - 1], na.rm=TRUE)
     
     this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq_for_y <- this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq + 
@@ -84,11 +79,11 @@ score_z_given_mu_sig_sq <- function(t, # timestep
 
 # -- get the look up table for y -- # 
 get_df_y_given_mu_sig_sq <- function(prior_df, grid_y){
- 
+  
   prior_df <- merge(prior_df, grid_y)
   # calculate lp for each y value 
   prior_df$lp_y_given_mu_sig_sq <- mapply(score_y_given_mu_sigma_sq, 
-                                           prior_df$y, prior_df$grid_mu_theta, prior_df$grid_sig_sq)
+                                          prior_df$y, prior_df$grid_mu_theta, prior_df$grid_sig_sq)
   df_y_given_mu_sig_sq <- prior_df
   
   return(df_y_given_mu_sig_sq)
@@ -157,7 +152,7 @@ score_epsilon <- function(epsilon, mu_epsilon, sd_epsilon){
 
 
 get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq) {
- 
+  
   # this is to make sure we have the right permutation of y to mu sig sq etc...
   temp_df <- left_join(lp_post, df_y_given_mu_sig_sq)
   temp_df$lp_z_given_y = score_z_ij_given_y(z_val = obs, y_val = temp_df$y, epsilon = temp_df$grid_epsilon)
