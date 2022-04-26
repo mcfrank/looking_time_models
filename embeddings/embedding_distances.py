@@ -4,10 +4,7 @@ import json
 from scipy.spatial import distance_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plot
-import plotly.express as px
-
-
+import matplotlib.pyplot as plt
 
 f = open('new_embeddings.json')
 embedding_dict = json.load(f)
@@ -17,12 +14,13 @@ embedding_df = pd.DataFrame.from_dict(embedding_dict).transpose()
 
 embedding_df.to_csv('all_embeddings.csv')
 
-pca = PCA(n_components=10)
+pca = PCA(n_components=2)
 components = pca.fit_transform(embedding_df)
 
+plt.plot(components)
+plt.show()
+
 np.savetxt("all_embeddings_afterPCA.csv", components, delimiter=",")
-
-
 
 
 
