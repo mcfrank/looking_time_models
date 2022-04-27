@@ -7,7 +7,7 @@ ll_z_given_mu_sig_sq[[1]][[1]] |>
   group_by(grid_mu_theta) |>
   summarise(lp_z_given_mu_sig_sq = matrixStats::logSumExp(lp_z_given_mu_sig_sq)) |>
   ggplot(aes(x = grid_mu_theta, y = lp_z_given_mu_sig_sq)) + 
-  geom_point()
+  geom_point() 
 
 
 # check posterior
@@ -26,4 +26,5 @@ all_posts |>
   geom_point() + 
   facet_wrap(~idx)
 
+max(ll_post[[1]][[1]]$posterior)
 max(ll_post[[2]][[1]]$posterior)

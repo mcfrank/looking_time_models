@@ -26,7 +26,7 @@ hypothetical_obs_grid_n = 3
 
 
 #grid_mu_theta = c(0.001, 0.7)
-grid_y = c(0.001, 0.7)
+#grid_y = c(0.001, 0.7)
 
 # set model-related parameters 
 
