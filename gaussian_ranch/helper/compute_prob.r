@@ -65,7 +65,7 @@ score_z_given_mu_sig_sq <- function(t, # timestep
   if (this_stimulus_idx > 1) {
     last_stim_last_t <- max(model$t[model$stimulus_idx == this_stimulus_idx - 1], na.rm=TRUE)
     
-    this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq_for_y <- this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq + 
+    this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq <- this_lp_z_given_mu_sig_sq$lp_z_given_mu_sig_sq + 
       ll_z_given_mu_sig_sq[[last_stim_last_t]][[f]]$lp_z_given_mu_sig_sq
   }
   

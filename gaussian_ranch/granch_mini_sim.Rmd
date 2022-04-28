@@ -95,7 +95,7 @@ model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
 # stims df will be something that taking in embeddings, but let's just ignore that for now
 #test_stim <- get_stimulus(1, 1, embedding_path)%>% pull()
 test_stim <- 0.7
-stimuli_sequence <- tibble(V1 = rep(test_stim, 6), 
+stimuli_sequence <- tibble(V1 = c(0.7, 0.7, 1.4, 0.7, 0.7, 0.7), 
                    trial_number = seq(1, 6))
 
 stims_df <- tibble(sequence_scheme = "BBBBBB", 
