@@ -1,4 +1,9 @@
-# check prior
+# check EIG 
+
+all_sims_res$results[[2]] %>% 
+  filter(stimulus_idx == 3)
+
+
 
 
 # check likelihood
