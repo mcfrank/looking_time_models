@@ -26,7 +26,7 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
  
    
   ### BOOK-KEEPING 
-  total_trial_number = max(params$stimuli_sequence$data[[1]]$trial_number)
+  total_trial_number = max(params$stimuli_sequence[[1]]$trial_number)
   
   # df for keeping track of model behavior
   model <-  initialize_model( params$world_EIG, params$max_observation,  params$n_features)
@@ -77,7 +77,7 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
     model$stimulus_idx[t] = stimulus_idx
     
     # get stimulus, observation, add to model
-    current_stimulus <-  params$stimuli_sequence$data[[1]][stimulus_idx, grepl("V", names(params$stimuli_sequence$data[[1]]))]
+    current_stimulus <-  params$stimuli_sequence[[1]][stimulus_idx, grepl("V", names(params$stimuli_sequence[[1]]))]
   
     current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
     
@@ -101,65 +101,65 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
                                       prior_df) 
       
       
-      # ll_model_testing[[t]][[1]] <- ll_post[[t]][[f]]
+      ll_model_testing[[t]][[1]] <- ll_post[[t]][[f]]
     }
     
     
     # ---------- BELOW FOR EIG --------- #
     
-    # get all possible observations 
-    # 
-    # model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
-    # 
-    #   
-    # l_possible_obs_post <- lapply(seq(1, nrow(all_posible_observations_on_current_stimulus), 1), function(y){NULL})
-    # 
-    # for (o in 1:nrow(all_posible_observations_on_current_stimulus)) { 
-    #   for (f in 1:params$n_features) {
-    #     
-    #     model[t+1, paste0("f", f)] <- all_posible_observations_on_current_stimulus[o,f]
-    #     
-    #     hypothetical_obs_likelihood <- score_z_given_mu_sig_sq(t + 1, f, 
-    #                                                             df_y_given_mu_sig_sq, # cached likelihoods
-    #                                                             ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
-    #                                                             model) 
-    #     
-    #     hypothetical_obs_posterior <- score_post(hypothetical_obs_likelihood,
-    #                                     prior_df) 
-    #     
-    #     
-    #     l_possible_obs_post[[o]] <- hypothetical_obs_posterior
-    #     
-    #     #approximate 0 with small value 
-    #     hypothetical_obs_posterior$posterior[hypothetical_obs_posterior$posterior == 0] <- .00001
-    #     ll_post[[t]][[f]]$posterior[ll_post[[t]][[f]]$posterior == 0] <- .00001
-    #     
-    #     kl_new[o,f] <- kl_div(hypothetical_obs_posterior$posterior,
-    #                           ll_post[[t]][[f]]$posterior)
-    #     
-    #     # this might be problematic, how comes we can get value greater than 1 for posterior predictive?
-    #     p_post_new[o, f] <- get_post_pred(obs = all_posible_observations_on_current_stimulus[o,f], 
-    #                                           lp_post = ll_post[[t]][[f]] , 
-    #                                           df_y_given_mu_sig_sq)
-    #     model[t+1, paste0("f", f)] <- NA_real_
-    # 
-    #   }
-    # }
-    # 
-    # ll_model_testing[[t]][[2]]<- kl_new 
-    # ll_model_testing[[t]][[3]]<- p_post_new 
-    # ll_model_testing[[t]][[4]] <- l_possible_obs_post
-    # 
-    # model$stimulus_idx[t+1] <- NA_real_
-    # model[t+1, paste0("f", f)] <- NA_real_
-    # 
-    # model$EIG[t] <- sum(p_post_new * kl_new)
-    # 
-    # 
-    #   # currently taking away the probabilistic decision-making process 
-    # 
-    # model$look_away[t] = model$EIG[t] < model$EIG_from_world[t]
-    model$look_away[t] = t > 5
+    #get all possible observations
+
+    model$stimulus_idx[t+1] <- stimulus_idx # pretend you're on the next stimulus
+
+
+    l_possible_obs_post <- lapply(seq(1, nrow(all_posible_observations_on_current_stimulus), 1), function(y){NULL})
+
+    for (o in 1:nrow(all_posible_observations_on_current_stimulus)) {
+      for (f in 1:params$n_features) {
+
+        model[t+1, paste0("f", f)] <- all_posible_observations_on_current_stimulus[o,f]
+
+        hypothetical_obs_likelihood <- score_z_given_mu_sig_sq(t + 1, f,
+                                                                df_y_given_mu_sig_sq, # cached likelihoods
+                                                                ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
+                                                                model)
+
+        hypothetical_obs_posterior <- score_post(hypothetical_obs_likelihood,
+                                        prior_df)
+
+
+        l_possible_obs_post[[o]] <- hypothetical_obs_posterior
+
+        #approximate 0 with small value
+        hypothetical_obs_posterior$posterior[hypothetical_obs_posterior$posterior < exp(-700)] <- .00001
+        ll_post[[t]][[f]]$posterior[ll_post[[t]][[f]]$posterior < exp(-700)] <- .00001
+
+        kl_new[o,f] <- kl_div(hypothetical_obs_posterior$posterior,
+                              ll_post[[t]][[f]]$posterior)
+
+        # this might be problematic, how comes we can get value greater than 1 for posterior predictive?
+        p_post_new[o, f] <- get_post_pred(obs = all_posible_observations_on_current_stimulus[o,f],
+                                              lp_post = ll_post[[t]][[f]] ,
+                                              df_y_given_mu_sig_sq)
+        model[t+1, paste0("f", f)] <- NA_real_
+
+      }
+    }
+
+    ll_model_testing[[t]][[2]]<- kl_new
+    ll_model_testing[[t]][[3]]<- p_post_new
+    ll_model_testing[[t]][[4]] <- l_possible_obs_post
+
+    model$stimulus_idx[t+1] <- NA_real_
+    model[t+1, paste0("f", f)] <- NA_real_
+
+    model$EIG[t] <- sum(p_post_new * kl_new)
+
+
+      # currently taking away the probabilistic decision-making process
+
+    model$look_away[t] = model$EIG[t] < model$EIG_from_world[t]
+    #model$look_away[t] = t > 5
     
     #model$p_look_away[t] = rectified_luce_choice(x = model$EIG_from_world[t], 
     #                                               y = model$EIG[t])
