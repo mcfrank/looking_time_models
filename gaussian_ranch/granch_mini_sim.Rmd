@@ -132,7 +132,7 @@ make_real_stimuli_df <- function(sequence_scheme, background, deviant){
 
 
 real_stim = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
-stims_df <- tibble(sequence_scheme = c("BB"),
+stims_df <- tibble(sequence_scheme = c("BBBBBB"),
                    n_features = 1, 
                    on_features_n = 1 
                    ) %>% 
@@ -153,11 +153,10 @@ full_params_df <- make_simulation_params(n_sim = 1,
 ```
 
 
-
 ```{r}
 library(profvis)
 profvis({
-  granch_main_simulation(params)
+  granch_main_simulation(full_params_df)
 })
 ```
 
