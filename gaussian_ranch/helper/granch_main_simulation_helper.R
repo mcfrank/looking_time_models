@@ -140,7 +140,6 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
         kl_new[o,f] <- kl_div(hypothetical_obs_posterior$posterior,
                               ll_post[[t]][[f]]$posterior)
 
-        # this might be problematic, how comes we can get value greater than 1 for posterior predictive?
         p_post_new[o, f] <- get_post_pred(obs = all_posible_observations_on_current_stimulus[o,f],
                                               lp_post = ll_post[[t]][[f]] ,
                                               df_y_given_mu_sig_sq)

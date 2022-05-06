@@ -42,11 +42,7 @@ score_z_given_mu_sig_sq <- function(t, # timestep
                 select(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon), 
               by = c("grid_mu_theta", "grid_sig_sq"))
   
-  
-  # OPTIMIZATION POSSIBLE: 
-  # - we are going to have a lot of overlapping y values 
-  # - calculate only unique y values
-  # - but need to keep track of which row each element comes from 
+
   
   lp_temp$lp_z_given_y <- rowSums(sapply(observations_this_stimulus, score_z_bar_given_y, 
                                  lp_temp$y, lp_temp$grid_epsilon))
@@ -151,19 +147,19 @@ score_epsilon <- function(epsilon, mu_epsilon, sd_epsilon){
 }
 
 
-get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq) {
+get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq){
+
+  temp_df <- merge(lp_post, df_y_given_mu_sig_sq)
+  temp_df$lp_z_given_mu_sig_sq_for_y = score_z_ij_given_y(z_val = obs, y_val = temp_df$y, epsilon = temp_df$grid_epsilon) +  
+    temp_df$lp_y_given_mu_sig_sq
   
-  # this is to make sure we have the right permutation of y to mu sig sq etc...
-  temp_df <- left_join(lp_post, df_y_given_mu_sig_sq)
-  temp_df$lp_z_given_y = score_z_ij_given_y(z_val = obs, y_val = temp_df$y, epsilon = temp_df$grid_epsilon)
-  temp_df$lp_z_given_mu_sig_sq_for_y = temp_df$lp_z_given_y +  temp_df$lp_y_given_mu_sig_sq
-  
-  temp_df <- temp_df %>% 
-    group_by(grid_mu_theta, grid_sig_sq, grid_epsilon) %>% 
-    summarise(lp_z_given_mu_sig_sq = matrixStats::logSumExp(lp_z_given_mu_sig_sq_for_y))
+  # the order to list out aggregate group matters to get the order of the groupings right
+  temp_df <- aggregate(lp_z_given_mu_sig_sq_for_y ~ grid_epsilon + grid_sig_sq
+                        + grid_mu_theta, 
+                       data = temp_df, FUN = matrixStats::logSumExp)
   
   return(exp(logSumExp(temp_df$lp_z_given_mu_sig_sq + lp_post$log_posterior)))
-  
+
 }
 
 kl_div <- function (x, y) {

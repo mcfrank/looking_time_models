@@ -106,8 +106,8 @@ model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
 
 
 ```{r}
-background <- c(0.1, 0.1)
-deviant <- c(0.8, 0.8)
+background <- c(0.1)
+deviant <- c(0.8)
 
 make_real_stimuli_df <- function(sequence_scheme, background, deviant){
 
@@ -131,9 +131,9 @@ make_real_stimuli_df <- function(sequence_scheme, background, deviant){
 
 
 
-
-stims_df <- tibble(sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD"), 
-                   n_features = 2, 
+real_stim = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
+stims_df <- tibble(sequence_scheme = c("BB"),
+                   n_features = 1, 
                    on_features_n = 1 
                    ) %>% 
   mutate(stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, background, deviant)}))
@@ -154,6 +154,12 @@ full_params_df <- make_simulation_params(n_sim = 1,
 
 
 
+```{r}
+library(profvis)
+profvis({
+  granch_main_simulation(params)
+})
+```
 
 
 ```{r}
