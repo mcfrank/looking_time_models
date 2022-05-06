@@ -19,42 +19,31 @@ score_post <- function(lp_z_given_mu_sig_sq,prior_df) {
 
 
 # -- get z_given_mu_sigsq -- #
+
+
 score_z_given_mu_sig_sq <- function(t, # timestep
                                     f, # feature
                                     df_y_given_mu_sig_sq, # cached likelihoods
                                     ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
                                     model) {
-  
   # set up current variables
   this_lp_z_given_mu_sig_sq <- ll_z_given_mu_sig_sq[[t]][[f]]
   grid_epsilon <- unique(this_lp_z_given_mu_sig_sq$grid_epsilon) # currently not implemented 
   this_stimulus_idx <- model$stimulus_idx[t]
+  f_string <- paste0("f",f)
   
-  # need to compute over all noisy observations of this stimulus
-  observations_this_stimulus <- filter(model, stimulus_idx == this_stimulus_idx) %>%
-    select(paste0("f", f)) %>%
-    pull()
+  observations_this_stimulus <- na.omit(pull(model[model$stimulus_idx == this_stimulus_idx, f_string]))
   
-  # initialize log p(z|y)
-  lp_temp <- df_y_given_mu_sig_sq %>% 
-    left_join(this_lp_z_given_mu_sig_sq %>% 
-                ungroup() %>% 
-                select(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon), 
-              by = c("grid_mu_theta", "grid_sig_sq"))
+  lp_temp <- merge(df_y_given_mu_sig_sq, 
+                   this_lp_z_given_mu_sig_sq[c("grid_mu_theta", "grid_sig_sq", "grid_epsilon", "lp_epsilon")])
   
-
+  lp_temp$lp_z_given_mu_sig_sq_for_y <- rowSums(sapply(observations_this_stimulus, score_z_bar_given_y, 
+                                                       lp_temp$y, lp_temp$grid_epsilon)) + 
+    lp_temp$lp_y_given_mu_sig_sq
   
-  lp_temp$lp_z_given_y <- rowSums(sapply(observations_this_stimulus, score_z_bar_given_y, 
-                                 lp_temp$y, lp_temp$grid_epsilon))
-  
-  lp_temp$lp_z_given_mu_sig_sq_for_y <- lp_temp$lp_z_given_y + lp_temp$lp_y_given_mu_sig_sq
-  
-  
-  # adding together all the possible y values for each pair of mu and sig sq 
-  this_lp_z_given_mu_sig_sq <- lp_temp %>% 
-    group_by(grid_mu_theta, grid_sig_sq, grid_epsilon, lp_epsilon) %>% 
-    summarise(lp_z_given_mu_sig_sq = matrixStats::logSumExp(lp_z_given_mu_sig_sq_for_y))
-  # note that the extremely negative values will become -Inf If used regular log(sum(exp)), but the remaining values are the same
+  this_lp_z_given_mu_sig_sq <- aggregate(lp_z_given_mu_sig_sq_for_y ~ lp_epsilon + grid_epsilon + grid_sig_sq + grid_mu_theta, 
+                                              data = lp_temp, FUN = matrixStats::logSumExp)
+  names(this_lp_z_given_mu_sig_sq)[names(this_lp_z_given_mu_sig_sq) == 'lp_z_given_mu_sig_sq_for_y'] <- 'lp_z_given_mu_sig_sq'
   
   
   # add in likelihood for last sample from last stimulus, which includes all prior obs
@@ -67,7 +56,6 @@ score_z_given_mu_sig_sq <- function(t, # timestep
   
   return(this_lp_z_given_mu_sig_sq)
 }
-
 
 
 
