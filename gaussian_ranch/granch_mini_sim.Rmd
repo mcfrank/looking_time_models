@@ -14,25 +14,24 @@ source(here("helper/granch_main_simulation_helper.R")) # this will import other 
 source(here("helper/granch_sim_setup_helper.R")) # this will import functions that help with setting parameters 
 ```
 
-
-```{r}
-
-```
-
-
 ```{r}
 
 embedding_path <- here("embeddings/embedding_PCA.csv")
 
-grid_mu_theta = get_embedding_range(embedding_path, step = 0.01)
+grid_mu_theta = get_embedding_range(embedding_path, step = 0.2)
+grid_mu_theta <- seq(-1, 1, .2)
+
 grid_sig_sq = seq(0.001, 2, 0.2)
-grid_y = get_embedding_range(embedding_path, step = 0.01)
+
+grid_y = get_embedding_range(embedding_path, step = 0.2)
+grid_y <- seq(-1, 1, .2)
+
 grid_epsilon = seq(0.001, 1, 0.2)
 hypothetical_obs_grid_n = 3 
 
 
 #grid_mu_theta = c(0.001, 0.7)
-grid_y = c(0.001, 0.7)
+#grid_y = c(0.001, 0.7)
 
 # set model-related parameters 
 
@@ -40,14 +39,16 @@ em <- read_csv(embedding_path, col_names = FALSE)
 mean_em <- mean(as.matrix(em))
 sd_em <- sd(as.matrix(em))
 
-mu_priors = c(mean_em)
-V_priors = c(0.001) 
+#mu_priors = c(mean_em)
+mu_priors = c(0)
+#V_priors = c(0.001) 
+V_priors = c(0.001)
 alpha_priors = c(1) 
 beta_priors = c(1) 
 epsilons = c(0.000001) 
 mu_epsilon = c(0.001)
 sd_epsilon = c(4)
-world_EIGs = c(0.0000000000000000001) 
+world_EIGs = c(0.0001) 
 max_observation = 500
 
 model_params <- set_granch_params(
@@ -100,15 +101,42 @@ model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
 
 # stims df will be something that taking in embeddings, but let's just ignore that for now
 #test_stim <- get_stimulus(1, 1, embedding_path)%>% pull()
-test_stim <- 0.7
-stimuli_sequence <- tibble(V1 = rep(test_stim, 6), 
-                   trial_number = seq(1, 6))
+```
 
-stims_df <- tibble(sequence_scheme = "BBBBBB", 
-                   n_features = 1, 
+
+
+```{r}
+background <- c(0.1, 0.1)
+deviant <- c(0.8, 0.8)
+
+make_real_stimuli_df <- function(sequence_scheme, background, deviant){
+
+  block_list <- strsplit(sequence_scheme, "")[[1]]
+  
+  background_sequence <- replicate(length(block_list), background, simplify = FALSE)
+  background_sequence[which(block_list == "D")] <- replicate(length(which(block_list == "D")), 
+                                                             deviant, simplify = FALSE)
+  
+  tidy_creature_sequence <- bind_rows(lapply(background_sequence,
+                                             function(x) x %>% as_tibble_row(.name_repair = make.names))) 
+  
+  # renaming columns 
+  rename_column <- function(x){paste0("V", x)}
+  tidy_column_names <- lapply(1:length(background), rename_column)
+  colnames(tidy_creature_sequence) <- tidy_column_names
+  tidy_creature_sequence <- tidy_creature_sequence %>% 
+    mutate(trial_number = row_number())
+  return(tidy_creature_sequence)
+}
+
+
+
+
+stims_df <- tibble(sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD"), 
+                   n_features = 2, 
                    on_features_n = 1 
                    ) %>% 
-  mutate(stimuli_sequence = nest(stimuli_sequence, data = everything()))
+  mutate(stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, background, deviant)}))
 
 
 
@@ -127,6 +155,7 @@ full_params_df <- make_simulation_params(n_sim = 1,
 
 
 
+
 ```{r}
 tic()
 all_sims_res <- full_params_df %>%
@@ -137,6 +166,12 @@ all_sims_res <- full_params_df %>%
                        function(df) granch_main_simulation(params = df))) %>%
   unnest(cols = c(data, results))
 toc()
+```
+
+
+```{r}
+saveRDS(all_sims_res, "first_MultiFeature_Sim.RDS")
+
 ```
 
 
@@ -157,29 +192,36 @@ model %>%
 ```
 
 ```{r}
+t = 40
+
 # posterior
-info[[5]][[1]]
+info[[t]][[1]]
 
 # kl
-info[[5]][[2]]
+info[[t]][[2]]
 
 # post pred 
-info[[5]][[3]]
+info[[t]][[3]]
 
 # hypothetical posterior 
-info[[5]][[4]]
+info[[t]][[4]]
 
 ```
 
 
 ```{r}
-kl_div(info[[10]][[4]][[1]]$posterior, info[[10]][[1]]$posterior)
+kl_div(info[[t]][[4]][[1]]$posterior, info[[t]][[1]]$posterior)
 
-pruned_hypo_posterior <- info[[10]][[4]][[1]]
-pruned_posterior <- info[[10]][[1]]
+pruned_hypo_posterior <- info[[t]][[4]][[1]]
+pruned_posterior <- info[[t]][[1]]
 
 pruned_hypo_posterior$posterior[pruned_hypo_posterior$posterior == 0] <- 0.1
 pruned_posterior$posterior[pruned_posterior$posterior == 0] <- 0.1
+
+
+pruned_hypo_posterior$posterior[pruned_hypo_posterior$posterior < exp(-300)] <- 0.01
+pruned_posterior$posterior[pruned_posterior$posterior < exp(-300)] <- 0.01
+
 
 #hypo_post =  pruned_hypo_posterior$posterior[pruned_hypo_posterior$posterior!=0]
 #post = pruned_posterior$posterior[pruned_posterior$posterior!=0]
@@ -190,7 +232,17 @@ kl_div(pruned_hypo_posterior$posterior, pruned_posterior$posterior)
 
 
 ```{r}
-lapply(seq(1, 50, 1), 
+lapply(seq(1, 47, 1), 
+       function(x){
+         info[[x]][[1]] %>% mutate(time_step = x) %>% ungroup()
+       }) %>% 
+  bind_rows() %>%
+  filter(time_step < 40 & time_step > 27) %>% 
+  ggplot(aes(x = grid_mu_theta, y = posterior)) + 
+  geom_point() + 
+  facet_wrap(~time_step)
+  
+lapply(seq(1, 47, 1), 
        function(x){
          info[[x]][[1]] %>% mutate(time_step = x) %>% ungroup()
        }) %>% 
@@ -198,47 +250,46 @@ lapply(seq(1, 50, 1),
   #filter(grid_sig_sq == 0.201) %>% 
   #group_by(time_step, grid_mu_theta) %>% 
   #summarise(m_posterior = mean(posterior)) %>%
-  filter(time_step < 20 | time_step > 40) %>% 
+  filter(time_step < 48 & time_step > 39) %>% 
   ggplot(aes(x = grid_mu_theta, y = posterior)) + 
   geom_point() + 
   facet_wrap(~time_step)
-  
-
-lapply(seq(1, 30, 1), 
-       function(x){
-         info[[x]][[1]] %>% mutate(time_step = x) %>% ungroup()
-       }) %>% 
-  bind_rows() %>% 
-  filter(grid_sig_sq == 0.201) %>% 
-  #group_by(time_step, grid_mu_theta) %>% 
-  #summarise(m_posterior = mean(posterior)) %>%
-  filter(time_step < 20) %>% 
-  ggplot(aes(x = grid_mu_theta, y = posterior, color = grid_epsilon)) + 
-  geom_jitter() + 
-  facet_wrap(~time_step)
 ```
 
 
 
 
 ```{r}
-all_sims_res %>% 
-  ggplot(aes(x = t, y = EIG)) + 
-  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot")+ 
-  facet_wrap(~row_number)
+all_sims_res$results[[2]] %>% 
+  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot")
 ```
 
 
 ```{r}
-all_sims_res %>% 
-  group_by(row_number, params_id, n_features, sequence_scheme, stimulus_idx) %>% 
+all_sims_res$results[[2]]  %>% 
+  group_by(stimulus_idx) %>% 
   filter(!is.na(stimulus_idx)) %>% 
   summarise(sample_n = n()) %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n)) + 
-  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
-  facet_wrap(~sequence_scheme)
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot")
 ```
 
+```{r}
+model_res <- all_sims_res %>% 
+    ungroup() %>% 
+    mutate(res_row_number = row_number()) %>% 
+    filter(res_row_number %% 2 == 0) %>% 
+    unnest(results)
+
+ model_res %>%   
+    group_by(sequence_scheme, mu_prior, params_id, stimulus_idx) %>% 
+    filter(!is.na(stimulus_idx)) %>% 
+    summarise(sample_n = n()) %>% 
+    ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+    stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
+    facet_wrap(~sequence_scheme)
+```
 
 
 ```{r}
