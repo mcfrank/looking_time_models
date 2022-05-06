@@ -13,7 +13,10 @@ source(here("helper/compute_prob.r"))
 # takes a df of parameters and some globals
 granch_main_simulation <- function(params = df, testing = TRUE) {
   
-  # grid info 
+  print("sequence_scheme:")
+  print(params$sequence_scheme)  
+
+    # grid info 
   grid_mu_theta <- (params$grid_mu_theta)[[1]]
   grid_sig_sq <- (params$grid_sig_sq)[[1]]
   grid_y <- (params$grid_y)[[1]]
