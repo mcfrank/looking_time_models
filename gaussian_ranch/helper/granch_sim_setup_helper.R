@@ -1,4 +1,59 @@
 
+## Set up stimulus ---------------------------------
+get_stimuli_pool <- function(n_stim,n_dim, embedding_path){
+  em <- read_csv(embedding_path, col_names = FALSE)
+  em[sample(nrow(em), n_stim), 1:n_dim]
+}
+
+get_bd_pair <- function(stimuli_pool){
+  # might consider adding distance? 
+  bd_pair <- as.matrix(pool)[sample(2),]
+  return(bd_pair)
+}
+
+make_real_stimuli_df <- function(sequence_scheme, background, deviant){
+  
+  background <- as.vector(background)
+  deviant <- as.vector(deviant)
+  
+  block_list <- strsplit(sequence_scheme, "")[[1]]
+  
+  background_sequence <- replicate(length(block_list), background, simplify = FALSE)
+  background_sequence[which(block_list == "D")] <- replicate(length(which(block_list == "D")), 
+                                                             deviant, simplify = FALSE)
+  
+  tidy_creature_sequence <- bind_rows(lapply(background_sequence,
+                                             function(x) x %>% as_tibble_row(.name_repair = make.names))) 
+  
+  rename_column <- function(x){paste0("V", x)}
+  tidy_column_names <- lapply(1:length(background), rename_column)
+  colnames(tidy_creature_sequence) <- tidy_column_names
+  tidy_creature_sequence <- tidy_creature_sequence %>% 
+    mutate(trial_number = row_number())
+  return(tidy_creature_sequence)
+}
+
+## Set up grid values ---------------------------------
+
+get_grid_mu_theta <- function(stimuli_pool, sd_n, sd_step){
+  seq(mean(as.matrix(stimuli_pool)) - sd_n * sd(as.matrix(stimuli_pool)), 
+      mean(as.matrix(stimuli_pool)) + sd_n * sd(as.matrix(stimuli_pool)), 
+      sd(as.matrix(stimuli_pool)) / sd_step)
+}
+
+
+find_min_diff <- function(stimuli_pool){
+  p.sorted <- sort(as.vector(as.matrix(stimuli_pool)), decreasing = TRUE)
+  min_val <- max(p.sorted) - min(p.sorted)
+  for (i in 1:(length(p.sorted)-1)){
+    diff = p.sorted[i] - p.sorted[i + 1]
+    if (diff < min_val){min_val = diff}
+  }
+  return(min_val)
+}
+
+## Set up parameters ---------------------------------
+
 set_granch_params <- function(
                             grid_mu_theta, grid_sig_sq, grid_y,grid_epsilon, hypothetical_obs_grid_n,
                             mu_priors, 
@@ -105,6 +160,46 @@ make_prior_df <- function(lp_mu_sig_sq, grid_epsilon, prior_mu_epsilon, prior_sd
 
 
 
+
+add_precalculated_prior_dfs <- function(model_params){
+  
+  # sketchy but works
+  # first one lp_mu_sig_sq
+  # second one df_y_given_mu_sig_sq
+  # third one prior_df 
+  ll_pre_calculated_df <- lapply(seq(1, nrow(model_params), 1), 
+                                 function(x){
+                                   lapply(seq(1, 3, 1), 
+                                          function(x){
+                                            NULL
+                                          })
+                                 })
+  
+  for(i in 1: nrow(model_params)){
+    # 1st element lp_mu_sig_sq
+    ll_pre_calculated_df[[i]][[1]] <- make_lp_mu_sig_sq(model_params$grid_mu_theta[[i]], 
+                                                        model_params$grid_sig_sq[[i]], 
+                                                        model_params$mu_prior[[i]], model_params$V_prior[[i]], 
+                                                        model_params$alpha_prior[[i]], model_params$beta_prior[[i]])
+    
+    # 2nd element df_y_given_mu_sig_sq 
+    
+    ll_pre_calculated_df[[i]][[2]] <- make_df_y_given_mu_sig_sq(ll_pre_calculated_df[[i]][[1]], 
+                                                                model_params$grid_y[[i]])
+    
+    
+    ll_pre_calculated_df[[i]][[3]] <- make_prior_df(ll_pre_calculated_df[[i]][[1]], 
+                                                    model_params$grid_epsilon[[i]], 
+                                                    model_params$mu_epsilon[[i]], 
+                                                    model_params$sd_epsilon[[i]])
+  }
+  
+  model_params$df_y_given_mu_sig_sq <- lapply(ll_pre_calculated_df, function(x){x[[2]]})
+  model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
+  
+  
+  return(model_params)
+}
 
 
 

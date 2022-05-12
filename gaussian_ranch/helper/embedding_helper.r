@@ -1,6 +1,11 @@
-get_stimulus <- function(n_stim,n_dim, embedding_path){
+
+
+get_embedding_range <- function(embedding_path, sd, step = 2){
   em <- read_csv(embedding_path, col_names = FALSE)
-  em[sample(nrow(em), n_stim), 1:n_dim]
+  return(seq(mean(as.matrix(em)) - 3*sd(as.matrix(em)), 
+             mean(as.matrix(em)) + 3*sd(as.matrix(em)), 
+             step
+  )) 
 }
 
 get_within_concept_distance <- function(embedding_path){
