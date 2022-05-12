@@ -14,40 +14,40 @@ source(here("helper/granch_main_simulation_helper.R")) # this will import other 
 source(here("helper/granch_sim_setup_helper.R")) # this will import functions that help with setting parameters 
 ```
 
+# Set up stimuli pool 
+
+```{r}
+embedding_path <- here("embeddings/embedding_PCA.csv")
+stimuli_pool_size <- 10
+n_feature <- 3
+stimuli_pool <-  get_stimuli_pool(stimuli_pool_size, n_feature, embedding_path)
+
+```
+
+# Set up grid parameter 
 ```{r}
 
-embedding_path <- here("embeddings/embedding_PCA.csv")
+# sd_n: range decided by n*sd away 
+# sd_step: step decided by sd / sd_step 
+grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 3, sd_step = 5)
 
-grid_mu_theta = get_embedding_range(embedding_path, step = 0.2)
-grid_mu_theta <- seq(-1, 1, .2)
-
-grid_sig_sq = seq(0.001, 2, 0.2)
-
-grid_y = get_embedding_range(embedding_path, step = 0.2)
-grid_y <- seq(-1, 1, .2)
-
+# not sure about the principled way to select these three yet
+grid_sig_sq = seq(0.001, 2, 0.2) # not sure about the principled way to select this yet
+grid_y <- grid_mu_theta 
 grid_epsilon = seq(0.001, 1, 0.2)
-hypothetical_obs_grid_n = 3 
-
-
-#grid_mu_theta = c(0.001, 0.7)
-#grid_y = c(0.001, 0.7)
 
 # set model-related parameters 
-
 em <- read_csv(embedding_path, col_names = FALSE)
 mean_em <- mean(as.matrix(em))
-sd_em <- sd(as.matrix(em))
 
-#mu_priors = c(mean_em)
+mu_priors = c(mean_em)
 mu_priors = c(0)
-#V_priors = c(0.001) 
 V_priors = c(0.001)
 alpha_priors = c(1) 
 beta_priors = c(1) 
 epsilons = c(0.000001) 
 mu_epsilon = c(0.001)
-sd_epsilon = c(4)
+sd_epsilon = c(2)
 world_EIGs = c(0.0001) 
 max_observation = 500
 
@@ -58,106 +58,28 @@ model_params <- set_granch_params(
                 epsilons, mu_epsilon, sd_epsilon,
                 world_EIGs, max_observation)
 
+model_params <- add_precalculated_prior_dfs(model_params)
 
 
-# sketchy but works
-# first one lp_mu_sig_sq
-# second one df_y_given_mu_sig_sq
-# third one prior_df 
-ll_pre_calculated_df <- lapply(seq(1, nrow(model_params), 1), 
-                       function(x){
-                         lapply(seq(1, 3, 1), 
-                                function(x){
-                                  NULL
-                                })
-                       })
-
-for(i in 1: nrow(model_params)){
-  # 1st element lp_mu_sig_sq
-  ll_pre_calculated_df[[i]][[1]] <- make_lp_mu_sig_sq(model_params$grid_mu_theta[[i]], 
-                                                  model_params$grid_sig_sq[[i]], 
-                                                  model_params$mu_prior[[i]], model_params$V_prior[[i]], 
-                                                  model_params$alpha_prior[[i]], model_params$beta_prior[[i]])
-  
-  # 2nd element df_y_given_mu_sig_sq 
-  
-  ll_pre_calculated_df[[i]][[2]] <- make_df_y_given_mu_sig_sq(ll_pre_calculated_df[[i]][[1]], 
-                                                  model_params$grid_y[[i]])
-  
-
-  ll_pre_calculated_df[[i]][[3]] <- make_prior_df(ll_pre_calculated_df[[i]][[1]], 
-                                                  model_params$grid_epsilon[[i]], 
-                                                  model_params$mu_epsilon[[i]], 
-                                                  model_params$sd_epsilon[[i]])
-}
-
-
-# needs to get the precalculated dataframes in here 
-
-
-model_params$df_y_given_mu_sig_sq <- lapply(ll_pre_calculated_df, function(x){x[[2]]})
-model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
-
-
-# stims df will be something that taking in embeddings, but let's just ignore that for now
-#test_stim <- get_stimulus(1, 1, embedding_path)%>% pull()
 ```
 
-
-
 ```{r}
-background <- c(0.1)
-deviant <- c(0.8)
+full_package = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
 
-make_real_stimuli_df <- function(sequence_scheme, background, deviant){
-
-  block_list <- strsplit(sequence_scheme, "")[[1]]
-  
-  background_sequence <- replicate(length(block_list), background, simplify = FALSE)
-  background_sequence[which(block_list == "D")] <- replicate(length(which(block_list == "D")), 
-                                                             deviant, simplify = FALSE)
-  
-  tidy_creature_sequence <- bind_rows(lapply(background_sequence,
-                                             function(x) x %>% as_tibble_row(.name_repair = make.names))) 
-  
-  # renaming columns 
-  rename_column <- function(x){paste0("V", x)}
-  tidy_column_names <- lapply(1:length(background), rename_column)
-  colnames(tidy_creature_sequence) <- tidy_column_names
-  tidy_creature_sequence <- tidy_creature_sequence %>% 
-    mutate(trial_number = row_number())
-  return(tidy_creature_sequence)
-}
-
-
-
-real_stim = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
 stims_df <- tibble(sequence_scheme = c("BBBBBB"),
-                   n_features = 1, 
-                   on_features_n = 1 
+                   n_features = n_feature
                    ) %>% 
-  mutate(stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, background, deviant)}))
+  mutate(
+    stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, 
+                                                                              background = get_bd_pair(stimuli_pool)[1, ], 
+                                                                              deviant = get_bd_pair(stimuli_pool)[2, ])}))
 
 
 
 full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
-# test_df <- full_params_df %>%
-#   mutate(row_number = row_number()) %>% 
-#   group_by(row_number) %>% 
-#   nest()
-# 
-# params <- test_df[1, ]
 
-```
-
-
-```{r}
-library(profvis)
-profvis({
-  granch_main_simulation(full_params_df)
-})
 ```
 
 
@@ -175,11 +97,22 @@ toc()
 
 
 ```{r}
-saveRDS(all_sims_res, "first_MultiFeature_Sim.RDS")
+saveRDS(all_sims_res, "B1D7_Sim.RDS")
 
 ```
 
 
+```{r}
+
+first_model <- first_multi_feature$results[[2]]
+first_model  %>% 
+  group_by(stimulus_idx) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
+  facet_wrap(~sequence_scheme)
+```
 
 
 ```{r}
@@ -279,45 +212,3 @@ all_sims_res$results[[2]]  %>%
   ggplot(aes(x = stimulus_idx, y = sample_n)) + 
   stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot")
 ```
-
-```{r}
-model_res <- all_sims_res %>% 
-    ungroup() %>% 
-    mutate(res_row_number = row_number()) %>% 
-    filter(res_row_number %% 2 == 0) %>% 
-    unnest(results)
-
- model_res %>%   
-    group_by(sequence_scheme, mu_prior, params_id, stimulus_idx) %>% 
-    filter(!is.na(stimulus_idx)) %>% 
-    summarise(sample_n = n()) %>% 
-    ggplot(aes(x = stimulus_idx, y = sample_n)) + 
-    stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
-    facet_wrap(~sequence_scheme)
-```
-
-
-```{r}
-get_stimulus <- function(n_stim,n_dim, embedding_path){
-  em <- read_csv(embedding_path, col_names = FALSE)
-  em[sample(nrow(em), n_stim), 1:n_dim]
-}
-
-get_stimulus(1, 1, embedding_path)
-```
-
-
-
-```{r}
-get_embedding_range <- function(embedding_path, step = 2){
-  em <- read_csv(embedding_path, col_names = FALSE)
-  return(seq(mean(as.matrix(em)) - 3*sd(as.matrix(em)), 
-             mean(as.matrix(em)) + 3*sd(as.matrix(em)), 
-             step
-             )) 
-}
-```
-
-
-
-

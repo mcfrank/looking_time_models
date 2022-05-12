@@ -115,10 +115,13 @@ model_res %>%
 also interestingly note the asymmetry (probably related to prior)
 
 ```{r}
-b8d1 <- readRDS(here("param_exploration/cached_res/B_0.8_D_0.1.RDS")) %>% mutate(stimulus = "b_0.8_d_0.1")
-b1d8 <- readRDS(here("param_exploration/cached_res/B_0.1_D_0.8.RDS"))%>% mutate(stimulus =  "b_0.1_d_0.8")
 
-model_res <- bind_rows(b8d1, b1d8) %>% 
+b11d88 <- readRDS(here("first_MultiFeature_Sim.RDS")) %>% mutate(stimulus = "b_11_d_88")
+b11d28 <- readRDS(here("B11D28_MultiFeature_Sim.RDS")) %>% mutate(stimulus = "b_11_d_28")
+b11d22 <- readRDS(here("B11D22_MultiFeature_Sim.RDS")) %>% mutate(stimulus = "b_11_d_22")
+b11d55 <- readRDS(here("B11D55_MultiFeature_Sim.RDS")) %>% mutate(stimulus = "b_11_d_55")
+
+model_res <- bind_rows(b11d88,b11d28, b11d22,b11d55) %>% 
    ungroup() %>% 
     mutate(res_row_number = row_number()) %>% 
     filter(res_row_number %% 2 == 0) %>% 
@@ -136,5 +139,48 @@ model_res %>%
 ```
 
 
+```{r}
+b1d5 <- readRDS(here("B1D5_Sim.RDS")) %>% mutate(stimulus = "B1D5")
+b1d3 <- readRDS(here("B1D3_Sim.RDS")) %>% mutate(stimulus = "B1D3")
+b1d4 <- readRDS(here("B1D4_Sim.RDS")) %>% mutate(stimulus = "B1D4")
+b1d6 <- readRDS(here("B1D6_Sim.RDS")) %>% mutate(stimulus = "B1D6")
+b1d7 <- readRDS(here("B1D7_Sim.RDS")) %>% mutate(stimulus = "B1D7")
 
+b1d2 <- readRDS(here("param_exploration/cached_res/B_0.1_D_0.2.RDS")) %>% mutate(stimulus = "B1D2")
+b1d8 <- readRDS(here("param_exploration/cached_res/B_0.1_D_0.8.RDS")) %>% mutate(stimulus = "B1D8")
+
+model_res <- bind_rows(b1d7,b1d4,b1d6,b1d2,b1d3,b1d5, b1d8) %>% 
+   ungroup() %>% 
+    mutate(res_row_number = row_number()) %>% 
+    filter(res_row_number %% 2 == 0) %>% 
+    unnest(results)
+
+model_res %>%   
+    group_by(sequence_scheme, stimulus_idx, stimulus) %>% 
+    filter(!is.na(stimulus_idx)) %>% 
+    summarise(sample_n = n()) %>% 
+    ggplot(aes(x = stimulus_idx, y = sample_n, color = as.factor(stimulus), group = stimulus)) + 
+    geom_point(position = position_dodge(width = .3))+ 
+    geom_line(position = position_dodge(width = .3)) + 
+     #stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
+    facet_wrap(~sequence_scheme)
+```
+
+```{r}
+model_res %>%   
+    group_by(sequence_scheme, stimulus_idx, stimulus) %>% 
+    filter(!is.na(stimulus_idx)) %>% 
+    summarise(sample_n = n()) %>% 
+  filter(sequence_scheme != "BBBBBB") %>% 
+  mutate(trial_type = case_when(
+    sequence_scheme == "BDBBBB" & stimulus_idx == 2 ~ "deviant", 
+    sequence_scheme == "BBBDBB" & stimulus_idx == 4 ~ "deviant", 
+    sequence_scheme == "BBBBBD" & stimulus_idx == 6 ~ "deviant" 
+  )) %>% 
+  filter(trial_type == "deviant") %>% 
+  ggplot(aes(x = stimulus, y = sample_n)) +
+  geom_point() + 
+  facet_wrap(~sequence_scheme) + 
+   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
 

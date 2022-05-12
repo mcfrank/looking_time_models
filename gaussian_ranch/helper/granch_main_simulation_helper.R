@@ -41,7 +41,7 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
                                                        params$n_features)
   
   # could be further optimized
-  ll_post <- initialize_post_df(
+  ll_post <- initialize_post_df(prior_df,
                                 params$max_observation, 
                                 params$n_features)
  
