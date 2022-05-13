@@ -42,7 +42,7 @@ sd_em <- sd(as.matrix(em))
 #mu_priors = c(mean_em)
 mu_priors = c(0)
 #V_priors = c(0.001) 
-V_priors = c(0.001, 0.05, 1, 10)
+V_priors = c(0.001)
 alpha_priors = c(1) 
 beta_priors = c(1) 
 epsilons = c(0.000001) 
@@ -106,8 +106,8 @@ model_params$prior_df <- lapply(ll_pre_calculated_df, function(x){x[[3]]})
 
 
 ```{r}
-background <- 0.1
-deviant <- 0.8
+background <- c(0.1, 0.1)
+deviant <- c(0.8, 0.8)
 
 make_real_stimuli_df <- function(sequence_scheme, background, deviant){
 
@@ -133,7 +133,7 @@ make_real_stimuli_df <- function(sequence_scheme, background, deviant){
 
 
 stims_df <- tibble(sequence_scheme = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD"), 
-                   n_features = 1, 
+                   n_features = 2, 
                    on_features_n = 1 
                    ) %>% 
   mutate(stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, background, deviant)}))
@@ -170,7 +170,7 @@ toc()
 
 
 ```{r}
-saveRDS(all_sims_res, "B_0.1_D_0.8_sig_comparison.RDS")
+saveRDS(all_sims_res, "first_MultiFeature_Sim.RDS")
 
 ```
 
@@ -275,6 +275,21 @@ all_sims_res$results[[2]]  %>%
   stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot")
 ```
 
+```{r}
+model_res <- all_sims_res %>% 
+    ungroup() %>% 
+    mutate(res_row_number = row_number()) %>% 
+    filter(res_row_number %% 2 == 0) %>% 
+    unnest(results)
+
+ model_res %>%   
+    group_by(sequence_scheme, mu_prior, params_id, stimulus_idx) %>% 
+    filter(!is.na(stimulus_idx)) %>% 
+    summarise(sample_n = n()) %>% 
+    ggplot(aes(x = stimulus_idx, y = sample_n)) + 
+    stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
+    facet_wrap(~sequence_scheme)
+```
 
 
 ```{r}
