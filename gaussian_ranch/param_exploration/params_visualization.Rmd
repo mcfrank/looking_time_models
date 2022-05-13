@@ -40,8 +40,6 @@ background stimulus: 0.1
 novel stimulus: 0.8
 
 
-
-
 # stability across priors 
 
 ## for mu 
@@ -135,6 +133,13 @@ model_res %>%
     facet_wrap(~sequence_scheme)
 ```
 
+EIG VIZ
 
+```{r}
+b1d8_EIG <- b8d1$results[[2]]
+
+ b1d8_EIG %>% ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot")
+```
 
 
