@@ -19,17 +19,18 @@ source(here("helper/granch_sim_setup_helper.R")) # this will import functions th
 ```{r}
 embedding_path <- here("embeddings/embedding_PCA.csv")
 stimuli_pool_size <- 10
-n_feature <- 3
+n_feature <- 2
 stimuli_pool <-  get_stimuli_pool(stimuli_pool_size, n_feature, embedding_path)
 
 ```
 
 # Set up grid parameter 
+
 ```{r}
 
 # sd_n: range decided by n*sd away 
 # sd_step: step decided by sd / sd_step 
-grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 3, sd_step = 5)
+grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 5, sd_step = 10)
 
 # not sure about the principled way to select these three yet
 grid_sig_sq = seq(0.001, 2, 0.2) # not sure about the principled way to select this yet
@@ -97,21 +98,34 @@ toc()
 
 
 ```{r}
-saveRDS(all_sims_res, "B1D7_Sim.RDS")
+saveRDS(all_sims_res, "2f_embeddings_finer.RDS")
 
 ```
 
 
 ```{r}
 
-first_model <- first_multi_feature$results[[2]]
+first_model <- all_sims_res$results[[2]]
 first_model  %>% 
   group_by(stimulus_idx) %>% 
   filter(!is.na(stimulus_idx)) %>% 
   summarise(sample_n = n()) %>% 
   ggplot(aes(x = stimulus_idx, y = sample_n)) + 
-  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") + 
-  facet_wrap(~sequence_scheme)
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") 
+
+first_model  %>% 
+  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
+  stat_summary(position = position_dodge(width = .1),fun.data = "mean_cl_boot") 
+```
+
+```{r}
+first_model
+```
+
+
+
+```{r}
+first_eig <- all_sims_res$results[[1]]
 ```
 
 
