@@ -14,14 +14,11 @@ embedding_df = pd.DataFrame.from_dict(embedding_dict).transpose()
 
 embedding_df.to_csv('all_embeddings.csv')
 
-pca = PCA(n_components=2)
+pca = PCA(n_components=3)
 components = pca.fit_transform(embedding_df)
 
-plt.plot(components)
-plt.show()
 
 np.savetxt("all_embeddings_afterPCA.csv", components, delimiter=",")
-
 
 
 # calculate cosine distance
@@ -32,7 +29,7 @@ cosine_distances_df.to_csv('cosine_distances.csv')
 
 
 # calculate eucledian distance
-embedding_eucledian_distances = distance_matrix(embedding_df.values, embedding_df.values)
+embedding_eucledian_distances = distance_matrix(components, components)
 eucledian_distances_df = pd.DataFrame(embedding_eucledian_distances, index=embedding_df.index, columns=embedding_df.index)
 
 eucledian_distances_df.to_csv('eucledian_distances.csv')
