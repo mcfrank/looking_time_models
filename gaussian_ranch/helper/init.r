@@ -1,10 +1,17 @@
 
-initialize_post_df <- function(max_observation, feature_number){
+initialize_post_df <- function(prior_df, max_observation, feature_number){
+  
+  df <- prior_df 
+  df$lp_z_given_mu_sig_sq <- rep(NA_real_, nrow(df))
+  df$unnormalized_log_posterior <- rep(NA_real_, nrow(df))
+  df$log_posterior <- rep(NA_real_, nrow(df))
+  df$posterior <- rep(NA_real_, nrow(df))
+  
   ll_post_df <- lapply(seq(1, max_observation, 1), 
                        function(x){
                          lapply(seq(1, feature_number, 1), 
                                 function(y){
-                                  NULL
+                                  df
                                 })
                        })
   return(ll_post_df)
