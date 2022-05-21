@@ -1,0 +1,449 @@
+---
+title: "Gaussian_conjugate_analysis.R"
+author: "Gal"
+date: "3/7/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rethinking)
+library(bayesAB)
+```
+
+
+# Introduction
+
+This RMarkdown consists of two parts: First, we'll go through the general cause of closed-form Bayesian updating of our beliefs when trying to estimate the mean and standard deviation of a Gaussian process. Then we'll apply it to our specific case in which the Gaussian process is corrupted by Gaussian noise. Note that we are limiting ourselves to the univariate case for now.
+
+## General case 
+
+### Prior
+The conjugate prior for a Gaussian distribution with unknown mean and variance is the Normal-inverse gamma (NIG) distribution, which has four parameters: $m$, $V$, $a$ and $b$. Note we could also use the Normal gamma as a conjugate prior for a normal distribution parameterized with \mu and \lambda [precision], but we're avoiding this here to not get into trouble later with adjusting for the noisy sampling. It gives a probability distribution over passible values of $\mu$ and $\sigma$ for our concept.
+
+```{r}
+
+# parameters for prior
+m_0 = 1
+V_0 = 1 # 1/sigma^2
+
+a_0 = 1 
+b_0 = 1
+
+# mean of inverse gamma = a/b+1
+
+# normal prior for mean is a normal distribution with mean m and sd sqrt of V^-1
+plotNormal(m_0, sqrt(1/V_0))
+
+# gamma prior for sd is a gamma distribution with shape parameters a and b
+plotInvGamma(a_0,b_0)
+
+# the prior over btoh is a normal gamma distribution with all of these parameters
+plotNormalInvGamma(m_0, V_0, a_0, b_0)
+
+```
+The updating of these parameters after an observation have already been derived in https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf. The parameter updates are as below.
+\begin{aligned}
+p\left(\mu, \sigma^{2} \mid D\right) &=N I G\left(m_{n}, V_{n}, a_{n}, b_{n}\right) \\
+V_{n}^{-1} &=V_{0}^{-1}+n \\
+\frac{m_{n}}{V_{n}} &=V_{0}^{-1} m_{0}+n \bar{x} \\
+a_{n} &=a_{0}+n / 2 \\
+b_{n} &=b_{0}+\frac{1}{2}\left[m_{0}^{2} V_{0}^{-1}+\sum_{i} x_{i}^{2}-m_{n}^{2} V_{n}^{-1}\right]
+\end{aligned}
+
+where n are the number of samples taken, and \bar{x} is the sample mean.
+
+In code, after some re-arranging, for a sample X:
+
+```{r}
+set.seed(1)
+X = rnorm(100, mean = 5, sd = 3)
+
+# observe this X[1] 100x with noise 
+
+x_bar = mean(X)
+n = length(X)
+
+V_n = 1 / (1/V_0 + n)
+m_n = V_n * (1/V_0 * m_0 + n*x_bar)
+a_n = a_0 + n/2
+b_n = b_0 + 1/2 * (m_0^2 * 1/V_0 + sum(X^2) - m_n^2 * 1/V_n)
+
+# Visualize update
+
+# Mean is shifted by positive observations (was 1, now around 4, halfway between prior and sample)
+plotNormal(m_n, sqrt(1/V_n)) 
+
+# variance is shifted to be larger by higher variance observations (had a peak at 0 for a = 1, b = 1, now it's at 7.4, around the variance of X)
+plotInvGamma(a_n, b_n)
+
+# combined normal inverse gamma distribution (don't know why it gets cut off)
+plotNormalInvGamma(m_n, 1/V_n, a_n, b_n)
+
+
+```
+
+
+
+### Posterior predictive
+
+The posterior predictive of an observation given a the normal-inverse-gamma distribution is the probability density of the sample mean under a Student's t distribution with $df = 2a_n$, $\mu = m_n$, and $\sigma = \frac{b_n(1+V_n)}{a_n}$, see https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf
+```{r}
+normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
+  
+  # compute parameters of student's t dist
+  df = 2*a_n
+  mu = m_n
+  sigma = b_n*(1+V_n) / (a_n)
+  
+  print(df)
+  print(mu)
+  print(sigma)
+
+  # get posterior density of x 
+  dstudent(x, df, mu, sigma, log = FALSE)
+}
+ 
+
+```
+
+
+### KL-divergence
+
+The KL divergence between two normal gammas was derived [here](https://arxiv.org/pdf/1611.01437.pdf). The definition shuoldn't change for an normal inverse gamma (similar to how it doesn't change between gamma and inverse gamma distribution, see [here](https://en.wikipedia.org/wiki/Inverse-gamma_distribution#Properties)).
+
+The (multivariate) KL is defined as:
+
+\begin{aligned}
+\mathrm{KL}[P \| Q] &=\frac{1}{2} \frac{a_{1}}{b_{1}}\left[\left(\mu_{2}-\mu_{1}\right)^{T} V_{2}\left(\mu_{2}-\mu_{1}\right)\right]+\frac{1}{2} \operatorname{tr}\left(V_{2} V_{1}^{-1}\right)-\frac{1}{2} \ln \frac{\left|V_{2}\right|}{\left|V_{1}\right|}-\frac{k}{2} \\
+&+a_{2} \ln \frac{b_{1}}{b_{2}}-\ln \frac{\Gamma\left(a_{1}\right)}{\Gamma\left(a_{2}\right)}+\left(a_{1}-a_{2}\right) \psi\left(a_{1}\right)-\left(b_{1}-b_{2}\right) \frac{a_{1}}{b_{1}}
+\end{aligned}
+
+where "1" subscripts refer to parameters of distribution P, and "2" subscripts refer to parameters of distribution Q, $\Gamma$ is the gamma function, and $\psi$ is the digamma function. In code: 
+
+```{r}
+
+# slightly awkward way of writing it to be more modifiable for multivariate KL
+normal_inverse_gamma_KL <- function(m_p, m_q, V_p, V_q, a_p, a_q, b_p, b_q) {
+  KL = 1/2 * (a_p/b_p) * ((m_q - m_p) * V_q *(m_q - m_p)) + 1/2 * (V_q/V_p) - 1/2 * log(V_q/V_p) - 1/2 + a_q * log(b_p/b_q) - log(gamma(a_p)/gamma(a_q)) + (a_p - a_q) * digamma(a_p) - (b_p - b_q) * a_p/b_p
+
+}
+
+#parameters for P
+m_p = 5
+V_p = 5
+a_p = 5 
+b_p = 5
+
+#parameters for Q
+m_q = 5
+V_q = 5
+a_q = 5
+b_q = 5
+
+# should be 0, when distributions are the same
+print(normal_inverse_gamma_KL(m_p, m_q, V_p, V_q, a_p, a_q, b_p, b_q))
+
+# should be different, when distributions are the different
+print(normal_inverse_gamma_KL(m_p+5, m_q, V_p, V_q, a_p, a_q, b_p+2, b_q))
+```
+
+
+
+### EIG
+EIG would be a grid over possible observations, and taking the  product between the outputs of `normal_inverse_gamma_post_pred`  and `normal_inverse_gamma_KL` for each observation.  
+
+
+
+
+
+
+
+### Detour: NIG vs NG 
+
+the relationship between NIG and NG confuses me from time to time, so as a little exercise here we want to see if we can show that NIG and NG, when served as the conjugate priors, are equivalent of one another. 
+
+to kickstart the detour, a little notation reminder / clarification:
+
+$\lambda$ : precision (when to be estimated)
+$\sigma^{2}$ : variance (when to be estimated)
+
+$V_0$: precision (when parameter)
+$\kappa$: variance (when parameter)
+$SD$ / $\sigma$: standard deviation 
+
+
+basic math but the relationships between those: 
+$\lambda = \frac{1}{\sigma^2}$
+
+So, what's the relationship between NIG and NG? 
+
+Normal-gamma distribution is the conjugate prior of a normal distribution with unknown mean ($\mu$) and precision ($\lambda$)
+
+Normal-Inverse-Gamma distribution is the conjugate prior of a normal distribution with unknown mean ($\mu$) and variance ($\sigma^2$)
+
+previous code chunks have demonstrated a toy example for using normal inverse gamma and assume that we want to learn about the variance. technically we can also get it to work with normal gamma distribution? 
+
+##### prior 
+
+```{r}
+
+# NG prior 
+mu_0 = 1
+kappa_0 = 1 
+alpha_0 = 1 
+beta_0 = 1
+
+lestat::normalgamma(mu_0, kappa_0, alpha_0, beta_0) %>% plot()
+```
+
+
+##### posterior 
+
+
+```{r}
+# NG posterior 
+
+set.seed(1)
+X = rnorm(100, 5, 3)
+x_bar = mean(X)
+n = length(X)
+
+mu_n = ((mu_0 * kappa_0) + n * x_bar) / (kappa_0 + n)
+kappa_n = kappa_0 + n 
+alpha_n = alpha_0 + n/2
+beta_n = beta_0 + 1/2 * sum((X - x_bar)^2) + (kappa_0*n*(x_bar - mu_0) ^ 2)/(2*(kappa_0 + n))
+  
+  
+# we get reasonable plotting if we assume that lambda is kappa. identical when all parameters = 1, but probably just some numerical coincidence. and lambda can't be just the inverse of kappa_n. it gets terrible plot 
+# don't really understand waht the normalgamma plots are
+
+#plotNormalInvGamma(mu = mu_n, 
+ #                  lambda = kappa_n, 
+   #                alpha = alpha_n, 
+  #                 beta = beta_n)
+
+lestat::normalgamma(mu_n, kappa_n, alpha_n, beta_n) %>% plot()
+
+```
+
+## Toy example: continuous vers. Poli model 
+
+```{r}
+x_bar = mean(X)
+n = length(X)
+X = rep(1, 100)
+
+
+nig_posterior <- function(prior_mu, prior_V, prior_alpha, prior_beta, observations){
+  
+  post_V = 1 / (1/prior_V + length(observations))
+  post_mu = post_V * (1/prior_V * prior_mu + length(observations)*mean(observations))
+  post_alpha = prior_alpha + length(observations) / 2
+  post_beta = prior_beta + 1/2 * (prior_mu^2 * 1/prior_V + sum(observations^2) - post_mu ^ 2 * 1/post_V)
+  
+  return (c( post_mu, post_V, post_alpha, post_beta))
+  
+}
+
+normal_inverse_gamma_post_pred <- function(x, m_n, V_n, a_n, b_n){
+  
+  # compute parameters of student's t dist
+  df = 2*a_n
+  mu = m_n
+  sigma = b_n*(1+V_n) / (a_n)
+
+  # get posterior density of x 
+  dstudent(x, df, mu, sigma, log = FALSE)
+  
+  #dt(x, df, ncp = m_n)
+}
+ 
+
+info_gain_KL <- function(m_pre, m_post, V_pre, V_post, a_pre, a_post, b_pre, b_post) {
+  
+  KL = 1/2 * (a_pre/b_pre) * ((m_post - m_pre) * V_post *(m_post - m_pre)) + 1/2 * (V_post/V_pre) - 1/2 * log(V_post/V_pre) - 1/2 + a_q * log(b_post/b_pre) - log(gamma(a_pre)/gamma(a_post)) + (a_pre - a_post) * digamma(a_pre) - (b_pre - b_post) * a_pre/b_pre
+
+}
+
+getNIG_EIG <- function(m, V, a, b){
+   hypothetical_obs <- -seq(-5, 5, by = 1)
+  #hypothetical_obs <- seq(.99, 1.01, by = 0.01)
+   hypothetical_info_gain <- rep(NA, length(hypothetical_obs))
+   post_pred <- normal_inverse_gamma_post_pred(hypothetical_obs, m, V, a, b)
+   
+   for (i in hypothetical_obs) {
+        new_params <- nig_posterior(m, V, a, b, i)
+        hypothetical_info_gain[i] <- info_gain_KL(m, new_params[1],
+                                              V, new_params[2], 
+                                              a, new_params[3], 
+                                              b, new_params[4])
+
+           }
+   EIG = post_pred %*% hypothetical_info_gain
+   
+   return(EIG)
+}
+
+main_update_function <- function(prior_mu, 
+                                 prior_V, 
+                                 prior_alpha, 
+                                 prior_beta, 
+                                 observations){
+  
+  
+  kls <- rep(NA, length(observations) + 1) 
+  eigs <- rep(NA, length(observations) + 1)
+  surprisals <- rep(NA, length(observations) + 1)
+  prior_post_pred <- rep(NA, length(observations) + 1)
+  priors <- vector(mode = "list", length = length(observations) + 1)
+  posts <- vector(mode = "list", length = length(observations) + 1)
+  
+  
+  for (i in 1:length(observations)){
+    
+    current_observation = observations[i]
+    current_post_parameter = nig_posterior(prior_mu, prior_V, prior_alpha, prior_beta, current_observation)
+    # calculate the KL divergence between the pre- and post-update 
+    kl <- normal_inverse_gamma_KL(prior_mu, current_post_parameter[1], 
+                                  prior_V, current_post_parameter[2], 
+                                  prior_alpha, current_post_parameter[3], 
+                                  prior_beta, current_post_parameter[4])
+    
+    eig <- getNIG_EIG(prior_mu, prior_V, prior_alpha, prior_beta)
+    prior_post_pred[i] <- normal_inverse_gamma_post_pred(current_observation, prior_mu, prior_V, prior_alpha, prior_beta)
+    surprisal <- -log(prior_post_pred[i])
+    
+    priors[[i]] <- c(prior_mu, prior_V, prior_alpha, prior_beta)
+    posts[[i]] <- current_post_parameter
+    
+    kls[i] <- kl
+    eigs[i] <- eig
+    surprisals[i] <- surprisal
+    
+    # use the posterior params as the priors for the next update 
+    prior_mu = current_post_parameter[1]
+    prior_V = current_post_parameter[2]
+    prior_alpha = current_post_parameter[3]
+    prior_beta = current_post_parameter[4]
+    
+    
+    
+  }
+  
+  im_df <- tibble(
+    t = 1:(length(observations) + 1),
+    obs = c(observations, NA),
+    kl = kls,
+    s = surprisals,
+    eig = eigs,
+    prior = priors,
+    prior_post_pred = prior_post_pred 
+  )
+  
+  return (im_df)
+  
+}
+
+
+
+im_df <- main_update_function(prior_mu = 2, prior_V = 1, prior_alpha = 1, prior_beta = 1, observations = X)
+
+```
+
+### plotting ims
+
+```{r}
+
+im_df %>% 
+  ggplot(aes(x = t, y = obs)) + 
+  geom_point() + 
+  geom_line()
+
+im_df %>% 
+  ggplot(aes(x = t, y = kl)) + 
+  geom_point() + 
+  geom_line()
+
+
+im_df %>% 
+  ggplot(aes(x = t, y = s)) + 
+  geom_point() + 
+  geom_line()
+
+im_df %>% 
+  ggplot(aes(x = t, y = eig)) + 
+  geom_point() + 
+  geom_line()
+
+
+```
+
+
+
+## Specific case 
+
+\textbf{Problem}: We want to learn the $\mu$ and $\sigma$ of Gaussian random variable $y$ via Bayesian inference. We have some prior beliefs $P(\mu)$ and $P(\sigma)$ about the distribution of $y$, which I want to update from observations. 
+However, we cannot observe $y$ directly. Instead, we can only take noisy samples $z = y + \epsilon$, where $\epsilon$ is Gaussian noise, which itself has $\mu_{\epsilon}=0$ and a (Gaussian) distribution $P(\sigma_{\epsilon})$ with known, fixed parameters (i.e. we are not trying to estimate this noise).
+
+Given a noisy sample $z$, is there a closed form to compute $P(\mu|z)$ and $P(\sigma|z)$? 
+
+\textbf{Answer}: The key to this is to recognize that $z$ itself is a Gaussian random variable whose parameters we can derive from the distribution that generated $y$. 
+
+Since the sum of two Gaussians is another Gaussian with their means and variances added, the parameters of $z$ will be:
+\begin{eqnarray}
+    \mu_z &= \mu_y, \\
+    \sigma_z &= \sigma_y  + \sigma_{\epsilon} \\
+
+    
+\end{eqnarray}
+
+From this, to get our likelihood, we can write:
+
+\begin{eqnarray}
+P(z|\mu, \sigma) = Normal(z; \mu_z, \sigma_z)
+\end{eqnarray}
+
+When doing the analytic updating, we should only be working in the space of the z-distribution. So the prior will be distributed $N(\mu_0, \sqrt(\sigma_0^2 + \sigma_e^2))$, and the ultimate posterior over \mu_n and \sig_n will describe the posterior over the z-distribution — but we can then work backwards to get the parameterization of the distribution of interest, y.
+
+In code:
+```{r}
+# Prior parameters (without noise)
+m_0 = 0
+V_0 = 1
+a_0 = 1 
+b_0 = 1
+
+# Noise contribution
+m_e = 0
+sigma_e = 0.1
+
+# plot prior over mean and SD
+plotNormal(m_0, sqrt(1/V_0))
+plotInvGamma(a_0, b_0)
+plotNormalInvGamma(m_0, 1/V_0, a_0, b_0)
+
+
+
+```
+
+Of interest: There are different ways to think about what noise is here - 
+
+1) we can define it intuitively as pertubations to the input, with a given mean and standard deviation. That would make it so that we have to scale the inverse gamma part of the distribution by $\sigma_e^2$. That's okay in terms of updating, but I think it might mess up the KL calculation, or at least we will no longer be able to use the closed form, since the mean of the gamma distribution isn't a standalone parameter there that we could modify. This might be fine, since we can compute KL numerically.
+
+2) We can define noise as pertubations directly to a_0 and b_0, such that the PDF of the inverse gamma would shift a bit. Note that it's not possible to do this without also changing the shape of the curve - so this wouldn't be 'pure noise', it would be a more complicated change in our beliefs about the SD of the feature.
+
+3) There is a 3-parameter gamma function which includes a location parameter, i.e. a parameter that allows us to shift the mean of the distribution without touching the shape of the curve. I'm not sure how to use this parameterization while retaining the definition of the parameter updates and KL. I suspect it's hard but it might not be.
+
+
+Note: interpretation of parameters of normal gamma distribution, from [Wikipedia page](https://en.wikipedia.org/wiki/Normal-gamma_distribution#Posterior_distribution_of_the_parameters):
+
+The interpretation of parameters in terms of pseudo-observations is as follows:
+
+1) The new mean takes a weighted average of the old pseudo-mean and the observed mean, weighted by the number of associated (pseudo-)observations.
+
+2) The precision was estimated from $2\alpha$  pseudo-observations (i.e. possibly a different number of pseudo-observations, to allow the variance of the mean and precision to be controlled separately) with sample mean $\mu$ and sample variance $\frac {\beta }{\alpha }$ (i.e. with sum of squared deviations $2\beta$ ).
+
+3) The posterior updates the number of pseudo-observations ($\lambda _{0}$) simply by adding up the corresponding number of new observations ($n$).
+
+4) The new sum of squared deviations is computed by adding the previous respective sums of squared deviations. However, a third "interaction term" is needed because the two sets of squared deviations were computed with respect to different means, and hence the sum of the two underestimates the actual total squared deviation.

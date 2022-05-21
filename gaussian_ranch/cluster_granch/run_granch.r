@@ -7,7 +7,7 @@ library(foreach)
 registerDoParallel(cores=32)
 getDoParWorkers()
 
-ON_CLUSTER = FALSE
+ON_CLUSTER = TRUE
 
 ### Set up helper function and paths ------- 
 
@@ -19,7 +19,6 @@ if (ON_CLUSTER){
   source("~/cluster_granch/helper/granch_sim_setup_helper.R")
  
   embedding_path <- "~/cluster_granch/embeddings/embedding_PCA.csv"
-  
   
 }else{
   library(here)
@@ -41,18 +40,18 @@ stimuli_pool_size <- 10
 n_feature <- 3
 stimuli_pool <-  get_stimuli_pool(stimuli_pool_size, n_feature, embedding_path)
 sequence_schemes =  c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
-
+hypothetical_obs_grid_n <- 3
 
 ### Set up grid parameters ------- 
 
 # sd_n: range decided by n*sd away 
 # sd_step: step decided by sd / sd_step 
-grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 5, sd_step = 10)
+grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 5, sd_step = 8)
 
 # not sure about the principled way to select these three yet
-grid_sig_sq = seq(0.001, 2, 0.001) # not sure about the principled way to select this yet
+grid_sig_sq = seq(0.001, 1, 0.01) # not sure about the principled way to select this yet
 grid_y <- grid_mu_theta 
-grid_epsilon = seq(0.001, 1, 0.001)
+grid_epsilon = seq(0.001, 1, 0.1)
 
 
 ### Set up priors ------- 
@@ -83,7 +82,7 @@ after_prior_calc_t <- Sys.time()
 ### Set up parameters ------- 
 
 stims_df <- tibble(sequence_scheme = c("BBBBBB"),
-                   n_features = n_run
+                   n_features = n_feature
 ) %>% 
   mutate(
     stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, 
