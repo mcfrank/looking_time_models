@@ -7,7 +7,7 @@ get_stimuli_pool <- function(n_stim,n_dim, embedding_path){
 
 get_bd_pair <- function(stimuli_pool){
   # might consider adding distance? 
-  bd_pair <- as.matrix(stimuli_pool)[sample(2),]
+  bd_pair <- as.matrix(as.matrix(stimuli_pool)[sample(2),])
   return(bd_pair)
 }
 
