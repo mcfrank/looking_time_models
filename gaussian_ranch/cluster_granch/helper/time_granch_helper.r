@@ -19,10 +19,10 @@ time_granch_simulation <- function(embedding_path, grid_mu_n, grid_sig_sq_n, gri
   world_EIGs = c(0.0001) 
   max_observation = 500
   
-  grid_mu_theta = seq(-2, 2, 4/grid_mu_n)
-  grid_sig_sq = seq(-2, 2, 4/grid_sig_sq_n)
-  grid_y = seq(-2, 2, 4/grid_y_n)
-  grid_epsilon = seq(-2, 2, 4/grid_epsilon_n)
+  grid_mu_theta = seq(-1, 1, 2/grid_mu_n)
+  grid_sig_sq = seq(0.001, 2, 2/grid_sig_sq_n)
+  grid_y = seq(-1, 1, 2/grid_y_n)
+  grid_epsilon = seq(0.001, 1, 1/grid_epsilon_n)
   hypothetical_obs_grid_n = hypothetical_obs_grid_n
   
   model_params <- set_granch_params(
@@ -48,15 +48,24 @@ time_granch_simulation <- function(embedding_path, grid_mu_n, grid_sig_sq_n, gri
     obj_size = object.size(model_params)
   )
   
+  # stims_df <- tibble(sequence_scheme = c("BBBBBB"),
+  #                    n_features = n_feature
+  # ) %>%
+  #   mutate(
+  #     stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss,
+  #                                                                               background = get_bd_pair(stimuli_pool)[1, ],
+  #                                                                               deviant = get_bd_pair(stimuli_pool)[2, ])}))
+
   stims_df <- tibble(sequence_scheme = c("BBBBBB"),
                      n_features = n_feature
-  ) %>% 
+  ) %>%
     mutate(
-      stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, 
-                                                                                background = get_bd_pair(stimuli_pool)[1, ], 
-                                                                                deviant = get_bd_pair(stimuli_pool)[2, ])}))
+      stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss,
+                                                                                background = rep(0.1, n_feature),
+                                                                                deviant = rep(0.8, n_feature))}))
   
   
+
   
   full_params_df <- make_simulation_params(n_sim = 1,model_params, stims_df)
   

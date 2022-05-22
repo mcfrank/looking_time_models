@@ -238,3 +238,20 @@ time_granch_df %>%
   geom_line()
 ```
 
+# from cluster
+
+```{r}
+timing_res <- readRDS(here("exploration/med_granch_timing.RDS"))
+
+timing_res %>% 
+  ggplot(aes(x = n_f, y = ranch_sim_time, 
+             color = as.factor(prior_grid_row) 
+             )) + 
+  geom_point() + 
+  geom_line()+ 
+  facet_wrap(~hypothetical_obs_grid_number)
+```
+
+
+
+

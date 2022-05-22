@@ -8,5 +8,5 @@
 # load the module
 ml R/3.6
 
-Rscript run_granch.r
-
+#Rscript run_granch.r
+Rscript time_granch.r
