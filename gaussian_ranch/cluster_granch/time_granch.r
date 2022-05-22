@@ -44,7 +44,7 @@ time_granch_df <- tibble(
 ) %>% 
   crossing(
     n_feature = seq(1, 5, 1), 
-    hypothetical_obs_grid_n = seq(2, 5, 1), 
+    hypothetical_obs_grid_n = seq(2, 3, 1), 
   )
 
 
@@ -61,4 +61,4 @@ all_res <- foreach(i = 1:nrow(time_granch_df), .combine=rbind, .errorhandling = 
   
 } 
 
-saveRDS(all_res, "granch_timing.RDS")
+saveRDS(all_res, "fake_med_granch_timing.RDS")
