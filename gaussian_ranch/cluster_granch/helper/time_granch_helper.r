@@ -1,15 +1,21 @@
-time_granch_simulation <- function(embedding_path, grid_mu_n, grid_sig_sq_n, grid_y_n, grid_epsilon_n, 
-                                   hypothetical_obs_grid_n, 
-                                   n_feature){
+time_granch_simulation <- function(time_df){
   
   
-  embedding_path <- embedding_path
+  embedding_path <- time_df$embedding_path
+  grid_mu_n <- time_df$grid_mu_n
+  grid_sig_sq_n <- time_df$grid_sig_sq_n
+  grid_y_n <- time_df$grid_y_n 
+  grid_epsilon_n <- time_df$grid_epsilon_n
+  hypothetical_obs_grid_n <- time_df$hypothetical_obs_grid_n
+  n_feature <- time_df$n_feature
+  
+  
+  
   stimuli_pool_size <- 10
   stimuli_pool <-  get_stimuli_pool(stimuli_pool_size, n_feature, embedding_path)
   
   
-  mu_priors = c(0)
-  mu_priors = c(0)
+  mu_priors = c(0.001)
   V_priors = c(0.001)
   alpha_priors = c(1) 
   beta_priors = c(1) 
@@ -20,7 +26,7 @@ time_granch_simulation <- function(embedding_path, grid_mu_n, grid_sig_sq_n, gri
   max_observation = 500
   
   grid_mu_theta = seq(-1, 1, 2/grid_mu_n)
-  grid_sig_sq = seq(0.001, 2, 2/grid_sig_sq_n)
+  grid_sig_sq = seq(0.01, 2, 2/grid_sig_sq_n)
   grid_y = seq(-1, 1, 2/grid_y_n)
   grid_epsilon = seq(0.001, 1, 1/grid_epsilon_n)
   hypothetical_obs_grid_n = hypothetical_obs_grid_n
@@ -82,7 +88,8 @@ time_granch_simulation <- function(embedding_path, grid_mu_n, grid_sig_sq_n, gri
   info_df <- info_df %>% 
     mutate(ranch_sim_time = endTime - startTime, 
            n_f = n_feature, 
-           n_hypo_obs = hypothetical_obs_grid_n)
+           n_hypo_obs = hypothetical_obs_grid_n, 
+           sim_res = nest(all_sims_res))
   
   return (info_df)
 }

@@ -11,7 +11,7 @@
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
-granch_main_simulation <- function(params = df, testing = TRUE) {
+granch_main_simulation <- function(params = df, testing = FALSE) {
   
   print("sequence_scheme:")
   print(params$sequence_scheme)  

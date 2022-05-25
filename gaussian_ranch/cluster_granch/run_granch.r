@@ -36,11 +36,11 @@ if (ON_CLUSTER){
 ### Set up stimuli ------- 
 
 n_run <- 1
-stimuli_pool_size <- 10
-n_feature <- 3
+stimuli_pool_size <- 10000
+n_feature <- 3000
 stimuli_pool <-  get_stimuli_pool(stimuli_pool_size, n_feature, embedding_path)
 sequence_schemes =  c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
-hypothetical_obs_grid_n <- 3
+hypothetical_obs_grid_n <- 100
 
 ### Set up grid parameters ------- 
 

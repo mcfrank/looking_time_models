@@ -51,14 +51,8 @@ time_granch_df <- tibble(
 all_res <- foreach(i = 1:nrow(time_granch_df), .combine=rbind, .errorhandling = "remove") %dopar% {
 
 
-  res <- time_granch_simulation(time_granch_df[i, ]$embedding_path, 
-                                time_granch_df[i, ]$grid_mu_n, 
-                                time_granch_df[i, ]$grid_sig_sq_n, 
-                                time_granch_df[i, ]$grid_y_n, 
-                                time_granch_df[i, ]$grid_epsilon_n, 
-                                time_granch_df[i, ]$hypothetical_obs_grid_n, 
-                                time_granch_df[i, ]$n_feature) 
+  res <- time_granch_simulation(time_granch_df[i, ]) 
   
 } 
 
-saveRDS(all_res, "fake_med_granch_timing.RDS")
+saveRDS(all_res, "with_data_granch_timing.RDS")

@@ -110,6 +110,58 @@ time_prior_df %>%
   geom_line() + 
   facet_wrap(~type, scales = "free")
 ```
+```{r}
+lmodel <- lm(as.numeric(time) ~ prior_grid_row, time_prior_df)
+
+p = as.data.frame(100^3)
+colnames(p) = "prior_grid_row"
+predict(lmodel, newdata = p) / 3600
+```
+
+
+
+```{r}
+ mu_priors = c(0)
+  mu_priors = c(0)
+  V_priors = c(0.001)
+  alpha_priors = c(1) 
+  beta_priors = c(1) 
+  epsilons = c(0.000001) 
+  mu_epsilon = c(0.001)
+  sd_epsilon = c(2)
+  world_EIGs = c(0.0001) 
+  max_observation = 500
+  
+  grid_mu_theta = seq(-2, 2, 4/2)
+  grid_sig_sq = seq(-2, 2, 4/2)
+  grid_y = seq(-2, 2, 4/2)
+  grid_epsilon = seq(-2, 2, 4/2)
+  hypothetical_obs_grid_n = 2
+  
+  model_params <- set_granch_params(
+                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, hypothetical_obs_grid_n,
+                mu_priors, V_priors, 
+                alpha_priors, beta_priors, 
+                epsilons, mu_epsilon, sd_epsilon,
+                world_EIGs, max_observation)
+
+model_params <- add_precalculated_prior_dfs(model_params)
+
+```
+
+```{r}
+# 5 columns 
+dim(model_params$prior_df[[1]])
+
+n_row = (2^31) - 1
+df <- tibble(
+  "a" = rep(1, n_row), 
+  "b" = rep(1, n_row), 
+  "c" = rep(1, n_row), 
+  "d" = rep(1, n_row), 
+  "e" = rep(1, n_row)
+)
+```
 
 # prior df + simulation 
 
@@ -196,7 +248,6 @@ time_granch_simulation <- function(embedding_path, grid_mu_n, grid_sig_sq_n, gri
 ```
 
 ```{r}
-time_granch_df
 ```
 
 ```{r}
@@ -241,15 +292,19 @@ time_granch_df %>%
 # from cluster
 
 ```{r}
-timing_res <- readRDS(here("exploration/med_granch_timing.RDS"))
+timing_res <- readRDS(here("exploration/f_fake_med_granch.RDS"))
 
 timing_res %>% 
+  filter(n_f < 4) %>% 
   ggplot(aes(x = n_f, y = ranch_sim_time, 
              color = as.factor(prior_grid_row) 
              )) + 
   geom_point() + 
-  geom_line()+ 
-  facet_wrap(~hypothetical_obs_grid_number)
+  geom_line()
+```
+
+```{r}
+d <- timing_res %>% filter(n_f < 4)
 ```
 
 
