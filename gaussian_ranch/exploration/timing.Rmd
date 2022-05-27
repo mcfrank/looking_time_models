@@ -292,10 +292,16 @@ time_granch_df %>%
 # from cluster
 
 ```{r}
-timing_res <- readRDS(here("exploration/f_fake_med_granch.RDS"))
+df <- list.files(here("cluster_granch/cached_res/"), pattern = ".RDS") %>% 
+  sapply(., function(x) paste0(here("cluster_granch/cached_res/"), x)) %>% 
+  map(readRDS) %>% 
+  bind_rows()
+```
 
-timing_res %>% 
-  filter(n_f < 4) %>% 
+
+```{r}
+
+df %>% 
   ggplot(aes(x = n_f, y = ranch_sim_time, 
              color = as.factor(prior_grid_row) 
              )) + 
@@ -303,10 +309,105 @@ timing_res %>%
   geom_line()
 ```
 
+
+
 ```{r}
-d <- timing_res %>% filter(n_f < 4)
+# basically we want to know x & c_nf's values 
+runtime_fit <- function(s, x, c_nf, n_f, grid_row){
+  return (s * ((grid_row *x) ^ (c_nf * n_f)))
+  #return ((grid_row * ((x) ^ n_f)))
+}
+
+t <- tibble(
+  s = 10,
+  x = 0.9798673, 
+  c_nf = 0.2384108, 
+  n_f = seq(1:5)
+) %>% 
+  crossing( 
+  grid_row = c(2, 12, 36)) %>% 
+  mutate(t = unlist(pmap(., runtime_fit) ))
+
+
+t %>% 
+  ggplot(aes(x = n_f, y = t , 
+             color = as.factor(grid_row)
+             )) + 
+  geom_point() + 
+  geom_line()
+
+```
+
+
+```{r}
+data_vs_runtime_fit <- function(s, x, c_nf, n_f, grid_row, real_t){
+  predicted_t <- runtime_fit(s, x, c_nf, n_f, grid_row)
+  RMSE <- sum(sqrt((predicted_t - real_t) ^ 2))
+  return(RMSE)
+}
+
+optim_runtime_fit_wrapper <- function(params){
+  return(data_vs_runtime_fit(s = params[1],
+                             x = params[2], 
+                             c_nf = params[3], 
+                             n_f = df$n_f,
+                             grid_row = df$prior_grid_row, 
+                             real_t = as.numeric(df$ranch_sim_time)))
+  
+}
+
+#optim(c(1, 2, 5), optim_runtime_fit_wrapper)
+
+optim_res<- optim(c(8, 1, .8), optim_runtime_fit_wrapper)
+```
+
+
+```{r}
+t <- tibble(
+  s =  optim_res$par[1], 
+  x = optim_res$par[2], 
+  c_nf =  optim_res$par[3], 
+  n_f = seq(1:5)
+) %>% 
+  crossing( 
+  grid_row = c(2, 12, 36)) %>% 
+  mutate(t = unlist(pmap(., runtime_fit) ))
+
+
+t %>% 
+  ggplot(aes(x = n_f, y = 4* t, 
+             color = as.factor(grid_row)
+             )) + 
+  geom_point() + 
+  geom_line()
+
 ```
 
 
 
+
+
+# limits for prior calc 
+
+
+```{r}
+#(input_x, input_sig_sq, mu, lambda, alpha, beta, log = TRUE)
+input_x <- seq(-1, 1, .1)
+input_sig_sq <- seq(-1, 1, .1)
+mu <- seq(-1, 1, .5)
+lambda <- seq(-1, 1, .5)
+alpha <- seq(-1, 1, .5)
+beta <- seq(-1, 1, .5)
+
+
+dfs <- crossing(input_x, input_sig_sq, mu, lambda, alpha, beta)
+safer_score <- possibly(score_mu_sig_sq, otherwise = "Calculation Error")
+
+res <- pmap_df(dfs, safer_score)
+```
+
+
+```{r}
+saveRDS(res, "prior_calc.rds")
+```
 
