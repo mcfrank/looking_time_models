@@ -37,14 +37,14 @@ if (ON_CLUSTER){
 
 time_granch_df <- tibble(
   embedding_path = embedding_path, 
-  grid_mu_n = seq(1, 5, 1), 
-  grid_sig_sq_n = seq(1, 5, 1),
-  grid_y_n = seq(1, 5, 1), 
-  grid_epsilon_n = seq(1, 5, 1)
+  grid_mu_n = seq(1, 3, 1), 
+  grid_sig_sq_n = seq(1, 3, 1),
+  grid_y_n = seq(1, 3, 1), 
+  grid_epsilon_n = seq(1, 3, 1)
 ) %>% 
   crossing(
-    n_feature = seq(1, 5, 1), 
-    hypothetical_obs_grid_n = seq(2, 3, 1), 
+    n_feature = seq(1, 7, 1), 
+    hypothetical_obs_grid_n = seq(2, 2, 1), 
   )
 
 
@@ -52,6 +52,7 @@ all_res <- foreach(i = 1:nrow(time_granch_df), .combine=rbind, .errorhandling = 
 
 
   res <- time_granch_simulation(time_granch_df[i, ]) 
+  saveRDS(res, paste0("with_data_", i, "_res.RDS"))
   
 } 
 
