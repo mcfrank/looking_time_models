@@ -12,6 +12,9 @@ library(matrixStats)
 source(here("helper/compute_prob.r"))
 source(here("helper/granch_main_simulation_helper.R")) # this will import other helper functions 
 source(here("helper/granch_sim_setup_helper.R")) # this will import functions that help with setting parameters 
+
+
+
 ```
 
 # Set up stimuli pool 
