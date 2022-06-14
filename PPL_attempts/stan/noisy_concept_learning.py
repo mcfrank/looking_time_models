@@ -9,7 +9,7 @@ import pystan
 import random
 
 # whether to recompile the stan program
-DO_COMPILE = False
+DO_COMPILE = True
 
 # stan program path
 stan_path = 'multi_feature.stan'
