@@ -13,7 +13,6 @@ data {
     real<lower=0> sigma_alpha;
     real<lower=0> sigma_beta;
 
-    // if i want to change epsilon, put it here
     real<lower=0> noise;
 
 }
@@ -27,7 +26,7 @@ model {
     // loop through features
     for (f in 1:F){
 
-        mu[f] ~ normal(mu_mean,mu_sd);
+        mu[f] ~ normal(mu_mean, mu_sd); // mu[f] ~ normal(mu_mean, mu_sd);
         sigma[f] ~ gamma(sigma_alpha,sigma_beta);
 
         // loop through y's
@@ -41,6 +40,12 @@ model {
         }
     } 
 
+generated_quantities {
+    for (f in 1:F) {
+        array real z_rep[f] = y[f,K] + normal_rng(0, noise)
+    }
+
+}
 
 
 }
