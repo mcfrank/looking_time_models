@@ -39,13 +39,14 @@ model {
             z[f, m] ~ normal(y[f, exemplar_idx[m]], noise);
         }
     } 
+}
+generated quantities {
 
-generated_quantities {
-    for (f in 1:F) {
-        array real z_rep[f] = y[f,K] + normal_rng(0, noise)
-    }
+vector[F] z_rep;
+
+for (f in 1:F){
+        z_rep[f] = y[f, K] + normal_rng(0, noise);
+ }  
 
 }
 
-
-}
