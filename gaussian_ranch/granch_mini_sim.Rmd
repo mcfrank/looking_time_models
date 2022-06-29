@@ -65,9 +65,9 @@ model_params <- add_precalculated_prior_dfs(model_params)
 ```
 
 ```{r}
-full_package = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
+#full_package = c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
 
-stims_df <- tibble(sequence_scheme = c("BBBBBB"),
+stims_df <- tibble(sequence_scheme = c("BBBBBD"),
                    n_features = n_feature
                    ) %>% 
   mutate(
@@ -95,6 +95,18 @@ all_sims_res <- full_params_df %>%
   unnest(cols = c(data, results))
 toc()
 ```
+
+```{r}
+all_sims_res$results[[2]] %>% 
+  group_by(stimulus_idx) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n))+
+  geom_point()
+
+```
+
+
 
 
 ```{r}
