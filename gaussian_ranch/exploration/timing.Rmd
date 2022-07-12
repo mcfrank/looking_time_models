@@ -296,14 +296,68 @@ df <- list.files(here("cluster_granch/cached_res/"), pattern = ".RDS") %>%
   sapply(., function(x) paste0(here("cluster_granch/cached_res/"), x)) %>% 
   map(readRDS) %>% 
   bind_rows()
+
+#df <- df %>% filter(n_hypo_obs == 3)
 ```
+
+```{r}
+df_sim <- df %>% 
+  mutate(sim_id = row_number()) %>% 
+  unnest(sim_res) %>% 
+  unnest(data)  
+  
+df_sim %>% 
+  group_by(sim_id, n_hypo_obs, stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, 
+             color = as.factor(sim_id))) + 
+  geom_line() + 
+  ylim(0, 75)  + 
+  facet_wrap(~n_hypo_obs)
+
+
+df_sim %>% 
+  group_by(sim_id,len_grid_mu_theta, n_f, n_hypo_obs, stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n, 
+             color = as.factor(sim_id))) + 
+  geom_line() + 
+  ylim(0, 75)  + 
+  facet_grid(n_f~len_grid_mu_theta)
+```
+
+
+
 
 
 ```{r}
 
 df %>% 
+  filter(n_hypo_obs == 3) %>% 
   ggplot(aes(x = n_f, y = ranch_sim_time, 
              color = as.factor(prior_grid_row) 
+             )) + 
+  geom_point() + 
+  geom_line()
+
+
+
+df %>% 
+  #filter(n_hypo_obs == 3) %>% 
+  filter(n_f < 4) %>% 
+  ggplot(aes(x = n_f, y = ranch_sim_time, 
+             color = as.factor(prior_grid_row) 
+             )) + 
+  geom_point() + 
+  geom_line() + 
+  labs(title = "real") + 
+  facet_wrap(~n_hypo_obs)
+
+df %>% 
+  filter(n_hypo_obs == 3) %>% 
+  filter(n_f < 6) %>% 
+  ggplot(aes(x = prior_grid_row, y = ranch_sim_time, 
+             color = as.factor(n_f) 
              )) + 
   geom_point() + 
   geom_line()
@@ -358,7 +412,7 @@ optim_runtime_fit_wrapper <- function(params){
 
 #optim(c(1, 2, 5), optim_runtime_fit_wrapper)
 
-optim_res<- optim(c(8, 1, .8), optim_runtime_fit_wrapper)
+optim_res<- optim(c(10, 1, .8), optim_runtime_fit_wrapper)
 ```
 
 
@@ -370,16 +424,17 @@ t <- tibble(
   n_f = seq(1:5)
 ) %>% 
   crossing( 
-  grid_row = c(2, 12, 36)) %>% 
-  mutate(t = unlist(pmap(., runtime_fit) ))
+  grid_row = df$prior_grid_row) %>% 
+  mutate(t = unlist(pmap(., runtime_fit) )) 
 
 
 t %>% 
-  ggplot(aes(x = n_f, y = 4* t, 
+  ggplot(aes(x = n_f, y =  t, 
              color = as.factor(grid_row)
              )) + 
   geom_point() + 
-  geom_line()
+  geom_line() + 
+  labs(title = "fitted")
 
 ```
 
@@ -409,5 +464,80 @@ res <- pmap_df(dfs, safer_score)
 
 ```{r}
 saveRDS(res, "prior_calc.rds")
+```
+
+# cached res 
+
+```{r}
+/Users/caoanjie/Desktop/projects/model/model/gaussian_ranch/exploration/exploration_cached_res/sBBBDBB_res.RDS
+```
+
+
+```{r}
+df <- list("sBBBBBD_res.RDS",
+           "sBBBDBB_res.RDS", 
+           "sBDBBBB_res.RDS)") %>% 
+unlist() %>% 
+  sapply(., function(x) paste0(here("exploration/exploration_cached_res/"), x)) %>% 
+  map(readRDS) %>% 
+  bind_rows()
+
+```
+```{r}
+
+d_last_res <- readRDS(here("exploration/exploration_cached_res/sBBBBBD_res.RDS"))
+
+
+d_last_res %>% 
+  select(stimulus_idx, f1, f2, f3) %>% 
+  distinct(stimulus_idx, .keep_all = TRUE)
+
+
+d_last_res %>% group_by(stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) +  
+  geom_point()
+```
+
+```{r}
+d_last_res %>% 
+  ggplot(aes(x = t, y = EIG, color = stimulus_idx)) +
+  geom_point()  
+
+```
+ 
+
+
+```{r}
+
+d_4th_res <- readRDS(here("exploration/exploration_cached_res/sBBBDBB_res.RDS"))
+
+
+d_4th_res %>% 
+  select(stimulus_idx, f1, f2, f3) %>% 
+  distinct(stimulus_idx, .keep_all = TRUE)
+
+
+d_4th_res %>% group_by(stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) +  
+  geom_point()
+```
+
+```{r}
+
+d_2_res <- readRDS(here("exploration/exploration_cached_res/sBDBBBB_res.RDS"))
+
+
+d_2_res %>% 
+  select(stimulus_idx, f1, f2, f3) %>% 
+  distinct(stimulus_idx, .keep_all = TRUE)
+
+
+d_2_res %>% group_by(stimulus_idx) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_idx, y = sample_n)) +  
+  geom_point()
+
 ```
 

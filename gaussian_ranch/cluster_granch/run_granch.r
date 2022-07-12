@@ -36,27 +36,26 @@ if (ON_CLUSTER){
 ### Set up stimuli ------- 
 
 n_run <- 1
-stimuli_pool_size <- 10000
-n_feature <- 3000
+stimuli_pool_size <- 100
+n_feature <- 3
 stimuli_pool <-  get_stimuli_pool(stimuli_pool_size, n_feature, embedding_path)
 sequence_schemes =  c("BBBBBB", "BDBBBB", "BBBDBB", "BBBBBD")
-hypothetical_obs_grid_n <- 100
+hypothetical_obs_grid_n <- 3
 
 ### Set up grid parameters ------- 
 
 # sd_n: range decided by n*sd away 
 # sd_step: step decided by sd / sd_step 
-grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 5, sd_step = 8)
+grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 5, sd_step = 3)
 
 # not sure about the principled way to select these three yet
-grid_sig_sq = seq(0.001, 1, 0.01) # not sure about the principled way to select this yet
+grid_sig_sq = seq(0.01, 1, 0.1) # not sure about the principled way to select this yet
 grid_y <- grid_mu_theta 
-grid_epsilon = seq(0.001, 1, 0.1)
+grid_epsilon = seq(0.01, 1, 0.1)
 
 
 ### Set up priors ------- 
 
-mu_priors = c(0)
 mu_priors = c(0)
 V_priors = c(0.001)
 alpha_priors = c(1) 
@@ -81,7 +80,10 @@ after_prior_calc_t <- Sys.time()
 
 ### Set up parameters ------- 
 
-stims_df <- tibble(sequence_scheme = c("BBBBBB"),
+stims_df <- tibble(sequence_scheme = c("BBBBBB", 
+                                       "BBBBBD", 
+                                       "BBBDBB", 
+                                       "BDBBBB"),
                    n_features = n_feature
 ) %>% 
   mutate(
@@ -97,24 +99,19 @@ full_params_df <- make_simulation_params(n_sim = n_run,
 
 
 ### run model -------
-before_sim_t <- Sys.time()
-all_sims_res <- full_params_df %>%
-  mutate(row_number = row_number()) %>% 
-  group_by(row_number) %>% 
-  nest() %>%
-  mutate(results = map(data,
-                       function(df) granch_main_simulation(params = df))) %>%
-  unnest(cols = c(data, results))
-
-after_sim_t <- Sys.time()
 
 
-all_sim_res <- all_sims_res %>% 
-  mutate(before_prior_calc_t = before_prior_calc_t, 
-         after_prior_calc_t = after_prior_calc_t, 
-         before_sim_t = before_sim_t, 
-         after_sim_t)
 
-saveRDS(all_sims_res, paste0(after_sim_t, ".RDS"))
+all_res <- foreach(i = 1:nrow(full_params_df), .combine=rbind, .errorhandling = "remove") %dopar% {
+  
+  before_sim_t <- Sys.time()
+  res <- granch_main_simulation(full_params_df[i, ]) 
+  after_sim_t <- Sys.time()
+  res <- res %>% mutate(lapse_t = after_sim_t - before_sim_t)
+  saveRDS(res, paste0((full_params_df[i,])$sequence_scheme, "_res.RDS"))
+  
+} 
+
+
 
 

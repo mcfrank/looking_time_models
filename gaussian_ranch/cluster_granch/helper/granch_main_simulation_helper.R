@@ -11,7 +11,7 @@
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
 # takes a df of parameters and some globals
-granch_main_simulation <- function(params = df, testing = FALSE) {
+granch_main_simulation <- function(params = df, testing = TRUE) {
   
   print("sequence_scheme:")
   print(params$sequence_scheme)  
@@ -73,8 +73,8 @@ granch_main_simulation <- function(params = df, testing = FALSE) {
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
-    
+ # while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
+ while(t < 5){   
     print(glue::glue("time: {t}"))
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
