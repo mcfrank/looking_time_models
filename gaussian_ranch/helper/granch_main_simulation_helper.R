@@ -74,7 +74,7 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
   # compute expected information gain
   # make a choice what to do
   while(stimulus_idx <= total_trial_number && t <= params$max_observation) {
-    
+# while(t < 5){   
     print(glue::glue("time: {t}"))
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
