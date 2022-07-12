@@ -13,26 +13,23 @@ data {
     real<lower=0> sigma_alpha;
     real<lower=0> sigma_beta;
 
-    real<lower=0> epsilon_alpha;
-    real<lower=0> epsilon_beta;
+    real<lower=0> noise;
 
 }
 parameters {
     vector[F] mu;
     vector<lower=0>[F] sigma;
     matrix[F, K] y;
-    real<lower=0> epsilon;
 
 }
 model {
 
-    epsilon ~ gamma(epsilon_alpha, epsilon_beta);
-
     // loop through features
     for (f in 1:F){
 
-        mu[f] ~ normal(mu_mean, mu_sd);
+        mu[f] ~ normal(mu_mean, mu_sd); // mu[f] ~ normal(mu_mean, mu_sd);
         sigma[f] ~ gamma(sigma_alpha,sigma_beta);
+        
 
         // loop through y's
         for (k in 1:K){
@@ -41,7 +38,7 @@ model {
 
         // multiple z observations
         for (m in 1:M){
-            z[f, m] ~ normal(y[f, exemplar_idx[m]], epsilon);
+            z[f, m] ~ normal(y[f, exemplar_idx[m]], noise);
         }
     } 
 }
@@ -50,7 +47,7 @@ generated quantities {
 vector[F] z_rep;
 
 for (f in 1:F){
-        z_rep[f] = y[f, K] + normal_rng(0, epsilon);
+        z_rep[f] = y[f, K] + normal_rng(0, noise);
  }  
 
 }
