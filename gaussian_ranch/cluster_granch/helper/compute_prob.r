@@ -28,7 +28,7 @@ score_z_given_mu_sig_sq <- function(t, # timestep
                                     model) {
   # set up current variables
   this_lp_z_given_mu_sig_sq <- ll_z_given_mu_sig_sq[[t]][[f]]
-  grid_epsilon <- unique(this_lp_z_given_mu_sig_sq$grid_epsilon) # currently not implemented 
+  grid_epsilon <- unique(this_lp_z_given_mu_sig_sq$grid_epsilon) 
   this_stimulus_idx <- model$stimulus_idx[t]
   f_string <- paste0("f",f)
   

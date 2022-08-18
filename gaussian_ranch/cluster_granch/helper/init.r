@@ -49,10 +49,8 @@ initialize_model <- function(eig_from_world, max_observation, n_features, measur
   
   if(measurement == "EIG"){
     model$EIG = rep(NA,max_observation)
-  }else if(measurement == "KL"){
-    model$KL = rep(NA,max_observation)
-  }else if(measurement == "surprisal"){
-    model$surprisal = rep(NA,max_observation)
+  }else{
+    model$im = rep(NA,max_observation)
   }
   
   # initialize columns for observations

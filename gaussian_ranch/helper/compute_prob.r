@@ -161,3 +161,14 @@ kl_div <- function (x, y) {
 rectified_luce_choice <- function(x, y) {
   max(min(x / (x + y), 1), 0)
 }
+
+# ---------------- corrected 0 value ----------------
+# when there's 0 produced in the vector, substitute it with very small value to ensure 
+# numerical stability 
+corrected_vector <- function(v){
+  v[v < exp(-700)] <- 1/(10^300)
+  return (v)
+}
+
+
+
