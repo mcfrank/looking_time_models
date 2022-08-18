@@ -13,6 +13,10 @@ library(matrixStats)
 source(here("helper/compute_prob.r"))
 source(here("helper/granch_main_simulation_helper.R")) # this will import other helper functions 
 source(here("helper/granch_sim_setup_helper.R")) # this will import functions that help with setting parameters 
+
+source(here("helper/debugging/format_helper.r"))
+source(here("helper/debugging/visualization_helper.r"))
+
 ```
 
 # Set up stimuli pool
@@ -29,13 +33,13 @@ stimuli_pool <- scale(stimuli_pool, center = TRUE, scale = colSums(stimuli_pool)
   
 # sd_n: range decided by n*sd away 
 # sd_step: step decided by sd / sd_step 
-grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 5, sd_step = 10)
+grid_mu_theta = get_grid_mu_theta(stimuli_pool, sd_n = 5, sd_step = 3)
 
 # not sure about the principled way to select these three yet
-grid_sig_sq = seq(0.02, 1, 0.1) # not sure about the principled way to select this yet, but anything too small, like below 0.02 will give-f
+grid_sig_sq = seq(0.02, 1, 0.02) # not sure about the principled way to select this yet, but anything too small, like below 0.02 will give-f
 grid_y <- grid_mu_theta 
 # grid_epsilon might be too small 
-grid_epsilon = seq(0.0001, 1, 0.1)
+grid_epsilon = seq(0.0001, 1, 0.2)
 
 # set model-related parameters 
 em <- read_csv(embedding_path, col_names = FALSE)
@@ -49,7 +53,7 @@ beta_priors = c(1)
 epsilons = c(0.0001) 
 mu_epsilon = c(0)
 sd_epsilon = c(.5)
-world_EIGs = c(0.00001) 
+world_EIGs = c(0.6) 
 max_observation = 500
 
 model_params <- set_granch_params(
@@ -67,15 +71,15 @@ model_params <- add_precalculated_prior_dfs(model_params)
 #background = -0.05154884 * 10, 
 #deviant = 0.087925084 * 10
 
-#bd_pair <- get_bd_pair(stimuli_pool)
+bd_pair <- get_bd_pair(stimuli_pool)
 
 b <- bd_pair[1, ]
 d <- bd_pair[2, ]
 
-stims_df <- tibble(sequence_scheme = c("BBBBBD"#,
-                                      #"BBBBBD",
-                                      #"BBBDBB",
-                                      #"BDBBBB"
+stims_df <- tibble(sequence_scheme = c("BBBBBB",
+                                      "BBBBBD",
+                                      "BBBDBB",
+                                      "BDBBBB"
                                        ),
                    n_features = n_feature
                    ) %>% 
@@ -96,7 +100,49 @@ full_params_df <- make_simulation_params(n_sim = 1,
 
 ```{r}
 full_params_df$stimuli_sequence
+
 ```
+
+# backward im metrics
+}else if(measurement == "KL"){
+    model$KL = rep(NA,max_observation)
+  }else if(measurement == "surprisal"){
+    model$surprisal = rep(NA,max_observation)
+
+```{r}
+
+full_params_df$im <- "surprisal"
+
+```
+
+
+
+
+## density
+
+```{r}
+
+
+tibble(grid_mu_theta = grid_mu_theta,
+line  = 0) %>%
+  ggplot(aes(x = grid_mu_theta, 
+             y = line)) + 
+  geom_point() + 
+  geom_vline(xintercept = b, color = "red"	) + 
+  geom_vline(xintercept =d, color = "blue") +
+  scale_x_continuous(breaks = unique(grid_mu_theta)) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank())+ 
+  ylab("")
+
+  
+
+```
+
+
+
 
 ```{r}
 tic()
@@ -110,155 +156,129 @@ all_sims_res <- full_params_df %>%
 toc()
 ```
 
-```{r}
-plot_sim_results <- function(all_sims_res){
-  # the simulation results are all stored in the even number rows 
-  lapply(seq(2, nrow(all_sims_res), 2), 
-    function(x){
-      all_sims_res$results[[x]] %>% 
-        mutate(sequence_scheme = all_sims_res$sequence_scheme[[x]], 
-               sim_id = x)
-    }
-  ) %>% 
-    bind_rows() %>% 
-     group_by(stimulus_idx, sim_id, sequence_scheme) %>%
-  filter(!is.na(stimulus_idx)) %>%
-  summarise(sample_n = n()) %>%
-  ggplot(aes(x = stimulus_idx, y = sample_n))+
-  geom_point() + 
-  facet_wrap(~sequence_scheme)
-}
-```
 
 
 ```{r}
 plot_sim_results(all_sims_res)
+plot_sim_eig(all_sims_res)
 ```
+
+current focus is to understand why doesn't first one habituate? 
+
+
+```{r}
+sim1_posteriors <- get_posterior(all_sims_res, 1)
+sim1_hypo_posteriors <- get_hypo_posterior(all_sims_res, 1)
+
+
+sim1_first_transition <- nrow(get_stimulus_idx_t(all_sims_res, 1, 1)) + 1 # gives us the first trial for the 
+sim1_second_transition <- max(get_stimulus_idx_t(all_sims_res, 1, 2)$t) + 1 # gives us the first trial for the 
+sim1_third_transition <- max(get_stimulus_idx_t(all_sims_res, 1, 3)$t) + 1 # gives us the first trial for the 
+sim1_fourth_transition <- max(get_stimulus_idx_t(all_sims_res, 1, 4)$t) + 1 # gives us the first trial for the 
+
+
+sim1_eig_componetns <- format_hypothetical_kl_pp(all_sims_res, 1)
+sim1_kl <- format_hypothetical_kl_pp(all_sims_res, 1) %>% filter(type == "kl") %>% 
+  pivot_longer(cols = starts_with("V"), names_to = "feature", values_to = "kl_val") 
+sim1_pp <- format_hypothetical_kl_pp(all_sims_res, 1) %>% filter(type == "pp") %>% 
+  pivot_longer(cols = starts_with("V"), names_to = "feature", values_to = "pp_val") 
+```
+
+
+```{r}
+
+
+sim1_kl %>% 
+  filter(timestep >= sim1_second_transition, timestep < sim1_fourth_transition) %>% 
+  ggplot(aes(x = timestep, y = kl_val)) +
+  geom_point()+ 
+  facet_wrap(~feature)
+
+sim1_pp %>% 
+  filter(timestep >= sim1_second_transition,timestep < sim1_fourth_transition) %>% 
+  ggplot(aes(x = timestep, y = pp_val)) +
+  geom_point()+ 
+  facet_wrap(~feature)
+
+plot_sim_eig_on_stimulus(all_sims_res, 1, 3)
+
+```
+
+very weird shapes of kl on the second observation on the same stimulus, why going up and then going down? 
+
+
+```{r}
+visualize_posteriors(sim1_posteriors, sim1_first_transition + 2, sim1_second_transition)
+visualize_hypo_posteriors(sim1_hypo_posteriors, sim1_first_transition + 2, sim1_second_transition)
+```
+
+the posteriors all look great, ok, let's now do some hand calculation
+
+```{r}
+p23 <- sim1_posteriors %>% 
+  filter(timestep == sim1_first_transition + 2)
+hp23 <- sim1_hypo_posteriors %>% 
+  filter(timestep == sim1_first_transition + 2, hypo_obs_id ==1)
+
+
+p23$posterior[p23$posterior < exp(-700)] <- 1/(10^300)
+hp23$posterior[hp23$posterior < exp(-700)] <- 1/(10^300)
+
+p24 <- sim1_posteriors %>% 
+  filter(timestep == sim1_first_transition + 3)
+hp24 <- sim1_hypo_posteriors %>% 
+  filter(timestep == sim1_first_transition + 3, hypo_obs_id ==1)
+
+p24$posterior[p24$posterior < exp(-700)] <- 1/(10^300)
+hp24$posterior[hp24$posterior < exp(-700)] <- 1/(10^300)
+
+        
+kl_div(hp23$posterior, p23$posterior)
+kl_div(hp24$posterior, p24$posterior)
+
+```
+
 
 
 
 
 ```{r}
-all_sims_res$results[[2]] %>% 
-  #filter(stimulus_idx < 4) %>% 
-  ggplot(aes(x = t, y = EIG, color = as.factor(stimulus_idx))) + 
-  geom_point() + 
-  geom_line()
+
+format_hypothetical_kl_pp(all_sims_res, 1) %>% 
+  filter(type == "kl") %>% 
+  filter(timestep > 30) %>% 
+  pivot_longer(cols = starts_with("V"), names_to = "feature", values_to = "kl_val") %>% 
+  ggplot(aes(x = timestep, y = kl_val)) +
+  geom_point()+ 
+  facet_wrap(~feature)
+
+format_hypothetical_kl_pp(all_sims_res, 2) %>% 
+  filter(type == "kl") %>% 
+  filter(timestep > 30) %>% 
+  pivot_longer(cols = starts_with("V"), names_to = "feature", values_to = "kl_val") %>% 
+  ggplot(aes(x = timestep, y = kl_val)) +
+  geom_point()+ 
+  facet_wrap(~feature)
 
 
+format_hypothetical_kl_pp(all_sims_res, 1) %>% 
+  filter(type == "pp") %>% 
+  filter(timestep > 30) %>% 
+  pivot_longer(cols = starts_with("V"), names_to = "feature", values_to = "pp_val") %>% 
+  ggplot(aes(x = timestep, y = pp_val)) +
+  geom_point()+ 
+  facet_wrap(~feature)
 
-
-# fluctuation that i don't understand 
+format_hypothetical_kl_pp(all_sims_res, 2) %>% 
+  filter(type == "pp") %>% 
+  filter(timestep > 30) %>% 
+  pivot_longer(cols = starts_with("V"), names_to = "feature", values_to = "pp_val") %>% 
+  ggplot(aes(x = timestep, y = pp_val)) +
+  geom_point()+ 
+  facet_wrap(~feature)
 ```
 
 
-```{r}
 
 
-tibble(grid_mu_theta = grid_mu_theta,
-line  = 0) %>%
-  ggplot(aes(x = grid_mu_theta, 
-             y = line)) + 
-  geom_point() + 
-  geom_vline(xintercept = b, color = "red"	) + 
-  geom_vline(xintercept = d, color = "blue") +
-  scale_x_continuous(breaks = unique(grid_mu_theta)) + 
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
-        axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank())+ 
-  ylab("")
-
-  
-
-```
-
-```{r}
-# function to get posterior 
-# sequence_scheme_id to get the right habituation pattern 
-get_posterior <- function(all_sims_res, sequence_scheme_id){
-  # sim results stored at the second element 
-  total_t <- all_sims_res$results[[sequence_scheme_id * 2]] %>% 
-    filter(!is.na(EIG)) %>% 
-    nrow()
-  
-  all_posteriors <- lapply(seq(1, total_t, 1), 
-                            function(x){
-                              all_sims_res$results[[sequence_scheme_id]][[x]][[1]] %>% 
-                                mutate(timestep = x)
-                            }) %>% 
-    bind_rows()
-  
-  return(all_posteriors)
-}
-
-visualize_posteriors <- function(all_posteriors, t_start, t_end){
-  all_posteriors %>% 
-    filter(timestep >= t_start & timestep <= t_end) %>% 
-    ggplot(aes(x = grid_mu_theta, 
-               y = posterior, 
-               color = grid_sig_sq)) + 
-    geom_point() + 
-    facet_wrap(~timestep)
-  
-}
-```
-
-
-```{r}
-fine_grid_posterior <- get_posterior(all_sims_res, 1)
-coarse_grid_posterior <- get_posterior(all_sims_res, 1)
-```
-
-```{r}
-visualize_posteriors(fine_grid_posterior, 1, 70)
-visualize_posteriors(coarse_grid_posterior, 1, 70)
-```
-```{r}
-fine_grid_posterior %>% 
-  mutate(grid_type = "fine") %>% 
-  bind_rows(coarse_grid_posterior %>% mutate(grid_type = "coarse")) %>% 
-  filter(grid_sig_sq == 0.02) %>% 
-  filter(timestep < 4) %>% 
-  ggplot(aes(x = grid_mu_theta, y = posterior, color = grid_type)) + 
-  geom_point(alpha = .8) + 
-  facet_grid(grid_type~timestep) 
-```
-
-```{r}
-nrow(fine_grid_posterior %>% 
-  filter(posterior == 0)) / nrow(fine_grid_posterior)
-
-nrow(coarse_grid_posterior %>% 
-  filter(posterior == 0)) / nrow(coarse_grid_posterior)
-```
-
-what are those values? 
-
-```{r}
-fine_grid_posterior %>% 
-  mutate(grid_type = "fine") %>% 
-  bind_rows(coarse_grid_posterior %>% mutate(grid_type = "coarse")) %>% 
-  mutate(posterior_zero = (posterior == 0)) %>% 
-  filter(posterior_zero) %>% 
-  filter(timestep < 4) %>% 
-  ggplot(aes(x = grid_mu_theta, y = posterior, color = posterior_zero)) + 
-  geom_point(alpha = .4) + 
-    facet_grid(grid_type~timestep) 
-
-
-```
-```{r}
-coarse_grid_posterior %>% 
-  filter(posterior == 0) %>% 
-  distinct(grid_mu_theta, grid_sig_sq, grid_epsilon, .keep_all = TRUE) %>% 
-  group_by(grid_epsilon) %>% 
-  summarise(n = n())
-
-fine_grid_posterior %>% 
-  filter(posterior == 0) %>% 
-  distinct(grid_mu_theta, grid_sig_sq, grid_epsilon, .keep_all = TRUE) %>% 
-  group_by(grid_epsilon) %>% 
-  summarise(n = n())
-```
 
