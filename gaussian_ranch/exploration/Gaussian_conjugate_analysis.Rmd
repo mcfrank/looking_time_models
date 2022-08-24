@@ -57,7 +57,7 @@ In code, after some re-arranging, for a sample X:
 
 ```{r}
 set.seed(1)
-X = rnorm(100, mean = 5, sd = 3)
+X = rnorm(100, mean = 5, sd = 3) + rnorm(100, mean = 0, sd = 0.5)
 
 # observe this X[1] 100x with noise 
 
@@ -79,6 +79,8 @@ plotInvGamma(a_n, b_n)
 
 # combined normal inverse gamma distribution (don't know why it gets cut off)
 plotNormalInvGamma(m_n, 1/V_n, a_n, b_n)
+
+x_bar
 
 
 ```
