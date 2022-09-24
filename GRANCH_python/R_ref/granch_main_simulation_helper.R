@@ -4,9 +4,115 @@
 # 3. main_simulation_random_looking (Baseline No Learnign Model)
 
 
-source(here("helper/init.r"))
-source(here("helper/compute_prob.r"))
-
+granch_main_comparison <- function(params = df, testing = TRUE) {
+  
+  
+  # grid info 
+  grid_mu_theta <- (params$grid_mu_theta)[[1]]
+  grid_sig_sq <- (params$grid_sig_sq)[[1]]
+  grid_y <- (params$grid_y)[[1]]
+  grid_epsilon <- (params$grid_epsilon)[[1]]
+  hypothetical_obs_grid_n <- params$hypothetical_obs_grid_n
+  
+  ## constant dataframes 
+  df_y_given_mu_sig_sq <- (params$df_y_given_mu_sig_sq)[[1]]
+  prior_df <- (params$prior_df)[[1]]
+  
+  
+  ### BOOK-KEEPING 
+  total_trial_number = max(params$stimuli_sequence[[1]]$trial_number)
+  
+  # df for keeping track of model behavior
+  model <-  initialize_model( params$world_EIG, params$max_observation,  params$n_features)
+  
+  # list of lists of df for the posteriors and likelihoods
+  # require new function to stored the existing calculations 
+  ll_z_given_mu_sig_sq <- initialize_z_given_mu_sig_sq(prior_df, 
+                                                       params$max_observation, 
+                                                       params$n_features)
+  
+  # could be further optimized
+  ll_post <- initialize_post_df(prior_df,
+                                params$max_observation, 
+                                params$n_features)
+  
+  
+  
+  p_post_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$n_features, 
+                       ncol =  params$n_features)
+  kl_new <- matrix(data = NA, nrow = hypothetical_obs_grid_n ^ params$n_features, 
+                   ncol =  params$n_features)
+  
+  
+  
+  ## make a list of list that keeps track of: 
+  # at each time point t, (only looking at single fature case because it doesn't make too much sense to look at multiple )
+  # the real posterior 
+  # the kl 
+  # the posterior predictives 
+  ll_model_testing <- initialize_model_testing_infrastructrue(params$max_observation)
+  
+  
+  
+  
+  
+  ### MAIN MODEL LOOP
+  stimulus_idx <- 1
+  t <- 1
+  
+  # while we haven't run out of stimuli or observations, 
+  # sample a new observation
+  # compute expected information gain
+  # make a choice what to do
+  while(t < 4) {
+    print(glue::glue("time: {t}"))
+    model$t[t] = t
+    model$stimulus_idx[t] = stimulus_idx
+    
+    # get stimulus, observation, add to model
+    current_stimulus <-  params$stimuli_sequence[[1]][stimulus_idx, grepl("V", names(params$stimuli_sequence[[1]]))]
+    
+    current_observation <- noisy_observation(current_stimulus, epsilon = params$epsilon)
+    
+    all_posible_observations_on_current_stimulus <- get_all_possible_observations_for_stimulus(current_stimulus, 
+                                                                                               epsilon = params$epsilon, 
+                                                                                               grid_n = hypothetical_obs_grid_n)
+    
+    model[t, grepl("^f", names(model))] <- as.list(current_observation)
+    
+    # steps in calculating EIG
+    # - compute current posterior grid
+    for (f in 1:params$n_features) {
+      # update likelihood
+      ll_z_given_mu_sig_sq[[t]][[f]] <- score_z_given_mu_sig_sq(t, f, 
+                                                                df_y_given_mu_sig_sq, # cached likelihoods
+                                                                ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
+                                                                model) 
+      
+      # update posterior
+      ll_post[[t]][[f]] <- score_post(ll_z_given_mu_sig_sq[[t]][[f]],
+                                      prior_df) 
+      
+      
+      ll_model_testing[[t]][[1]] <- ll_post[[t]][[f]]
+    }
+    
+    
+    t <- t+1
+    
+  } # FINISH HUGE WHILE LOOP
+  
+  if(testing == TRUE){
+    testing_output <- list(ll_model_testing, 
+                           model)
+    return(testing_output)
+  }else{
+    return(model)  
+  }
+  
+  
+  
+}
 
 ## ----------------- main_simulation -------------------
 # runs main simulation computing EIG 
