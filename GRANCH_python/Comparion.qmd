@@ -1,0 +1,403 @@
+---
+title: "R-Python Comparison"
+format: html
+editor: visual
+---
+
+# R
+
+```{r}
+library(reticulate)
+
+library(here)
+library(tidyverse)
+library(tictoc)
+
+lapply(list.files(here("GRANCH_python/R_ref")), 
+       function(x){
+         source(paste0(here("GRANCH_python/R_ref"), "/", x))
+       })
+
+
+hypothetical_obs_grid_n <- 3
+n_feature <- 1
+
+  
+# sd_n: range decided by n*sd away 
+# sd_step: step decided by sd / sd_step 
+grid_mu_theta = c(0.1, 0.2, 0.3)
+
+# not sure about the principled way to select these three yet
+grid_sig_sq = c(0.4, 0.5, 0.6)
+grid_y <- c(0.7, 0.8, 0.9) 
+# grid_epsilon might be too small 
+grid_epsilon = c(0.11, 0.12, 0.13)
+
+mu_priors = c(1)
+V_priors = c(1) # maybe this controls for how fast?
+alpha_priors = c(1) 
+beta_priors = c(1) 
+epsilons = c(0) 
+mu_epsilon = c(0.01)
+sd_epsilon = c(0.01)
+world_EIGs = c(0.01) 
+max_observation = 500
+
+model_params <- set_granch_params(
+                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, hypothetical_obs_grid_n,
+                mu_priors, V_priors, 
+                alpha_priors, beta_priors, 
+                epsilons, mu_epsilon, sd_epsilon,
+                world_EIGs, max_observation)
+
+model_params <- add_precalculated_prior_dfs(model_params)
+
+b <- 0.1
+d <- 0.3
+
+stims_df <- tibble(sequence_scheme = c("BBB"),
+                   n_features = n_feature
+                   ) %>% 
+  mutate(
+    stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss,background = b  ,
+deviant =d
+)}))
+
+
+
+full_params_df <- make_simulation_params(n_sim = 1,
+                                        model_params, 
+                                        stims_df)
+
+tic()
+all_sims_res <- full_params_df %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) granch_main_comparison(params = df))) %>%
+  unnest(cols = c(data, results))
+toc()
+```
+
+
+
+# Python 
+
+```{python}
+import torch 
+import pandas as pd
+import init_params
+import compute_prob
+import init_model
+import helper
+import main_sim
+import importlib 
+
+
+importlib.reload(helper)
+importlib.reload(compute_prob)
+importlib.reload(init_params)
+importlib.reload(init_model)
+
+
+p = init_params.granch_params(
+    grid_mu_theta = torch.tensor([0.1, 0.2, 0.3]), 
+    grid_sig_sq = torch.tensor([0.4, 0.5, 0.6]), 
+    grid_y = torch.tensor([0.7, 0.8, 0.9]), 
+    grid_epsilon = torch.tensor([0.11, 0.12, 0.13]), 
+    hypothetical_obs_grid_n = 2, 
+    mu_prior = 1,
+    V_prior = 1, 
+    alpha_prior = 1, 
+    beta_prior = 1,
+    epsilon  = 0.0000000000000001, 
+    mu_epsilon = torch.tensor([0.01]), 
+    sd_epsilon = torch.tensor([0.01]), 
+    world_EIGs = 0.01,
+    max_observation = 500
+)
+
+
+# set up the prior dfs 
+p.add_meshed_grid()
+p.add_lp_mu_sig_sq()
+p.add_y_given_mu_sig_sq()
+p.add_lp_epsilon()
+# this added components to be used that can be used to calculate posterior
+p.add_priors()
+
+
+
+s = init_model.granch_stimuli(1, 'BBB')
+m = init_model.granch_model(500, s)
+
+main_sim.granch_main_simulation(p, m, s)
+
+
+py_post = m.all_posterior[1].tolist()
+```
+
+Goal: make sure the likelihood vector is aligned with the prior vector 
+Approach: aligning the combination of the grid_mu_theta, grid_sig_sq, and grid_epsilon
+
+
+```{python}
+ldf = m.all_likelihood_df[0]
+likelihood = m.all_likelihood[0]
+
+
+# the unique here at the prior df retain the ordering 
+unique_prior_df_t = torch.unique(prior_df_t, dim = 0, sorted = False)
+unique_prior_df = pd.DataFrame(unique_prior_df_t)
+unique_prior_df.columns = ["grid_mu_theta", "grid_sig_sq", 
+        "grid_epsilon", "lp_mu_sig_sq", "lp_epsilon"]
+    
+# can i get the likelihood to have the order retained 
+# currently maybe not, lp_epsilon first 
+# also the group_by in helper: actually confirmed the same ordering
+# "grid_epsilon", "grid_mu_theta", "grid_sig_sq", "lp_z"
+ldf_t = torch.tensor(ldf.values)
+unique_ldf =  torch.unique(ldf_t, dim = 0, sorted = False)
+unique_ldf = pd.DataFrame(unique_ldf)
+unique_ldf.columns = [ "grid_mu_theta", "grid_sig_sq", "grid_epsilon"]
+   
+test_post = torch.add(torch.add(likelihood, p.prior_lp_epsilon), 
+p.prior_lp_mu_sig_sq).tolist()
+```
+
+# posterior
+
+```{r}
+py_prior_df = py$prior_df
+py_ldf = py$ldf
+
+a = py_prior_df %>% 
+  distinct(grid_epsilon, 
+                   grid_mu_theta, 
+                   grid_sig_sq, lp_mu_sig_sq, lp_epsilon) 
+
+
+
+
+likelihood = py$ldf %>% 
+  group_by(grid_epsilon, grid_mu_theta, grid_sig_sq) %>% 
+  summarise(l = matrixStats::logSumExp(lp_z_given_mu_sig_sq_for_y)) 
+
+
+a_post <- a %>% 
+  left_join(likelihood, by = c("grid_epsilon", 
+                   "grid_mu_theta", 
+                   "grid_sig_sq")) %>% 
+  mutate(py_ulp = lp_mu_sig_sq + lp_epsilon + l)
+
+
+
+r_post <- all_sims_res$results[[1]][[1]][[1]] %>% 
+  distinct(grid_mu_theta, grid_sig_sq, grid_epsilon, 
+           lp_epsilon, lp_mu_sig_sq,
+           lp_z_given_mu_sig_sq, unnormalized_log_posterior, posterior) %>% 
+  rename(r_lp_epsilon = lp_epsilon, 
+         r_lp_mu_sig_sq = lp_mu_sig_sq)
+test_post = py$test_post
+
+
+# visualization has confirmed that the differnece in value has sth to do with the fluctuation of the prior resulted from the different function
+rpy_cp <- a_post %>% 
+  mutate(grid_mu_theta = round(grid_mu_theta, 2), 
+         grid_sig_sq = round(grid_sig_sq, 2), 
+         grid_epsilon = round(grid_epsilon,2)
+         ) %>% 
+  left_join(r_post, 
+             by = c("grid_mu_theta", "grid_sig_sq", "grid_epsilon")) %>% 
+  mutate(
+    diff_lp_epsilon = lp_epsilon - r_lp_epsilon, 
+    diff_lp_mu_sig_sq = lp_mu_sig_sq - r_lp_mu_sig_sq,
+    diff_likelihood = l - lp_z_given_mu_sig_sq,
+    diff_ulp = py_ulp - unnormalized_log_posterior)  
+
+
+
+```
+
+ 
+
+
+
+# compare Prior 
+
+
+```{r}
+python_r_prior <- py$r_type_prior_df
+
+names(python_r_prior) <- c("grid_mu_theta", 
+                           "grid_sig_sq", 
+                           #"grid_y",
+                           "grid_epsilon", 
+                           "lp_mu_sig_sq", "lp_epsilon")
+
+r_prior <- all_sims_res$results[[1]][[1]][[1]]
+
+r_prior <- r_prior %>% 
+  select(grid_mu_theta, grid_sig_sq, 
+         grid_epsilon, lp_mu_sig_sq, lp_epsilon) %>% 
+  distinct(grid_mu_theta, grid_sig_sq, 
+         grid_epsilon, lp_mu_sig_sq, lp_epsilon)
+
+```
+
+```{r}
+# lp mu sig sq's gap between R and python seems to be pretty consistent 
+python_r_prior %>% 
+  mutate(type = "python") %>% 
+  bind_rows(r_prior %>% mutate(type = "R")) %>% 
+  group_by(type) %>% 
+  mutate(row_idx = row_number()) %>% 
+  mutate(grid_mu_theta = round(grid_mu_theta, 2), 
+         grid_sig_sq = round(grid_sig_sq, 2), 
+         grid_epsilon = round(grid_epsilon, 2)) %>% 
+  ggplot(aes(x = grid_mu_theta, 
+             y = lp_mu_sig_sq, 
+             color = type)) + 
+  geom_point() + 
+  facet_grid(grid_sig_sq ~ grid_epsilon)
+
+
+
+```
+
+# performance comparison 
+
+```{r}
+calculate_run_time <- function(n){
+  
+  grid_mu_theta = rep(0.1, n)
+
+  # not sure about the principled way to select these three yet
+  grid_sig_sq = rep(0.1, n)
+  grid_y <- rep(0.1, n)
+# grid_epsilon might be too small 
+  grid_epsilon = rep(0.1, n)
+
+mu_priors = c(1)
+V_priors = c(1) # maybe this controls for how fast?
+alpha_priors = c(1) 
+beta_priors = c(1) 
+epsilons = c(0) 
+mu_epsilon = c(0.01)
+sd_epsilon = c(0.01)
+world_EIGs = c(0.01) 
+max_observation = 500
+
+model_params <- set_granch_params(
+                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, hypothetical_obs_grid_n,
+                mu_priors, V_priors, 
+                alpha_priors, beta_priors, 
+                epsilons, mu_epsilon, sd_epsilon,
+                world_EIGs, max_observation)
+startTime <- Sys.time()
+model_params <- add_precalculated_prior_dfs(model_params)
+endTime <- Sys.time()
+
+df <- tibble(
+  n_row = length(grid_mu_theta) * length(grid_sig_sq) * length(grid_y) * length(grid_epsilon), 
+  time = endTime-startTime
+)
+return (df)
+
+}
+
+r_time <- lapply(seq(1, 10), 
+       calculate_run_time) %>% 
+  bind_rows()
+```
+
+
+
+```{python}
+import time
+import pandas as pd
+import numpy as np
+
+def calculate_run_time(n):
+  p = init_params.granch_params(
+      grid_mu_theta = torch.tensor([0.1] * n), 
+      grid_sig_sq = torch.tensor([0.1] * n), 
+      grid_y = torch.tensor([0.1] * n), 
+      grid_epsilon =torch.tensor([0.1] * n), 
+      hypothetical_obs_grid_n = 2, 
+      mu_prior = 1,
+      V_prior = 1, 
+      alpha_prior = 1, 
+      beta_prior = 1, 
+      epsilon  = 0.0000000000000001, 
+      mu_epsilon = torch.tensor([0.01]), 
+      sd_epsilon = torch.tensor([0.01]), 
+      world_EIGs = 0.01,
+      max_observation = 500
+  )
+  start_time = time.perf_counter()
+  p.add_meshed_grid()
+  p.add_lp_mu_sig_sq()
+  p.add_y_given_mu_sig_sq()
+  p.add_lp_epsilon()
+  end_time = time.perf_counter()
+  return end_time-start_time
+
+# can't do 1
+
+t_df = pd.DataFrame({"n": np.linspace(start = 2, stop = 10, num = 9, dtype = int)}) 
+
+t_df["t"] = t_df.applymap(calculate_run_time)
+t_df["n_row"] = np.linspace(start = 2, stop = 10, num = 9, dtype = int) ** 4
+```
+
+```{r}
+python_t_df <- py$t_df %>% 
+  mutate(type = "Python") %>% 
+  rename(python_time = t) %>% 
+  select(n_row, python_time)
+r_time %>% 
+  mutate(type = "R") %>%
+  rename(r_time = time) %>%
+  mutate(r_time = as.numeric(r_time)) %>% 
+  select(n_row, r_time) %>% 
+  left_join(python_t_df, by = c("n_row")) %>% 
+  pivot_longer(cols = c("r_time", "python_time"), 
+               names_to = "time_type", 
+               values_to = "time") %>% 
+  ggplot(aes(x = n_row, 
+             y = time,
+             color = time_type)) + 
+  geom_point() + 
+  geom_line()
+```
+
+
+# compare posteior 
+
+```{r}
+py_post <- py$post_df
+r_post <- all_sims_res$results[[1]][[2]][[1]] %>% 
+  distinct(grid_mu_theta, grid_sig_sq, grid_epsilon, 
+           lp_z_given_mu_sig_sq, unnormalized_log_posterior, posterior)
+
+r_post$py_post = py$py_post
+
+
+r_post %>% 
+  pivot_longer(cols = c(posterior, py_post), 
+               names_to = "posterior_type",
+               values_to = "posterior_val") %>% 
+  ggplot(aes(x = grid_mu_theta, 
+             y = posterior_val, 
+             color = posterior_type)) + 
+  geom_point(position = position_dodge(width = 0.01)) + 
+  facet_grid(grid_sig_sq ~ grid_epsilon)
+```
+
+```{r}
+r_post
+py_post
+```
+

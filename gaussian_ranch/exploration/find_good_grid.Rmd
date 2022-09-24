@@ -11,6 +11,7 @@ library(tictoc)
 library(tidyverse)
 library(matrixStats)
 source(here("helper/compute_prob.r"))
+source(here("helper/init.r"))
 source(here("helper/granch_main_simulation_helper.R")) # this will import other helper functions 
 source(here("helper/granch_sim_setup_helper.R")) # this will import functions that help with setting parameters 
 
@@ -48,12 +49,12 @@ mean_em <- mean(as.matrix(em))
 mu_priors = c(mean_em)
 mu_priors = c(0)
 V_priors = c(0.5) # maybe this controls for how fast?
-alpha_priors = c(1) 
-beta_priors = c(1) 
+alpha_priors = c(2) 
+beta_priors = c(2) 
 epsilons = c(0.0001) 
 mu_epsilon = c(0)
 sd_epsilon = c(.5)
-world_EIGs = c(0.6) 
+world_EIGs = c(1) 
 max_observation = 500
 
 model_params <- set_granch_params(
@@ -68,27 +69,16 @@ model_params <- add_precalculated_prior_dfs(model_params)
 ```
 
 ```{r}
-#background = -0.05154884 * 10, 
-#deviant = 0.087925084 * 10
 
-bd_pair <- get_bd_pair(stimuli_pool)
+b <- 0.1
+d <- 0.3
 
-b <- bd_pair[1, ]
-d <- bd_pair[2, ]
-
-stims_df <- tibble(sequence_scheme = c("BBBBBB",
-                                      "BBBBBD",
-                                      "BBBDBB",
-                                      "BDBBBB"
-                                       ),
+stims_df <- tibble(sequence_scheme = c("BBB"),
                    n_features = n_feature
                    ) %>% 
   mutate(
-    stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss, #background = bd_pair[1, ], 
-
-background = b  ,
+    stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss,background = b  ,
 deviant =d
-
 )}))
 
 
@@ -141,8 +131,27 @@ line  = 0) %>%
 
 ```
 
+# backward model 
+
+```{r}
+tic()
+all_sims_res <- full_params_df %>%
+  mutate(row_number = row_number()) %>% 
+  group_by(row_number) %>% 
+  nest() %>%
+  mutate(results = map(data,
+                       function(df) granch_backward_im_simulation(params = df))) %>%
+ unnest(cols = c(data, results))
+toc()
+```
+
+```{r}
+all_sims_res
+```
 
 
+
+# forward model 
 
 ```{r}
 tic()

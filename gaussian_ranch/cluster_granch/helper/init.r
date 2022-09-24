@@ -40,6 +40,7 @@ noisy_observation <- function(stimulus, epsilon){
 }
 
 initialize_model <- function(eig_from_world, max_observation, n_features, measurement = "EIG") {
+  print("Initialized model")
   
   model <- tibble(t = rep(NA,max_observation),
                   stimulus_idx = rep(NA,max_observation), 
@@ -50,7 +51,7 @@ initialize_model <- function(eig_from_world, max_observation, n_features, measur
   if(measurement == "EIG"){
     model$EIG = rep(NA,max_observation)
   }else{
-    model$im = rep(NA,max_observation)
+    model$im_val = rep(NA,max_observation)
   }
   
   # initialize columns for observations
