@@ -1,17 +1,10 @@
 import torch 
 from itertools import repeat 
+import numpy as np
+import pandas as pd
 import helper
+import compute_prob
+a = torch.tensor([-1279.1746])
 
-
-def get_ith_column(t,i):
- return t.gather(1, torch.full([t.size(dim = 0)], fill_value = i, dtype = torch.int64).unsqueeze(1)).squeeze()
-
-a = torch.tensor(
-    [[1, 1, 1],
-    [2, 3, 4]]
-)
-
-print(get_ith_column(a, 0))
-
-print(get_ith_column(a, 1))
-print(get_ith_column(a, 2))
+print(torch.exp())
+print(torch.exp(a).item() == 0)

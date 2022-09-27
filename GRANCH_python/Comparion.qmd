@@ -8,7 +8,7 @@ editor: visual
 
 ```{r}
 library(reticulate)
-
+library(matrixStats)
 library(here)
 library(tidyverse)
 library(tictoc)
@@ -80,9 +80,7 @@ all_sims_res <- full_params_df %>%
 toc()
 ```
 
-
-
-# Python 
+# Python
 
 ```{python}
 import torch 
@@ -99,6 +97,7 @@ importlib.reload(helper)
 importlib.reload(compute_prob)
 importlib.reload(init_params)
 importlib.reload(init_model)
+importlib.reload(main_sim)
 
 
 p = init_params.granch_params(
@@ -115,8 +114,7 @@ p = init_params.granch_params(
     mu_epsilon = torch.tensor([0.01]), 
     sd_epsilon = torch.tensor([0.01]), 
     world_EIGs = 0.01,
-    max_observation = 500
-)
+    max_observation = 500)
 
 
 # set up the prior dfs 
@@ -128,19 +126,23 @@ p.add_lp_epsilon()
 p.add_priors()
 
 
-
 s = init_model.granch_stimuli(1, 'BBB')
 m = init_model.granch_model(500, s)
 
 main_sim.granch_main_simulation(p, m, s)
 
 
-py_post = m.all_posterior[1].tolist()
+basic_kls = list(map(lambda e: e.item(), list(filter(lambda item: item is not None, m.all_basic_KL))))
+
+basic_pps = list(map(lambda e: e.item(), list(filter(lambda item: item is not None, m.all_basic_PP))))
+
+kl_pps = pd.DataFrame(
+  {"kl": basic_kls, 
+  "pp": basic_pps}
+)
 ```
 
-Goal: make sure the likelihood vector is aligned with the prior vector 
-Approach: aligning the combination of the grid_mu_theta, grid_sig_sq, and grid_epsilon
-
+Goal: make sure the likelihood vector is aligned with the prior vector Approach: aligning the combination of the grid_mu_theta, grid_sig_sq, and grid_epsilon
 
 ```{python}
 ldf = m.all_likelihood_df[0]
@@ -220,12 +222,7 @@ rpy_cp <- a_post %>%
 
 ```
 
- 
-
-
-
-# compare Prior 
-
+# compare Prior
 
 ```{r}
 python_r_prior <- py$r_type_prior_df
@@ -266,7 +263,7 @@ python_r_prior %>%
 
 ```
 
-# performance comparison 
+# performance comparison
 
 ```{r}
 calculate_run_time <- function(n){
@@ -311,8 +308,6 @@ r_time <- lapply(seq(1, 10),
        calculate_run_time) %>% 
   bind_rows()
 ```
-
-
 
 ```{python}
 import time
@@ -374,30 +369,31 @@ r_time %>%
 ```
 
 
-# compare posteior 
-
+# compare KL and PP
 ```{r}
-py_post <- py$post_df
-r_post <- all_sims_res$results[[1]][[2]][[1]] %>% 
-  distinct(grid_mu_theta, grid_sig_sq, grid_epsilon, 
-           lp_z_given_mu_sig_sq, unnormalized_log_posterior, posterior)
+py_kl_pp = py$kl_pps %>% 
+  mutate(t = row_number(), 
+         type = "py")
 
-r_post$py_post = py$py_post
+r_kl_pp = all_sims_res %>% 
+    ungroup() %>% 
+  select(kl, pp) %>% 
+  mutate(t = row_number() -1) %>% 
+  filter(t != 0) %>% 
+  filter(!is.na(kl)) %>% 
+  mutate(type = "r")
 
-
-r_post %>% 
-  pivot_longer(cols = c(posterior, py_post), 
-               names_to = "posterior_type",
-               values_to = "posterior_val") %>% 
-  ggplot(aes(x = grid_mu_theta, 
-             y = posterior_val, 
-             color = posterior_type)) + 
-  geom_point(position = position_dodge(width = 0.01)) + 
-  facet_grid(grid_sig_sq ~ grid_epsilon)
+bind_rows(py_kl_pp, r_kl_pp) %>% 
+  pivot_longer(cols = c("kl", "pp"), 
+               names_to = "val_type", 
+               values_to = "value") %>% 
+  ggplot(aes(x = t, 
+             y = value, 
+             color = value_type)) + 
+  geom_point() + geom_line() + 
+  facet_grid(~val_type, scales = "free")
 ```
 
-```{r}
-r_post
-py_post
-```
+
+
 

@@ -30,6 +30,7 @@ class granch_model:
         self.max_observation = max_observation
         self.behavior = pd.DataFrame(None, index=np.arange(max_observation),
                                      columns=["stimulus_id", "EIG", "Decision"])
+        self.possible_observations = None 
 
         
         self.all_observations = pd.DataFrame(0, index=np.arange(max_observation),
@@ -39,9 +40,10 @@ class granch_model:
         self.all_likelihood = [None] * self.max_observation
         self.all_posterior = [None] * self.max_observation
 
-        # help with debugging 
-        self.all_likelihood_df = [None] * self.max_observation
 
+        # help with debugging 
+        self.all_basic_KL = [None] * self.max_observation
+        self.all_basic_PP = [None] * self.max_observation
 
 
     def update_model_stimulus_id(self): 
@@ -53,6 +55,11 @@ class granch_model:
     def update_posterior(self, new_posterior): 
         self.all_posterior[self.current_t] = new_posterior
 
+    def update_possible_observations(self, noise_epsilon, hypothetical_obs_grid_n): 
+        self.possible_observations = torch.linspace((self.stimuli.stimuli_sequence[self.current_stimulus_idx] - noise_epsilon).item(), 
+                                                (self.stimuli.stimuli_sequence[self.current_stimulus_idx] + noise_epsilon).item(), 
+                                                hypothetical_obs_grid_n)
+        
 
     def update_noisy_observation(self, noise_epsilon): 
         current_stimulus = self.stimuli.stimuli_sequence[self.current_stimulus_idx]
@@ -69,6 +76,11 @@ class granch_model:
         last_stimuli_last_obs_t = max(self.behavior.index[self.behavior['stimulus_id'] == 
                                     self.current_stimulus_idx-1].tolist())
         return self.all_likelihood[last_stimuli_last_obs_t]
+
+    def if_same_stimulus_as_previous_t(self): 
+        last_t_stimulus = max(self.behavior[pd.notnull(self.behavior["stimulus_id"])]["stimulus_id"])
+        return (self.current_stimulus_idx == last_t_stimulus)
+
 
         
 

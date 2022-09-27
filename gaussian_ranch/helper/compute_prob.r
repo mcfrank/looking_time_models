@@ -146,8 +146,9 @@ get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq){
                         + grid_mu_theta, 
                        data = temp_df, FUN = matrixStats::logSumExp)
   
-  return(exp(logSumExp(temp_df$lp_z_given_mu_sig_sq + lp_post$log_posterior)))
-
+  
+  #return(exp(logSumExp(temp_df$lp_z_given_mu_sig_sq + lp_post$log_posterior)))
+  return(exp(logSumExp(temp_df$lp_z_given_mu_sig_sq_for_y + lp_post$log_posterior)))
 }
 
 kl_div <- function (x, y) {

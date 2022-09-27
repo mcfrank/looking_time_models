@@ -47,7 +47,7 @@ def granch_main_simulation(params, model, stimuli):
     t = 0 # following python tradition we are using 0-indexed
     # pending stimulus 
     #while stimulus_idx <= stimuli.n_trial and t <= model.max_observation:  
-    while t < 3: 
+    while t < 10: 
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
@@ -57,6 +57,14 @@ def granch_main_simulation(params, model, stimuli):
         model.update_noisy_observation(params.epsilon)
 
         # get all possible observation on current stimulus 
+        # if we didn't change stimulus 
+        if model.current_t == 0 or (not model.if_same_stimulus_as_previous_t()): 
+            model.update_possible_observations(params.epsilon, 
+                                               params.hypothetical_obs_grid_n)
+        
+
+
+
         # this is for EIG, wait till later 
 
 
@@ -72,8 +80,13 @@ def granch_main_simulation(params, model, stimuli):
         model.update_likelihood(compute_prob.score_likelihood(model, params))
         model.update_posterior(compute_prob.score_posterior(model,params))
        
-        #print(unique)
-        
+        if t >=1: 
+            # calculate basic KL and PP 
+            # later needs to be in a loop or some sort of fancy matrix multiplication
+            model.all_basic_KL[model.current_t] = compute_prob.kl_div(model.all_posterior[model.current_t], 
+                                                                model.all_posterior[model.current_t - 1])
+            model.all_basic_PP[model.current_t] = compute_prob.score_post_pred(torch.tensor([0.11]), 
+                                                                               model, params)
         
        
         # then calculate EIG 
