@@ -55,9 +55,7 @@ class granch_params:
         meshed_grid_sig_sq, 
         meshed_grid_y, 
         meshed_grid_epsilon) = torch.meshgrid(
-            self.grid_mu_theta, 
-
-            
+            self.grid_mu_theta,
             self.grid_sig_sq, 
             self.grid_y,
             self.grid_epsilon

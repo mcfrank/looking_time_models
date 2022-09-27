@@ -10,7 +10,51 @@ from torch.distributions import Normal
 import helper
 
 
+
+
+
+
 # --- major function -- # 
+
+
+
+
+def kl_div(new_post, prev_post): 
+    return torch.sum(torch.mul(new_post, 
+                         torch.log(new_post/prev_post)))
+
+
+def score_post_pred(hypo_obs, model, params): 
+    lp_hypo_z_given_mu_sig_sq_for_y = torch.add(score_z_ij_given_y(hypo_obs,
+                                                                   params.meshed_grid_y, 
+                                                                   params.meshed_epsilon), 
+                                                params.lp_y_given_mu_sig_sq  
+                                                )
+
+    # goal: apply logSumExp based on the grouping of y
+    # first we need to putting all the grouping base together 
+    # note the order of the tensor matters to provide a grouping base 
+    # that algins with lp_z_given_mu_sig_sq_for_y grouping base 
+    grouping_base = torch.cat(
+            (
+             params.meshed_grid_mu_theta.unsqueeze(1),
+             params.meshed_grid_sig_sq.unsqueeze(1),
+            params.meshed_epsilon.unsqueeze(1)
+            ),
+             dim = 1)
+
+    # crossed checked in R that likelihood_df group by operation 
+    # is the same with the one using the homebased function
+    hypo_likelihood = helper.group_by_logsumexp(grouping_base, lp_hypo_z_given_mu_sig_sq_for_y)    
+    log_posterior = torch.log(model.all_posterior[model.current_t])
+    print(hypo_likelihood)
+    return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0)))
+
+     
+    
+
+
+
 def score_posterior(model, params): 
 
    unlz_p = torch.add(torch.add(model.all_likelihood[model.current_t], params.prior_lp_epsilon), 
@@ -42,21 +86,6 @@ def score_likelihood(model, params):
             ),
              dim = 1)
 
-    '''    
-    likelihood_df = torch.cat(
-        (
-             params.meshed_grid_mu_theta.unsqueeze(1),
-             params.meshed_grid_sig_sq.unsqueeze(1),
-             params.meshed_epsilon.unsqueeze(1)
-             # lp_z_given_mu_sig_sq_for_y.unsqueeze(1)
-            ),
-             dim = 1)
-
-    likelihood_df = pd.DataFrame(likelihood_df)
-    likelihood_df.columns = ["grid_mu_theta", "grid_sig_sq", "grid_epsilon"]
-
-    model.all_likelihood_df[model.current_t] = likelihood_df
-    '''
     # crossed checked in R that likelihood_df group by operation 
     # is the same with the one using the homebased function
     likelihood = helper.group_by_logsumexp(grouping_base, lp_z_given_mu_sig_sq_for_y)

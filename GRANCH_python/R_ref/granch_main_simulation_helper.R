@@ -4,7 +4,7 @@
 # 3. main_simulation_random_looking (Baseline No Learnign Model)
 
 
-granch_main_comparison <- function(params = df, testing = TRUE) {
+granch_main_comparison <- function(params = df, testing = FALSE) {
   
   
   # grid info 
@@ -44,6 +44,11 @@ granch_main_comparison <- function(params = df, testing = TRUE) {
                    ncol =  params$n_features)
   
   
+  basic_kl_pp_df <- tibble(
+    kl = rep(NA_real_, params$max_observation), 
+    pp = rep(NA_real_, params$max_observation)
+  )
+  
   
   ## make a list of list that keeps track of: 
   # at each time point t, (only looking at single fature case because it doesn't make too much sense to look at multiple )
@@ -64,7 +69,7 @@ granch_main_comparison <- function(params = df, testing = TRUE) {
   # sample a new observation
   # compute expected information gain
   # make a choice what to do
-  while(t < 4) {
+  while(t < 11) {
     print(glue::glue("time: {t}"))
     model$t[t] = t
     model$stimulus_idx[t] = stimulus_idx
@@ -95,6 +100,16 @@ granch_main_comparison <- function(params = df, testing = TRUE) {
       
       
       ll_model_testing[[t]][[1]] <- ll_post[[t]][[f]]
+      
+      
+      if (t > 1){
+        basic_kl_pp_df$kl[t] = kl_div(ll_post[[t]][[f]]$posterior, 
+                                      ll_post[[t-1]][[f]]$posterior)
+        basic_kl_pp_df$pp[t] = get_post_pred(obs = 0.11,
+                                             lp_post = ll_post[[t]][[f]] ,
+                                             df_y_given_mu_sig_sq)
+      }
+      
     }
     
     
@@ -107,7 +122,8 @@ granch_main_comparison <- function(params = df, testing = TRUE) {
                            model)
     return(testing_output)
   }else{
-    return(model)  
+    return(basic_kl_pp_df)
+    #return(model)  
   }
   
   
