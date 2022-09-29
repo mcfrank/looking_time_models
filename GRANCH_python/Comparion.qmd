@@ -113,7 +113,7 @@ p = init_params.granch_params(
     epsilon  = 0.0000000000000001, 
     mu_epsilon = torch.tensor([0.01]), 
     sd_epsilon = torch.tensor([0.01]), 
-    world_EIGs = 0.01,
+    world_EIGs = 0.0001,
     max_observation = 500)
 
 
@@ -126,20 +126,14 @@ p.add_lp_epsilon()
 p.add_priors()
 
 
-s = init_model.granch_stimuli(1, 'BBB')
+s = init_model.granch_stimuli(1, 'BBBBB')
+s.get_stimuli_sequence("embedding_PCA.csv")
+
+
 m = init_model.granch_model(500, s)
 
-main_sim.granch_main_simulation(p, m, s)
+res = main_sim.granch_main_simulation(p, m, s)
 
-
-basic_kls = list(map(lambda e: e.item(), list(filter(lambda item: item is not None, m.all_basic_KL))))
-
-basic_pps = list(map(lambda e: e.item(), list(filter(lambda item: item is not None, m.all_basic_PP))))
-
-kl_pps = pd.DataFrame(
-  {"kl": basic_kls, 
-  "pp": basic_pps}
-)
 ```
 
 Goal: make sure the likelihood vector is aligned with the prior vector Approach: aligning the combination of the grid_mu_theta, grid_sig_sq, and grid_epsilon
@@ -383,15 +377,15 @@ r_kl_pp = all_sims_res %>%
   filter(!is.na(kl)) %>% 
   mutate(type = "r")
 
-bind_rows(py_kl_pp, r_kl_pp) %>% 
+bind_rosws(py_kl_pp, r_kl_pp) %>% 
   pivot_longer(cols = c("kl", "pp"), 
                names_to = "val_type", 
                values_to = "value") %>% 
   ggplot(aes(x = t, 
              y = value, 
-             color = value_type)) + 
-  geom_point() + geom_line() + 
-  facet_grid(~val_type, scales = "free")
+             color = type)) + 
+  geom_point(position = position_dodge(width = .3)) + geom_line() + 
+  facet_wrap(~val_type, scales = "free")
 ```
 
 
