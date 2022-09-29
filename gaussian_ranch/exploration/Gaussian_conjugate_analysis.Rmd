@@ -9,6 +9,8 @@ output: html_document
 library(tidyverse)
 library(rethinking)
 library(bayesAB)
+library(invgamma)
+library(pracma)
 ```
 
 
@@ -146,7 +148,7 @@ b_q = 5
 # should be 0, when distributions are the same
 print(normal_inverse_gamma_KL(m_p, m_q, V_p, V_q, a_p, a_q, b_p, b_q))
 
-# should be different, when distributions are the different
+# should be different, when distributions are different
 print(normal_inverse_gamma_KL(m_p+5, m_q, V_p, V_q, a_p, a_q, b_p+2, b_q))
 ```
 
@@ -234,7 +236,9 @@ lestat::normalgamma(mu_n, kappa_n, alpha_n, beta_n) %>% plot()
 ```{r}
 x_bar = mean(X)
 n = length(X)
-X = rep(1, 100)
+
+Y = rep(1, 100) 
+Z = Y + rnorm(100, mean = 0, sd = 0.5)
 
 
 nig_posterior <- function(prior_mu, prior_V, prior_alpha, prior_beta, observations){
@@ -314,7 +318,15 @@ main_update_function <- function(prior_mu,
     
     eig <- getNIG_EIG(prior_mu, prior_V, prior_alpha, prior_beta)
     prior_post_pred[i] <- normal_inverse_gamma_post_pred(current_observation, prior_mu, prior_V, prior_alpha, prior_beta)
+    
+    print('prior_post_pred[i]')
+    print(prior_post_pred[i])
+    
     surprisal <- -log(prior_post_pred[i])
+  
+      print('surprisal')
+      print(surprisal)
+
     
     priors[[i]] <- c(prior_mu, prior_V, prior_alpha, prior_beta)
     posts[[i]] <- current_post_parameter
@@ -411,22 +423,77 @@ When doing the analytic updating, we should only be working in the space of the 
 In code:
 ```{r}
 # Prior parameters (without noise)
-m_0 = 0
-V_0 = 1
-a_0 = 1 
-b_0 = 1
+mu_0 = 0
+kappa_0 = 1
+alpha_0 = 1 
+beta_0 = 1
 
 # Noise contribution
 m_e = 0
-sigma_e = 0.1
+sigma_e = 1
 
 # plot prior over mean and SD
-plotNormal(m_0, sqrt(1/V_0))
-plotInvGamma(a_0, b_0)
-plotNormalInvGamma(m_0, 1/V_0, a_0, b_0)
+plotNormal(mu_0, sqrt(1/kappa_0))
+plotInvGamma(alpha_0, beta_0)
+plotNormalInvGamma(mu_0, 1/kappa_0, alpha_0, beta_0)
+
+n = 10
+
+Y = rep(1, n) 
+Z = Y + rnorm(n, mean = m_e, sd = sigma_e)
+sample_mean = mean(Z)
+
+mu_n = ((mu_0 * kappa_0) + n * sample_mean) / (kappa_0 + n)
+kappa_n = kappa_0 + n 
+alpha_n = alpha_0 + n/2
+beta_n = beta_0 + 1/2 * sum((Z - sample_mean)^2) + (kappa_0*n*(sample_mean - mu_0) ^ 2)/(2*(kappa_0 + n))
+
+#plotNormal(mu_n, sqrt(1/kappa_n))
+#plotInvGamma(alpha_n, beta_n)
+#plotNormalInvGamma(mu_n, 1/kappa_n, alpha_n, beta_n)
+
+print(mu_n)
+print(kappa_n)
+print(alpha_n)
+print(beta_n)
+
+
+# the cumulative distribution function of the inverse gamma distribution is the upper incomplete gamma function with params (alpha, beta/x) divided by gamma(alpha)
+
+cum_dens_inv_gamma <- function(sigma, alpha, beta) {
+  
+  numerator = incgam(sigma^2, beta/sigma^2)
+
+  denominator = gamma(alpha) 
+
+  cum_dens_inv_gamma = numerator / denominator
+
+  
+}
+
+# compare this to the cumulative density of the normal inverse gamma, for x -> infinity, sig = sigma_eps
+cum_dens_norm_inv_gamma <- function(mu_y, sig, mu_NIG, lambda, alpha, beta) {
+  
+  arg_erf = (sqrt(lambda)*(mu_y-mu_NIG) )/(sqrt(2)*sig)
+  
+  numerator  = exp(-beta/sig^2) * (beta/sig^2)^alpha * (erf(arg_erf) + 1)
+  
+  denominator = 2*sig^2 * gamma(alpha)
+  
+  cum_dens_norm_inv_gamma = numerator / denominator
+  
+}
+
+# truncate the NIG distribution
+
+
+# renormalize
+
+# compute the cumulative density until e^2
 
 
 
+# shift it back by epsilon ^2
 ```
 
 Of interest: There are different ways to think about what noise is here - 
