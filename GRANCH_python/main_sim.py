@@ -1,3 +1,4 @@
+from pickle import FALSE, TRUE
 from scipy.stats import norm 
 from itertools import repeat 
 
@@ -47,7 +48,9 @@ def granch_main_simulation(params, model, stimuli):
     t = 0 # following python tradition we are using 0-indexed
     # pending stimulus 
     #while stimulus_idx <= stimuli.n_trial and t <= model.max_observation:  
-    while t < 10: 
+    
+    
+    while t < 10 and stimulus_idx < stimuli.n_trial: 
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
@@ -83,14 +86,30 @@ def granch_main_simulation(params, model, stimuli):
         if t >=1: 
             # calculate basic KL and PP 
             # later needs to be in a loop or some sort of fancy matrix multiplication
-            model.all_basic_KL[model.current_t] = compute_prob.kl_div(model.all_posterior[model.current_t], 
+            
+            kl = compute_prob.kl_div(model.all_posterior[model.current_t], 
                                                                 model.all_posterior[model.current_t - 1])
-            model.all_basic_PP[model.current_t] = compute_prob.score_post_pred(torch.tensor([0.11]), 
-                                                                               model, params)
+
+            model.all_basic_KL[model.current_t] = kl
+            model.update_model_eig(kl.item())
+
+            if (kl > params.world_EIGs): 
+                stimulus_idx = stimulus_idx + 1
+                model.update_model_decision(True)
+            else: 
+                model.update_model_decision(False)
+
+                
+                
+            
+            # model.all_basic_PP[model.current_t] = compute_prob.score_post_pred(torch.tensor([0.11]), 
+            #                                                                   model, params)
         
        
         # then calculate EIG 
         t = t + 1
+
+
 
 
 
