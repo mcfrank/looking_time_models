@@ -13,8 +13,8 @@ data {
     real<lower=0> sigma_alpha;
     real<lower=0> sigma_beta;
 
-    real<lower=0> epsilon_alpha;
-    real<lower=0> epsilon_beta;
+    real<lower=0> epsilon_mu; // check what priors to provide
+    real<lower=0> epsilon_sd;
 
 }
 parameters {
@@ -26,7 +26,7 @@ parameters {
 }
 model {
 
-    epsilon ~ gamma(epsilon_alpha, epsilon_beta);
+    epsilon ~ normal(epsilon_mu, epsilon_sd);
 
     // loop through features
     for (f in 1:F){
@@ -41,7 +41,7 @@ model {
 
         // multiple z observations
         for (m in 1:M){
-            z[f, m] ~ normal(y[f, exemplar_idx[m]], epsilon);
+            z[f, m] ~ normal(y[f, exemplar_idx[m]], 0) + epsilon;
         }
     } 
 }
