@@ -4,7 +4,7 @@ data {
     int<lower=1> K; // number of y's (exemplars)
     matrix[F, M] z; // noisy samples (rows are features, columns are samples)
 
-    int<lower=1> exemplar_idx[M]; // list of indices of size M
+    array[M] exemplar_idx; // list of indices of size M
 
     // hyper priors
     real mu_mean;
