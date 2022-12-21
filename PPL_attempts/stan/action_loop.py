@@ -305,7 +305,7 @@ for run in np.arange(0, num_model_runs):
         data["exemplar_idx"] = [int(x) for x in exemplar_labels[~np.isnan(exemplar_labels)]]
 
         # get posterior samples
-        fit = sm.sample(data=data, iter_sampling=num_iter, chains=1, iter_warmup = num_warmup);
+        fit = sm.sample(data=data, iter_sampling=num_iter, chains=1, iter_warmup = num_warmup, adapt_delta = 0.99);
         
         posterior = np.hstack([fit.stan_variable('mu'), fit.stan_variable('sigma')])
 
