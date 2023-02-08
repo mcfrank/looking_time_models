@@ -1,9 +1,0 @@
-"0","knitr::opts_chunk$set(echo = TRUE)"
-"2","
-| Give it another try. Or, type info() for more options.
-"
-"2","
-| Type x <- 5 + 7. It's important to include a single space on each side of the assignment
-| operator, but do NOT put a space between the `<` and the `-` that form the arrow.
-
-"
