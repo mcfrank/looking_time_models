@@ -4,7 +4,7 @@ data {
     int<lower=1> K; // number of y's (exemplars)
     matrix[F, M] z; // noisy samples (rows are features, columns are samples)
 
-    int<lower=1> exemplar_idx[M]; // list of indices of size M
+    array[M] exemplar_idx; // list of indices of size M
 
     // hyper priors
     real mu_mean;
@@ -27,9 +27,9 @@ model {
     // loop through features
     for (f in 1:F){
 
-        mu[f] ~ normal(mu_mean, mu_sd); // mu[f] ~ normal(mu_mean, mu_sd);
-        sigma[f] ~ gamma(sigma_alpha,sigma_beta);
-        
+        sigma[f] ~ gamma(sigma_alpha, sigma_beta);
+        mu[f] ~ normal(mu_mean, mu_sd);
+
 
         // loop through y's
         for (k in 1:K){
@@ -40,7 +40,7 @@ model {
         for (m in 1:M){
             z[f, m] ~ normal(y[f, exemplar_idx[m]], noise);
         }
-    } 
+    }
 }
 generated quantities {
 
@@ -48,7 +48,6 @@ vector[F] z_rep;
 
 for (f in 1:F){
         z_rep[f] = y[f, K] + normal_rng(0, noise);
- }  
+ }
 
 }
-

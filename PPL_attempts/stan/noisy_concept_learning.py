@@ -2,7 +2,6 @@ import pandas
 import pickle
 import os
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 import arviz
 import pystan
@@ -32,7 +31,6 @@ def build_model(path, pkl_file=None, do_compile=True):
 
 sm = build_model(path = stan_path, pkl_file='model.pkl', do_compile=DO_COMPILE)
 
-#sm = pystan.StanModel(file='prototype_infants_w_peng.stan')
 
 random.seed(1);
 
