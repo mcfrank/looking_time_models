@@ -47,7 +47,6 @@ def score_post_pred(hypo_obs, model, params):
     # is the same with the one using the homebased function
     hypo_likelihood = helper.group_by_logsumexp(grouping_base, lp_hypo_z_given_mu_sig_sq_for_y)    
     log_posterior = torch.log(model.all_posterior[model.current_t])
-    print(hypo_likelihood)
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0)))
 
      
@@ -55,26 +54,44 @@ def score_post_pred(hypo_obs, model, params):
 
 
 
-def score_posterior(model, params): 
+def score_posterior(model, params, hypothetical_obs):
+   
+   if hypothetical_obs: 
+        likelihood = model.ps_likelihood
+   else: 
+        likelihood = model.all_likelihood[model.current_t]
 
-   unlz_p = torch.add(torch.add(model.all_likelihood[model.current_t], params.prior_lp_epsilon), 
+   unlz_p = torch.add(torch.add(likelihood, params.prior_lp_epsilon), 
                         params.prior_lp_mu_sig_sq)
    normalized_posterior = torch.exp(unlz_p - torch.logsumexp(unlz_p, 0))
+
+   normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
    return normalized_posterior
 
 
 
-def score_likelihood(model, params): 
+def score_likelihood(model, params, hypothetical_obs, test = False): 
+    
+    # if we are calculating EIG from hypothetical obs 
+    # then we need to concatenate the hypothetical obs 
+    
+    if hypothetical_obs: 
+        obs = torch.cat((model.get_all_observations_on_current_stimulus().squeeze(1),
+        model.current_ps_obs.unsqueeze(0)),0).unsqueeze(1)
+    else: 
+        obs = model.get_all_observations_on_current_stimulus()
+
     # lp(z|mu, sig^2) = lp(z | y) + lp(y | mu, sig^2)
     # note that we are using all the observations on the current stimuli z
     # and sum them together 
-    lp_z_given_mu_sig_sq_for_y = torch.add(torch.sum(score_z_ij_given_y(model.get_all_observations_on_current_stimulus(),
+    lp_z_given_mu_sig_sq_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
                                                                       params.meshed_epsilon), dim = 0), 
                                                 params.lp_y_given_mu_sig_sq  
                                                 )
 
     # goal: apply logSumExp based on the grouping of y
+
     # first we need to putting all the grouping base together 
     # note the order of the tensor matters to provide a grouping base 
     # that algins with lp_z_given_mu_sig_sq_for_y grouping base 
@@ -86,11 +103,21 @@ def score_likelihood(model, params):
             ),
              dim = 1)
 
+   
     # crossed checked in R that likelihood_df group by operation 
     # is the same with the one using the homebased function
-    likelihood = helper.group_by_logsumexp(grouping_base, lp_z_given_mu_sig_sq_for_y)
+    likelihood = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
 
-    if(model.current_stimulus_idx > 1): 
+    if(test):
+
+        print(grouping_base)
+        print(lp_z_given_mu_sig_sq_for_y)
+        ol = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
+        nl = helper.group_by_logsumexp_improved(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
+        print(ol)
+        print(nl)
+
+    if(model.current_stimulus_idx > 0): 
         likelihood = likelihood + model.get_last_stimuli_likelihood()
 
     return likelihood
@@ -130,7 +157,8 @@ def score_mu_sig_sq(input_x, input_sig_sq, mu, nu, alpha, beta, log = True):
     res = (
         sts.norm.pdf(input_x, loc=mu, scale=np.sqrt(input_sig_sq / nu)) *
         sts.invgamma.pdf(input_sig_sq, a=alpha, scale=beta))
-    
+
+
     return np.log(res) if log else res 
 
 def score_epsilon(epsilon, mu_epsilon, sd_epsilon): 

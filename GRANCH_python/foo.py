@@ -1,33 +1,19 @@
-import torch 
-from itertools import repeat 
 import numpy as np
-import pandas as pd
+import itertools
+from itertools import repeat
+import torch 
 import helper
-import compute_prob
-import warnings
+import unittest
+import time 
 
 
-a = pd.read_csv("embedding_PCA.csv", header = None)
-print(a)
+a = torch.tensor([1, 2, 3])
+b = torch.tensor([4, 5, 6])
+c = torch.tensor([7, 8, 9, 10, 12])
+d = torch.tensor([11, 12, 13])
 
 
-print(a.sample(2).iloc[:,0:3])
+(a1, b1, c1, d1) = torch.meshgrid(
+           a, b, c, d)
 
-bd_pair = a.sample(2).iloc[:,0:3]
-
-b = torch.tensor(bd_pair.iloc[0, :])
-d = torch.tensor(bd_pair.iloc[1, :])
-
-idx = 0
-stimuli_sequence = {}
-sequence_scheme = "BBDBBBBB"
-n_trial = len(sequence_scheme)
-while idx < n_trial: 
-    if(sequence_scheme[idx] == "B"): 
-        stimuli_sequence[idx] = b
-    elif(sequence_scheme[idx] == "D"): 
-        stimuli_sequence[idx] = d
-    else: 
-        warnings.warn("Wrong sequence scheme ")
-    idx = idx + 1
-print(stimuli_sequence)
+print(a1)
