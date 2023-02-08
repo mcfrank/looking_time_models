@@ -1,3 +1,0 @@
-"0","MAIN_DATA_PATH <- here(""main/cogsci_data/tidy_main.csv"")"
-"0","df.main <- read_csv(MAIN_DATA_PATH, col_types = cols(.default = col_character())) %>% "
-"0","  mutate(resp = as.numeric(resp))"

@@ -1,3 +1,0 @@
-"0","ma_data <- read_csv(here(""data/processed/syntactic_bootstrapping_tidy_data.csv""))"
-"2","Error: '/Users/caoanjie/Desktop/projects/looking_time_models/data/processed/syntactic_bootstrapping_tidy_data.csv' does not exist.
-"

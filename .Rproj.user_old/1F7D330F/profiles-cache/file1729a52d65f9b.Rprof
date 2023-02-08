@@ -1,6 +1,0 @@
-memory profiling: GC profiling: line profiling: sample.interval=10000
-#File 1: /Users/caoanjie/Desktop/projects/looking_time_models/helper/grid_approximation.R
-#File 2: 
-:1775737:2523158:117649112:1256:"set_handlers" "add_handler" "defer" "local_options" "with_options" "caller_fn" "arg_match" "mutate.data.frame" "mutate" "mutate" ".External2" "%>%" 1#30 "update_grid_with_theta_and_epsilon" 2#4 "FUN" "lapply" "force" "doTryCatch" "tryCatchOne" "tryCatchList" "doTryCatch" "tryCatchOne" "tryCatchList" "tryCatch" "profvis" 
-#File 3: /Users/caoanjie/Desktop/projects/looking_time_models/helper/noisy_update.R
-:1787553:2526490:121413096:1575:"pull" ".External2" "%>%" 3#70 "lp_z_given_theta" 3#60 "lp_theta_given_z" 1#16 "<Anonymous>" "mapply" 1#16 "update_grid_with_theta_and_epsilon" 2#4 "FUN" "lapply" "force" "doTryCatch" "tryCatchOne" "tryCatchList" "doTryCatch" "tryCatchOne" "tryCatchList" "tryCatch" "profvis" 

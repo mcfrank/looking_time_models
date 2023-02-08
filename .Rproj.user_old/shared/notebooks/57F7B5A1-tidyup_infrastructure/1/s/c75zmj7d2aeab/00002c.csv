@@ -1,7 +1,0 @@
-"0",""
-"0","sim %>% "
-"0","  group_by(stimulus_idx) %>% "
-"0","  summarise(samps_n = n()) %>% "
-"0","  ggplot(aes(stimulus_idx, y = samps_n)) + "
-"0","  geom_line()"
-"0",""
