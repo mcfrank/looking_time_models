@@ -17,7 +17,10 @@ class granch_stimuli:
         self.stimuli_sequence = {
             0: torch.tensor([0.1]),#torch.rand(self.n_feature), 
             1: torch.tensor([0.1]),#torch.rand(self.n_feature), 
-            2: torch.tensor([0.1])#torch.rand(self.n_feature)
+            2: torch.tensor([0.1]), 
+            3: torch.tensor([0.1]), 
+            4: torch.tensor([0.1]), 
+            5: torch.tensor([0.1])#torch.rand(self.n_feature)
         }
 
 
@@ -28,6 +31,7 @@ class granch_stimuli:
         b = torch.tensor(bd_pair.iloc[0, :])
         d = torch.tensor(bd_pair.iloc[1, :])
 
+        print("b")
         idx = 0 
         stimuli_sequence = {}
         while idx < self.n_trial: 
@@ -72,8 +76,12 @@ class granch_model:
 
 
         # help with debugging 
-        self.all_basic_KL = [None] * self.max_observation
-        self.all_basic_PP = [None] * self.max_observation
+        self.all_ps_kl = [None] * self.max_observation
+        self.all_ps_pp = [None] * self.max_observation
+
+
+        self.ps_kl = torch.tensor([])
+        self.ps_pp = torch.tensor([])
 
 
     def update_model_stimulus_id(self): 

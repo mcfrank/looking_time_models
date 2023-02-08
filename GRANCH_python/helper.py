@@ -3,6 +3,20 @@ from pickle import FALSE
 import torch 
 from itertools import repeat 
 
+import numpy as np
+
+
+
+
+def get_grid_parameter_tensors(combination):    
+   return (list(map(lambda x: torch.linspace(x[0], x[1], int(x[2])), combination)))
+
+def get_grid_parameter_combination(starts, ends, steps): 
+    return np.stack(np.meshgrid(starts, ends, steps), -1).reshape(-1, 3)
+
+
+
+
 def combine(x, y): 
     xx, yy = torch.meshgrid(x, y, indexing='ij')
     return torch.stack([torch.reshape(xx, [-1]), torch.reshape(yy, [-1])], axis=1)
@@ -26,6 +40,22 @@ def get_unique_segment(t):
 
     # sorted_indicies, _ = torch.sort(first_indicies)
     return sorted_i
+
+
+
+
+
+
+def group_by_logsumexp_improved(grouping_base, target): 
+    target = target.unsqueeze(1)
+    _, idx, _ = torch.unique(grouping_base, dim = 0, sorted = False, 
+                                        return_inverse = True, return_counts = True)
+    M = torch.zeros(idx.max()+1, len(target))
+    M[idx, torch.arange(len(target))] = 1
+    res = torch.log(torch.mm(M, torch.exp(target))).squeeze(1)
+
+    return res 
+
 
 
 def group_by_logsumexp(grouping_base, target): 
