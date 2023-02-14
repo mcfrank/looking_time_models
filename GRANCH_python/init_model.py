@@ -31,7 +31,7 @@ class granch_stimuli:
         b = torch.tensor(bd_pair.iloc[0, :])
         d = torch.tensor(bd_pair.iloc[1, :])
 
-        print("b")
+        # print("b")
         idx = 0 
         stimuli_sequence = {}
         while idx < self.n_trial: 
@@ -44,10 +44,6 @@ class granch_stimuli:
             idx = idx + 1
         
         self.stimuli_sequence = stimuli_sequence
-
-
-
-
 
 
 

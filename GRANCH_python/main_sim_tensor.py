@@ -1,9 +1,11 @@
+# version of the main simulation to support matrix multiplication instead
+
 import torch
 
 import helper
 import init_params
 import init_model
-import compute_prob
+import compute_prob_tensor
 import main_sim
 
 """ 
@@ -62,8 +64,8 @@ def granch_main_simulation(params, model, stimuli):
                                                params.hypothetical_obs_grid_n)
                             
         # updating the likelihood and posterior for the observed 
-        model.update_likelihood(compute_prob.score_likelihood(model, params, hypothetical_obs = False))
-        model.update_posterior(compute_prob.score_posterior(model,params, hypothetical_obs=False))
+        model.update_likelihood(compute_prob_tensor.score_likelihood(model, params, hypothetical_obs = False))
+        model.update_posterior(compute_prob_tensor.score_posterior(model,params, hypothetical_obs=False))
        
         # this iteration/index will currently work for only single feature
         n_possible_observations = len(model.possible_observations.tolist())
@@ -75,14 +77,14 @@ def granch_main_simulation(params, model, stimuli):
         # loop through possible observations
         for i in range(0, n_possible_observations): 
             model.current_ps_obs = model.possible_observations[i]
-            model.ps_likelihood = compute_prob.score_likelihood(model, params, hypothetical_obs=True, test = True)
-            model.ps_posterior = compute_prob.score_posterior(model, params, hypothetical_obs=True)
+            model.ps_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=True, test = True)
+            model.ps_posterior = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)
 
-            cur_ps_kl = compute_prob.kl_div(model.ps_posterior, model.all_posterior[model.current_t])
+            cur_ps_kl = compute_prob_tensor.kl_div(model.ps_posterior, model.all_posterior[model.current_t])
             model.ps_kl = torch.cat((model.ps_kl,cur_ps_kl.unsqueeze(0)))
             model.all_ps_kl[model.current_t] = model.ps_kl.tolist()
 
-            cur_ps_pp = compute_prob.score_post_pred(model.current_ps_obs, model, params)
+            cur_ps_pp = compute_prob_tensor.score_post_pred(model.current_ps_obs, model, params)
             model.ps_pp = torch.cat((model.ps_pp, cur_ps_pp.unsqueeze(0)))
             model.all_ps_pp[model.current_t] = model.ps_pp.tolist()
 

@@ -18,27 +18,27 @@ def kl_div(new_post, prev_post):
 
 # score posterior predictive 
 def score_post_pred(hypo_obs, model, params): 
-    lp_hypo_z_given_mu_sig_sq_for_y = torch.add(score_z_ij_given_y(hypo_obs,
+    lp_hypo_z_given_mu_sigma_for_y = torch.add(score_z_ij_given_y(hypo_obs,
                                                                    params.meshed_grid_y, 
                                                                    params.meshed_epsilon), 
-                                                params.lp_y_given_mu_sig_sq  
+                                                params.lp_y_given_mu_sigma  
                                                 )
 
     # goal: apply logSumExp based on the grouping of y
     # first we need to putting all the grouping base together 
     # note the order of the tensor matters to provide a grouping base 
-    # that algins with lp_z_given_mu_sig_sq_for_y grouping base 
+    # that algins with lp_z_given_mu_sigma_for_y grouping base 
     grouping_base = torch.cat(
             (
-             params.meshed_grid_mu_theta.unsqueeze(1),
-             params.meshed_grid_sig_sq.unsqueeze(1),
+             params.meshed_grid_mu.unsqueeze(1),
+             params.meshed_grid_sigma.unsqueeze(1),
             params.meshed_epsilon.unsqueeze(1)
             ),
              dim = 1)
 
     # crossed checked in R that likelihood_df group by operation 
     # is the same with the one using the homebased function
-    hypo_likelihood = helper.group_by_logsumexp(grouping_base, lp_hypo_z_given_mu_sig_sq_for_y)    
+    hypo_likelihood = helper.group_by_logsumexp(grouping_base, lp_hypo_z_given_mu_sigma_for_y)    
     log_posterior = torch.log(model.all_posterior[model.current_t])
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0)))
 
@@ -51,7 +51,7 @@ def score_posterior(model, params, hypothetical_obs):
         likelihood = model.all_likelihood[model.current_t]
 
    unlz_p = torch.add(torch.add(likelihood, params.prior_lp_epsilon), 
-                        params.prior_lp_mu_sig_sq)
+                        params.prior_lp_mu_sigma)
    normalized_posterior = torch.exp(unlz_p - torch.logsumexp(unlz_p, 0))
 
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
@@ -68,24 +68,24 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
     else: 
         obs = model.get_all_observations_on_current_stimulus()
 
-    # lp(z|mu, sig^2) = lp(z | y) + lp(y | mu, sig^2)
+    # lp(z|mu, sigma^2) = lp(z | y) + lp(y | mu, sigma^2)
     # note that we are using all the observations on the current stimuli z
     # and sum them together 
-    lp_z_given_mu_sig_sq_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
+    lp_z_given_mu_sigma_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
                                                                       params.meshed_epsilon), dim = 0), 
-                                                params.lp_y_given_mu_sig_sq  
+                                                params.lp_y_given_mu_sigma  
                                                 )
 
     # goal: apply logSumExp based on the grouping of y
 
     # first we need to putting all the grouping base together 
     # note the order of the tensor matters to provide a grouping base 
-    # that algins with lp_z_given_mu_sig_sq_for_y grouping base 
+    # that algins with lp_z_given_mu_sigma_for_y grouping base 
     grouping_base = torch.cat(
             (
-             params.meshed_grid_mu_theta.unsqueeze(1),
-             params.meshed_grid_sig_sq.unsqueeze(1),
+             params.meshed_grid_mu.unsqueeze(1),
+             params.meshed_grid_sigma.unsqueeze(1),
             params.meshed_epsilon.unsqueeze(1)
             ),
              dim = 1)
@@ -93,14 +93,14 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
    
     # crossed checked in R that likelihood_df group by operation 
     # is the same with the one using the homebased function
-    likelihood = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
+    likelihood = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sigma_for_y.float())
 
     # if(test):
 
         #print(grouping_base)
-        #print(lp_z_given_mu_sig_sq_for_y)
-        #ol = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
-        #nl = helper.group_by_logsumexp_improved(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
+        #print(lp_z_given_mu_sigma_for_y)
+        #ol = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sigma_for_y.float())
+        #nl = helper.group_by_logsumexp_improved(grouping_base.float(), lp_z_given_mu_sigma_for_y.float())
         #print(ol)
         #print(nl)
 
@@ -113,11 +113,11 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
 # ---- core function ---- #
 # y needs to be a tensor 
 
-def score_y_given_mu_sigma_sq(y_val, mu, sigma): 
+def score_y_given_mu_sigma(y_val, mu, sigma): 
     return Normal(mu, sigma).log_prob(y_val)
 
 
-##a = score_y_given_mu_sigma_sq(y, mu, sigma)
+##a = score_y_given_mu_sigmama_sq(y, mu, sigmama)
 ##print(a)
 def score_z_ij_given_y(z_val, y_val, epsilon): 
     return Normal(y_val, epsilon).log_prob(z_val)
@@ -134,17 +134,21 @@ def score_z_bar_given_y(z_bar, y_val, grid_epsilon):
 # we don't have a torch equivalence of inverse gamma 
 # so we might want to do calculation wi numpy under the hood and then convert to torch 
 # the goode news is that this calcualtion doesn't happen very often so it's good
-def score_mu_sig_sq(input_x, input_sig_sq, mu, nu, alpha, beta, log = True):
+
+# NOTE: we are using numpy here, and these functions take VARIANCE (sigma^2) not STD (sigma), hence
+# the use of **2 for each of htem
+
+def score_mu_sigma(input_x, input_sigma, mu, nu, alpha, beta, log = True):
     '''
     The probability density function of the normal-inverse-gamma distribution at
-    input_x (mean) and input_sig_sq (variance).
+    input_x (mean) and input_sigma (variance).
     '''
+
     res = (
-        sts.norm.pdf(input_x, loc=mu, scale=np.sqrt(input_sig_sq / nu)) *
-        sts.invgamma.pdf(input_sig_sq, a=alpha, scale=beta))
+        sts.norm.pdf(input_x.numpy(), loc=mu, scale=np.sqrt(input_sigma**2 / nu)) *
+        sts.invgamma.pdf(input_sigma.numpy()**2, a=alpha, scale=beta))
 
-
-    return np.log(res) if log else res 
+    return torch.from_numpy(np.log(res)) if log else torch.from_numpy(res) 
 
 def score_epsilon(epsilon, mu_epsilon, sd_epsilon): 
     return Normal(mu_epsilon, sd_epsilon).log_prob(epsilon)
