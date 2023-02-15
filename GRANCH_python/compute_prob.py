@@ -140,8 +140,8 @@ def score_mu_sig_sq(input_x, input_sig_sq, mu, nu, alpha, beta, log = True):
     input_x (mean) and input_sig_sq (variance).
     '''
     res = (
-        sts.norm.pdf(input_x, loc=mu, scale=np.sqrt(input_sig_sq / nu)) *
-        sts.invgamma.pdf(input_sig_sq, a=alpha, scale=beta))
+        sts.norm.pdf(input_x, loc=mu, scale=np.sqrt(input_sig_sq ** 2 / nu)) *
+        sts.invgamma.pdf(input_sig_sq ** 2, a=alpha, scale=beta))
 
 
     return np.log(res) if log else res 
