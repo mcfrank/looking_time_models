@@ -8,6 +8,22 @@ import numpy as np
 
 
 
+def add_singleton_dim(tensor, num_dims):
+    """
+    Adds the specified number of singleton dimensions to a tensor.
+
+    Args:
+        tensor: A PyTorch tensor.
+        num_dims: An integer specifying the number of singleton dimensions to add.
+
+    Returns:
+        The input tensor with the specified number of singleton dimensions added.
+    """
+    for i in range(num_dims):
+        tensor = tensor.unsqueeze(-1)
+    return tensor
+
+
 def get_grid_parameter_tensors(combination):    
    return (list(map(lambda x: torch.linspace(x[0], x[1], int(x[2])), combination)))
 

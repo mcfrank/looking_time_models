@@ -70,7 +70,9 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
 
     # lp(z|mu, sigma^2) = lp(z | y) + lp(y | mu, sigma^2)
     # note that we are using all the observations on the current stimuli z
-    # and sum them together 
+    # and sum them together
+
+
     lp_z_given_mu_sigma_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
                                                                       params.meshed_epsilon), dim = 0), 
@@ -111,16 +113,23 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
 
 
 # ---- core function ---- #
-# y needs to be a tensor 
+
+
+# y needs to be a tensor
 
 def score_y_given_mu_sigma(y_val, mu, sigma): 
     return Normal(mu, sigma).log_prob(y_val)
 
 
-##a = score_y_given_mu_sigmama_sq(y, mu, sigmama)
-##print(a)
-def score_z_ij_given_y(z_val, y_val, epsilon): 
-    return Normal(y_val, epsilon).log_prob(z_val)
+## = score_y_given_mu_sigmama_sq(y, mu, sigmama)
+# following the guidance here: https://github.com/pytorch/pytorch/issues/76709
+# needs to wrangle the shape of the z value
+
+def score_z_ij_given_y(z_val, y_val, epsilon):
+    dist = Normal(y_val, epsilon)
+    padded_obs = helper.add_singleton_dim(z_val, z_val.size()[0])
+    res = dist.expand((1,) + y_val.size()).log_prob(padded_obs)      
+    return res
 
 def score_z_bar_given_y(z_bar, y_val, grid_epsilon): 
     return torch.sum(score_z_ij_given_y(z_bar,y_val,grid_epsilon), dim=0)
