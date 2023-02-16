@@ -50,6 +50,7 @@ def score_posterior(model, params, hypothetical_obs):
    else: 
         likelihood = model.all_likelihood[model.current_t]
 
+  
    unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
    normalized_posterior = torch.exp(unlz_p - unlz_p.logsumexp(dim = (0, 1, 2)))
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
@@ -69,13 +70,15 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
     # lp(z|mu, sigma^2) = lp(z | y) + lp(y | mu, sigma^2)
     # note that we are using all the observations on the current stimuli z
     # and sum them together
-
-
+    
     lp_z_given_mu_sigma_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
-                                                                      params.meshed_epsilon), dim = 0), 
+                                                                      params.meshed_grid_epsilon), dim = 0).squeeze(), 
                                                 params.lp_y_given_mu_sigma  
-                                                )
+                           
+                                             )
+    
+    temp = torch.sum(score_z_ij_given_y(obs,params.meshed_grid_y, params.meshed_grid_epsilon), dim = 0)
 
     # goal: apply logSumExp based on the grouping of y
     likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = 2)
