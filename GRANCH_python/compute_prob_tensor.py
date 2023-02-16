@@ -80,22 +80,7 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
                                                 )
 
     # goal: apply logSumExp based on the grouping of y
-
-    # first we need to putting all the grouping base together 
-    # note the order of the tensor matters to provide a grouping base 
-    # that algins with lp_z_given_mu_sigma_for_y grouping base 
-    grouping_base = torch.cat(
-            (
-             params.meshed_grid_mu.unsqueeze(1),
-             params.meshed_grid_sigma.unsqueeze(1),
-            params.meshed_epsilon.unsqueeze(1)
-            ),
-             dim = 1)
-
-   
-    # crossed checked in R that likelihood_df group by operation 
-    # is the same with the one using the homebased function
-    likelihood = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sigma_for_y.float())
+    likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = 2)
 
     # if(test):
 
