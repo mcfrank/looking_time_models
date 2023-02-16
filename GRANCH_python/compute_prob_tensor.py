@@ -50,10 +50,8 @@ def score_posterior(model, params, hypothetical_obs):
    else: 
         likelihood = model.all_likelihood[model.current_t]
 
-   unlz_p = torch.add(torch.add(likelihood, params.prior_lp_epsilon), 
-                        params.prior_lp_mu_sigma)
-   normalized_posterior = torch.exp(unlz_p - torch.logsumexp(unlz_p, 0))
-
+   unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
+   normalized_posterior = torch.exp(unlz_p - unlz_p.logsumexp(dim = (0, 1, 2)))
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
    return normalized_posterior
 
