@@ -4,7 +4,7 @@ import numpy as np
 import torchvision
 import PIL.Image as Image
 import torchvision.models as models
-
+import json
 
 # %% Model definition
 
@@ -72,13 +72,24 @@ def load_images_to_tensor(image_paths:[str], img_size:tuple=(224, 224)):
     :rtype:
     """
 
-    assert isinstance(image_paths, list)
-    assert np.all([isinstance(im, str) for im in image_paths])
-    assert isinstance(img_size, tuple)
-    assert len(img_size) == 2
+    # check whether it's a directory 
+    if isinstance(image_paths, list):
+        assert np.all([isinstance(im, str) for im in image_paths])
+        assert isinstance(img_size, tuple)
+        assert len(img_size) == 2
 
-    # Return a torch.tensor of shape [nimages, c, h, w]
-    pil_images = [Image.open(p).convert("RGB") for p in image_paths]
+        # Return a torch.tensor of shape [nimages, c, h, w]
+        pil_images = [Image.open(p).convert("RGB") for p in image_paths]
+        image_names = image_paths
+    
+    else: #or a list of images
+        images = os.listdir(image_paths)
+        pil_images = []
+        image_names = []
+        for image in images:
+            if '.png' in image:
+                pil_images.append(Image.open(image_paths + image).convert("RGB")) 
+                image_names.append(image)
 
     torchvision_imagenet_mean_normalization_transform = torchvision.transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
@@ -96,13 +107,18 @@ def load_images_to_tensor(image_paths:[str], img_size:tuple=(224, 224)):
     transform = torchvision.transforms.Compose(transform_stack)
 
     images = torch.stack([transform(img) for img in pil_images], dim=0)
-    return images
+    return images, image_names
 
 
 if __name__ == '__main__':
     # Example usage
     model = PspaceModel(device = 'cpu')
-    image_paths = ['stims/simple_20_B_d.png']
-    X = load_images_to_tensor(image_paths)
+    image_paths = 'stims_smaller_set/padded/'
+    X, image_names = load_images_to_tensor(image_paths)
     Y = model(X)
+
+    embedding_dict = dict(zip(image_names, [row.tolist() for row in Y.detach().numpy()]))
+    out_file = open('embeddings.json','w+')
+    json.dump(embedding_dict, out_file)
+
     print(Y)
