@@ -1,8 +1,0 @@
-"0","sims %>% "
-"0","  drop_na() %>% "
-"0","  group_by(stimulus_idx, id) %>% "
-"0","  summarise(n = n()) %>% "
-"0","  ggplot(aes(x = stimulus_idx, y = n)) + "
-"0","  geom_point()"
-"2","`summarise()` has grouped output by 'stimulus_idx'. You can override using the `.groups` argument.
-"

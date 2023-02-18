@@ -1,7 +1,0 @@
-"0","## source relevant files"
-"0","source(here(""helper/get_entropy.R""))"
-"0","source(here(""helper/get_KL_measurement.R""))"
-"0","source(here(""helper/get_surprise.R""))"
-"0","source(here(""helper/noisy_update.R""))"
-"0","source(here(""helper/grid_approximation.R""))"
-"0","source(here(""helper/get_stimuli_and_observations.R""))"

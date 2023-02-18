@@ -1,8 +1,0 @@
-"0","all_sims %>% "
-"0","  ggplot(aes(x = stimulus_idx, y = sample_n, color = type)) + "
-"0","  geom_jitter(width = .1, alpha = .3) + "
-"0","  stat_summary(fun.data = ""mean_cl_boot"") +  "
-"0","  stat_summary(fun.data = ""mean_cl_boot"", geom = ""line"") + "
-"0","  facet_wrap(~exposure_type) + "
-"0","   scale_x_continuous(breaks = seq(1,3, 1)) + "
-"0","  theme_classic()"

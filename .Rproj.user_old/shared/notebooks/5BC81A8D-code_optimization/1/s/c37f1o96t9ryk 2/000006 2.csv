@@ -1,7 +1,0 @@
-"0","z_bar <- tibble(""V1"" = rep(FALSE, 1))"
-"0",""
-"0","lp_theta_given_z(z_bar, theta = 0.3, epsilon = 0.99, alpha_theta = 1, beta_theta = 1, alpha_epsilon = 10, beta_epsilon = 1)"
-"1","[1]"
-"1"," 1.021404"
-"1","
-"

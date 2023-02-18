@@ -1,9 +1,0 @@
-"0","all_sims <- compare_three_expsoures(eig_fs_compare_sims, # forced short"
-"0","                                    eig_fs_compare_sims_forced_long, "
-"0","                                    eig_fs_compare_sims_self_paced)"
-"2","`summarise()` has grouped output by 'stimulus_idx', 'id', 'forced_sample_n', 'EIG_from_world'. You can override using the `.groups` argument.
-"
-"2","`summarise()` has grouped output by 'stimulus_idx', 'id', 'forced_sample_n', 'EIG_from_world'. You can override using the `.groups` argument.
-"
-"2","`summarise()` has grouped output by 'stimulus_idx', 'id', 'EIG_from_world'. You can override using the `.groups` argument.
-"

@@ -17,7 +17,11 @@ lapply(list.files(here("GRANCH_python/R_ref")),
        function(x){
          source(paste0(here("GRANCH_python/R_ref"), "/", x))
        })
+```
 
+
+
+```{r}
 
 hypothetical_obs_grid_n <- 3
 n_feature <- 1
@@ -25,22 +29,22 @@ n_feature <- 1
   
 # sd_n: range decided by n*sd away 
 # sd_step: step decided by sd / sd_step 
-grid_mu_theta = c(0.1, 0.2, 0.3)
+grid_mu_theta = seq(-1, 1, .2)
 
 # not sure about the principled way to select these three yet
-grid_sig_sq = c(0.4, 0.5, 0.6)
-grid_y <- c(0.7, 0.8, 0.9) 
+grid_sig_sq = seq(0.001, 2, 0.2)
+grid_y <- seq(-1, 1, .2)
 # grid_epsilon might be too small 
-grid_epsilon = c(0.11, 0.12, 0.13)
+grid_epsilon = seq(0.001, 2, 0.2)
 
-mu_priors = c(1)
-V_priors = c(1) # maybe this controls for how fast?
+mu_priors = c(0)
+V_priors = c(0.001) # maybe this controls for how fast?
 alpha_priors = c(1) 
 beta_priors = c(1) 
-epsilons = c(0) 
-mu_epsilon = c(0.01)
-sd_epsilon = c(0.01)
-world_EIGs = c(0.01) 
+epsilons = c(0.00001) 
+mu_epsilon = c(0.001)
+sd_epsilon = c(4)
+world_EIGs = c(0.0001) 
 max_observation = 500
 
 model_params <- set_granch_params(
@@ -55,7 +59,7 @@ model_params <- add_precalculated_prior_dfs(model_params)
 b <- 0.1
 d <- 0.3
 
-stims_df <- tibble(sequence_scheme = c("BBB"),
+stims_df <- tibble(sequence_scheme = c("BBBBBB"),
                    n_features = n_feature
                    ) %>% 
   mutate(
@@ -69,25 +73,39 @@ full_params_df <- make_simulation_params(n_sim = 1,
                                         model_params, 
                                         stims_df)
 
+```
+
+```{r}
 tic()
-all_sims_res <- full_params_df %>%
-  mutate(row_number = row_number()) %>% 
-  group_by(row_number) %>% 
-  nest() %>%
-  mutate(results = map(data,
-                       function(df) granch_main_comparison(params = df))) %>%
-  unnest(cols = c(data, results))
+res = granch_main_simulation(params = full_params_df)
 toc()
+r_model <- res[[2]]
+# magic number for temp testing purpose
+r_kls <- lapply(seq(1, 6, 1), function(x){
+    as.data.frame(t(res[[1]][[x]][[2]]))
+}) %>% bind_rows() %>% 
+  rename(obs_1 = V1, obs_2 = V2) %>% 
+  rownames_to_column("t") %>% 
+  mutate(type = "r")
+
+r_pps <- lapply(seq(1, 6, 1), function(x){
+    as.data.frame(t(res[[1]][[x]][[3]]))
+}) %>% bind_rows() %>% rename(obs_1 = V1, obs_2 = V2) %>% 
+  rownames_to_column("t") %>% 
+  mutate(type = "r")
 ```
 
 # Python
 
 ```{python}
+import cProfile
+import re
 import torch 
 import pandas as pd
 import init_params
 import compute_prob
 import init_model
+import time
 import helper
 import main_sim
 import importlib 
@@ -100,19 +118,21 @@ importlib.reload(init_model)
 importlib.reload(main_sim)
 
 
+
+
 p = init_params.granch_params(
-    grid_mu_theta = torch.tensor([0.1, 0.2, 0.3]), 
-    grid_sig_sq = torch.tensor([0.4, 0.5, 0.6]), 
-    grid_y = torch.tensor([0.7, 0.8, 0.9]), 
-    grid_epsilon = torch.tensor([0.11, 0.12, 0.13]), 
-    hypothetical_obs_grid_n = 2, 
-    mu_prior = 1,
-    V_prior = 1, 
+    grid_mu_theta = torch.linspace(start = -1, end = 1, steps = 11), 
+    grid_sig_sq = torch.linspace(start = 0.001, end = 1.8, steps = 10), 
+    grid_y = torch.linspace(start = -1, end = 1, steps = 11), 
+    grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = 10), 
+    hypothetical_obs_grid_n = 3, 
+    mu_prior = 0.001,
+    V_prior = 0.001, 
     alpha_prior = 1, 
     beta_prior = 1,
-    epsilon  = 0.0000000000000001, 
-    mu_epsilon = torch.tensor([0.01]), 
-    sd_epsilon = torch.tensor([0.01]), 
+    epsilon  = 0.000001, 
+    mu_epsilon = torch.tensor([0.001]), 
+    sd_epsilon = torch.tensor([4]), 
     world_EIGs = 0.0001,
     max_observation = 500)
 
@@ -126,41 +146,169 @@ p.add_lp_epsilon()
 p.add_priors()
 
 
-s = init_model.granch_stimuli(1, 'BBBBB')
-s.get_stimuli_sequence("embedding_PCA.csv")
+s = init_model.granch_stimuli(1, 'BBBBBB')
+# s.get_stimuli_sequence("embedding_PCA.csv")
+
+
 
 
 m = init_model.granch_model(500, s)
 
 res = main_sim.granch_main_simulation(p, m, s)
+behavior = m.behavior
+
+
+
+
+start_time = time.perf_counter()
+main_sim.granch_main_simulation(p, m, s)
+end_time = time.perf_counter()
+
+start_time_2 = time.perf_counter()
+res = main_sim.granch_main_simulation(p, m, s)
+end_time_2 = time.perf_counter()
+
 
 ```
 
-Goal: make sure the likelihood vector is aligned with the prior vector Approach: aligning the combination of the grid_mu_theta, grid_sig_sq, and grid_epsilon
+# timing python
 
 ```{python}
-ldf = m.all_likelihood_df[0]
-likelihood = m.all_likelihood[0]
+
+def run_everything():
+  start_time = time.perf_counter()
+  p = init_params.granch_params(
+      grid_mu_theta = torch.linspace(start = -1, end = 1, steps = 11),
+      grid_sig_sq = torch.linspace(start = 0.001, end = 1.8, steps = 10), 
+      grid_y = torch.linspace(start = -1, end = 1, steps = 11), 
+      grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = 10), 
+      hypothetical_obs_grid_n = 3, 
+      mu_prior = 0.001,
+      V_prior = 0.001, 
+      alpha_prior = 1, 
+      beta_prior = 1,
+      epsilon  = 0.000001, 
+      mu_epsilon = torch.tensor([0.001]), 
+      sd_epsilon = torch.tensor([4]), 
+      world_EIGs = 0.0001,
+      max_observation = 500)
+  p.add_meshed_grid()
+  p.add_lp_mu_sig_sq()
+  p.add_y_given_mu_sig_sq()
+  p.add_lp_epsilon()
+  p.add_priors()
+  s = init_model.granch_stimuli(1, 'BBBBBB')
+  m = init_model.granch_model(500, s)
+  res = main_sim.granch_main_simulation(p, m, s)
+  end_time = time.perf_counter()
+  return(end_time - start_time)
 
 
-# the unique here at the prior df retain the ordering 
-unique_prior_df_t = torch.unique(prior_df_t, dim = 0, sorted = False)
-unique_prior_df = pd.DataFrame(unique_prior_df_t)
-unique_prior_df.columns = ["grid_mu_theta", "grid_sig_sq", 
-        "grid_epsilon", "lp_mu_sig_sq", "lp_epsilon"]
-    
-# can i get the likelihood to have the order retained 
-# currently maybe not, lp_epsilon first 
-# also the group_by in helper: actually confirmed the same ordering
-# "grid_epsilon", "grid_mu_theta", "grid_sig_sq", "lp_z"
-ldf_t = torch.tensor(ldf.values)
-unique_ldf =  torch.unique(ldf_t, dim = 0, sorted = False)
-unique_ldf = pd.DataFrame(unique_ldf)
-unique_ldf.columns = [ "grid_mu_theta", "grid_sig_sq", "grid_epsilon"]
-   
-test_post = torch.add(torch.add(likelihood, p.prior_lp_epsilon), 
-p.prior_lp_mu_sig_sq).tolist()
+  
+  
 ```
+
+```{python}
+times = [] 
+for x in range(2):
+  t = run_everything()
+  times.append(t)
+  print("time")
+  print(t)
+```
+
+
+```{python}
+times
+```
+
+# compare EIG 
+
+```{r}
+
+py_model <- py$behavior %>% 
+  unnest(cols = everything()) %>% 
+  rownames_to_column("t") %>% 
+  mutate(t = as.numeric(t)) %>% 
+  mutate(stimulus_idx = stimulus_id + 1) %>% 
+  select(t, stimulus_idx, EIG) %>% 
+  mutate(type = "py")
+
+r_model %>% 
+  select(t, stimulus_idx, EIG) %>% 
+  mutate(type = "r") %>% 
+  bind_rows(py_model) %>% 
+  filter(!is.na(EIG)) %>%
+  ggplot(aes(x = t, y = EIG, color = type)) + 
+  geom_point(position = position_dodge(width = .4)) 
+
+
+py$behavior %>% 
+  unnest(cols = everything()) %>% 
+  group_by(stimulus_id) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
+  geom_point() + 
+  ylim(0, 30)
+
+py$behavior %>% 
+  unnest(cols = everything()) %>% 
+  rownames_to_column("t") %>% 
+  filter(!is.na(EIG)) %>% 
+  ggplot(aes(x = as.numeric(t), y = EIG, color = stimulus_id)) + 
+  geom_point() + theme_classic()
+```
+
+
+```{r}
+# KLs
+
+py_kls <- py$all_ps_kl 
+py_pps <- py$all_ps_pp 
+
+bind_rows(r_kls %>% mutate(t = as.numeric(t)), py_kls) %>% 
+  pivot_longer(cols = starts_with("obs"), 
+               values_to = "kl", names_to = "obs") %>% 
+  ggplot(aes(x = t, y = kl, color = type)) + 
+  geom_point(position = position_dodge(width = .2)) + 
+  geom_line(position = position_dodge(width = .2)) + 
+  facet_wrap(~obs)
+
+bind_rows(r_pps %>% mutate(t = as.numeric(t)), py_pps) %>% 
+  pivot_longer(cols = starts_with("obs"), 
+               values_to = "pp", names_to = "obs") %>% 
+  ggplot(aes(x = t, y = pp, color = type)) + 
+  geom_point(position = position_dodge(width = .2)) + 
+  geom_line(position = position_dodge(width = .2)) + 
+  facet_wrap(~obs)
+
+
+# EIG 
+pymodel <- py$behavior %>% 
+  as.tibble() %>% 
+  unnest(cols = everything()) %>% 
+  mutate(stimulus_id = stimulus_id + 1, 
+         type = "py") %>% 
+  select(stimulus_id, EIG, type) %>% 
+  filter(!is.na(EIG))
+
+
+compare_model <- r_model %>% 
+  select(stimulus_idx, EIG) %>% 
+  rename(stimulus_id = stimulus_idx) %>% 
+  mutate(type = "r") %>% 
+  filter(!is.na(EIG)) %>% 
+  bind_rows(pymodel)
+
+compare_model %>% 
+  ggplot(aes(x = stimulus_id, 
+             y = EIG, 
+             color = type)) + 
+  geom_point(position = position_dodge(width = .2)) + 
+  geom_line(position = position_dodge(width = .2))
+```
+
+
 
 # posterior
 
@@ -286,8 +434,27 @@ model_params <- set_granch_params(
                 alpha_priors, beta_priors, 
                 epsilons, mu_epsilon, sd_epsilon,
                 world_EIGs, max_observation)
+
+b <- 0.1
+d <- 0.3
+
+stims_df <- tibble(sequence_scheme = c("BBBBBB"),
+                   n_features = n_feature
+                   ) %>% 
+  mutate(
+    stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss,background = b  ,
+deviant =d
+)}))
+
 startTime <- Sys.time()
 model_params <- add_precalculated_prior_dfs(model_params)
+
+full_params_df <- make_simulation_params(n_sim = 1,
+                                        model_params, 
+                                        stims_df)
+
+granch_main_simulation(params = full_params_df)
+
 endTime <- Sys.time()
 
 df <- tibble(
@@ -298,7 +465,7 @@ return (df)
 
 }
 
-r_time <- lapply(seq(1, 10), 
+r_time <- lapply(seq(2, 10, 1), 
        calculate_run_time) %>% 
   bind_rows()
 ```
@@ -331,35 +498,45 @@ def calculate_run_time(n):
   p.add_y_given_mu_sig_sq()
   p.add_lp_epsilon()
   end_time = time.perf_counter()
+  s = init_model.granch_stimuli(1, 'BBBBBB')
+  m = init_model.granch_model(500, s)
   return end_time-start_time
 
 # can't do 1
 
-t_df = pd.DataFrame({"n": np.linspace(start = 2, stop = 10, num = 9, dtype = int)}) 
+t_df = pd.DataFrame({"n": np.linspace(start = 2, stop = 50, num = 49, dtype = int)}) 
 
 t_df["t"] = t_df.applymap(calculate_run_time)
-t_df["n_row"] = np.linspace(start = 2, stop = 10, num = 9, dtype = int) ** 4
+t_df["n_row"] = np.linspace(start = 2, stop = 50, num = 49, dtype = int) ** 4
 ```
 
 ```{r}
 python_t_df <- py$t_df %>% 
-  mutate(type = "Python") %>% 
-  rename(python_time = t) %>% 
-  select(n_row, python_time)
+  mutate(type = "py") %>% 
+  select(n_row, t, type) 
+
+
 r_time %>% 
-  mutate(type = "R") %>%
-  rename(r_time = time) %>%
-  mutate(r_time = as.numeric(r_time)) %>% 
-  select(n_row, r_time) %>% 
-  left_join(python_t_df, by = c("n_row")) %>% 
-  pivot_longer(cols = c("r_time", "python_time"), 
-               names_to = "time_type", 
-               values_to = "time") %>% 
+  mutate(type = "r") %>% 
+  rename(t = time) %>%
+  select(n_row, t, type) %>% 
+  mutate(t = as.numeric(t)) %>% 
+  bind_rows(python_t_df) %>% 
+  filter(n_row <= 10000) %>% 
   ggplot(aes(x = n_row, 
-             y = time,
-             color = time_type)) + 
+             y = t,
+             color = type)) + 
   geom_point() + 
-  geom_line()
+  geom_line() 
+  
+
+python_t_df %>% 
+  ggplot(aes(x = n_row, 
+             y = t,
+             color = type)) + 
+  geom_point() + 
+  geom_line() 
+  
 ```
 
 

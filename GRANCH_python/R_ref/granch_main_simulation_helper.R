@@ -209,8 +209,11 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
     
     all_posible_observations_on_current_stimulus <- get_all_possible_observations_for_stimulus(current_stimulus, 
                                                                                                epsilon = params$epsilon, 
-                                                                                               grid_n = hypothetical_obs_grid_n)
+                                     grid_n = hypothetical_obs_grid_n)
     
+    
+    
+  
     model[t, grepl("^f", names(model))] <- as.list(current_observation)
     
     # steps in calculating EIG
@@ -249,11 +252,12 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
                                                                 df_y_given_mu_sig_sq, # cached likelihoods
                                                                 ll_z_given_mu_sig_sq, # this is going to be a list of list storing all the relevant info
                                                                 model)
+        
 
         hypothetical_obs_posterior <- score_post(hypothetical_obs_likelihood,
                                         prior_df)
 
-
+        
         l_possible_obs_post[[o]] <- hypothetical_obs_posterior
 
         #approximate 0 with small value
@@ -263,9 +267,11 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
         kl_new[o,f] <- kl_div(hypothetical_obs_posterior$posterior,
                               ll_post[[t]][[f]]$posterior)
 
-        p_post_new[o, f] <- get_post_pred(obs = all_posible_observations_on_current_stimulus[o,f],
+        
+        p_post_new[o, f] <- get_post_pred(obs = as.numeric(all_posible_observations_on_current_stimulus[o,f]),
                                               lp_post = ll_post[[t]][[f]] ,
                                               df_y_given_mu_sig_sq)
+        
         model[t+1, paste0("f", f)] <- NA_real_
 
       }
@@ -279,12 +285,16 @@ granch_main_simulation <- function(params = df, testing = TRUE) {
     model$stimulus_idx[t+1] <- NA_real_
     model[t+1, paste0("f", f)] <- NA_real_
 
+
     model$EIG[t] <- sum(p_post_new * kl_new)
 
 
       # currently taking away the probabilistic decision-making process
-
     model$look_away[t] = model$EIG[t] < model$EIG_from_world[t]
+    print("comparing EIG")
+    print(model$EIG[t])
+    print(model$EIG_from_world[t])
+    print(model$EIG[t] < model$EIG_from_world[t])
     #model$look_away[t] = t > 5
     
     #model$p_look_away[t] = rectified_luce_choice(x = model$EIG_from_world[t], 
