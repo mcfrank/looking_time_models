@@ -92,6 +92,7 @@ score_y_given_mu_sigma_sq <- function(y_val, mu, sigma){
 
 
 score_z_ij_given_y <- function(z_val, y_val, epsilon){
+
   dnorm(z_val, mean = y_val, sd = epsilon, log = TRUE)
 }
 
@@ -141,6 +142,9 @@ score_epsilon <- function(epsilon, mu_epsilon, sd_epsilon){
 get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq){
 
   temp_df <- merge(lp_post, df_y_given_mu_sig_sq)
+  obs = as.numeric(obs)
+
+  
   temp_df$lp_z_given_mu_sig_sq_for_y = score_z_ij_given_y(z_val = obs, y_val = temp_df$y, epsilon = temp_df$grid_epsilon) +  
     temp_df$lp_y_given_mu_sig_sq
   
@@ -149,9 +153,7 @@ get_post_pred <- function(obs, lp_post, df_y_given_mu_sig_sq){
                         + grid_mu_theta, 
                        data = temp_df, FUN = matrixStats::logSumExp)
   
-  print("revised!")
-  print(temp_df$lp_z_given_mu_sig_sq)
-  print(temp_df$lp_z_given_mu_sig_sq == temp_df$lp_z_given_mu_sig_sq_for_y)
+  
   
   #return(exp(logSumExp(temp_df$lp_z_given_mu_sig_sq + lp_post$log_posterior)))
   return(exp(logSumExp(temp_df$lp_z_given_mu_sig_sq_for_y + lp_post$log_posterior)))

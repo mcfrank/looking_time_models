@@ -45,8 +45,6 @@ class granch_params:
     def print_params_info(self): 
         # this could be used to gather human readable form on parameters
         pass 
-
-
     
     def add_meshed_grid(self): 
         # this function helps create all permuatation of those grid values 
@@ -130,13 +128,3 @@ class granch_params:
         
         self.prior_lp_mu_sig_sq = helper.get_ith_column(unique_prior_df_t, 3)
         self.prior_lp_epsilon = helper.get_ith_column(unique_prior_df_t, 4)
-    
-
-
-            
-
-
-
-
-
-    

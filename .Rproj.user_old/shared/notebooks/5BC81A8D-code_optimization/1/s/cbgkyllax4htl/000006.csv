@@ -1,6 +1,0 @@
-"0","bm_grid_approx %>% autoplot()"
-"2","Warning in f(...) :"
-"2","
- "
-"2"," The default behavior of beeswarm has changed in version 0.6.0. In versions <0.6.0, this plot would have been dodged on the y-axis.  In versions >=0.6.0, grouponX=FALSE must be explicitly set to group on y-axis. Please set grouponX=TRUE/FALSE to avoid this warning and ensure proper axis choice.
-"
