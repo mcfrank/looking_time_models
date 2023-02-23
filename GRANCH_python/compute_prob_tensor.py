@@ -47,50 +47,57 @@ def score_posterior(model, params, hypothetical_obs):
    
    if hypothetical_obs: 
         likelihood = model.ps_likelihood
+        unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
+
+        logsumxp_dim = (1, 2, 3)
+        normalizing_term = helper.add_singleton_dim(unlz_p.logsumexp(dim = logsumxp_dim), 3)
    else: 
         likelihood = model.all_likelihood[model.current_t]
+        unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
 
-  
-   unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
-   normalized_posterior = torch.exp(unlz_p - unlz_p.logsumexp(dim = (0, 1, 2)))
+        logsumxp_dim = (0, 1, 2)
+        normalizing_term = unlz_p.logsumexp(dim = logsumxp_dim)
+
+   
+   normalized_posterior = torch.exp(unlz_p - normalizing_term)
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
    return normalized_posterior
 
 # score likelihood
-def score_likelihood(model, params, hypothetical_obs, test = False): 
+def score_likelihood(model, params, hypothetical_obs): 
     
     # if we are calculating EIG from hypothetical obs 
     # then we need to concatenate the hypothetical obs 
     if hypothetical_obs: 
-        obs = torch.cat((model.get_all_observations_on_current_stimulus().squeeze(1),
-        model.current_ps_obs.unsqueeze(0)),0).unsqueeze(1)
+        current_obs = model.get_all_observations_on_current_stimulus()
+        ps_obs = model.possible_observations
+        obs = torch.cat([current_obs.repeat(ps_obs.size()[0], 1), ps_obs.unsqueeze(1)], dim = 1)
+        
+        z_ij_collapse_dim = 1
+        y_dim = 3
+
     else: 
         obs = model.get_all_observations_on_current_stimulus()
+        z_ij_collapse_dim = 0
+        y_dim = 2
 
     # lp(z|mu, sigma^2) = lp(z | y) + lp(y | mu, sigma^2)
     # note that we are using all the observations on the current stimuli z
     # and sum them together
-    
+    # z_ij_collapse_dim is difference for hypothetical obs and actual observation
+
+
+
     lp_z_given_mu_sigma_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
-                                                                      params.meshed_grid_epsilon), dim = 0).squeeze(), 
+                                                                      params.meshed_grid_epsilon, hypothetical_obs), dim =  z_ij_collapse_dim).squeeze(), 
                                                 params.lp_y_given_mu_sigma  
                            
                                              )
     
-    temp = torch.sum(score_z_ij_given_y(obs,params.meshed_grid_y, params.meshed_grid_epsilon), dim = 0)
-
     # goal: apply logSumExp based on the grouping of y
-    likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = 2)
+    likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = y_dim)
 
-    # if(test):
-
-        #print(grouping_base)
-        #print(lp_z_given_mu_sigma_for_y)
-        #ol = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sigma_for_y.float())
-        #nl = helper.group_by_logsumexp_improved(grouping_base.float(), lp_z_given_mu_sigma_for_y.float())
-        #print(ol)
-        #print(nl)
 
     if(model.current_stimulus_idx > 0): 
         likelihood = likelihood + model.get_last_stimuli_likelihood()
@@ -111,9 +118,13 @@ def score_y_given_mu_sigma(y_val, mu, sigma):
 # following the guidance here: https://github.com/pytorch/pytorch/issues/76709
 # needs to wrangle the shape of the z value
 
-def score_z_ij_given_y(z_val, y_val, epsilon):
+def score_z_ij_given_y(z_val, y_val, epsilon, hypothetical_obs = False):
     dist = Normal(y_val, epsilon)
-    padded_obs = helper.add_singleton_dim(z_val, z_val.size()[0])
+    if hypothetical_obs: 
+        padded_obs = helper.add_singleton_dim(z_val,4)
+    else: 
+        padded_obs = helper.add_singleton_dim(z_val, z_val.size()[0])
+    
     res = dist.expand((1,) + y_val.size()).log_prob(padded_obs)      
     return res
 

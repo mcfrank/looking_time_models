@@ -72,12 +72,13 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
     # lp(z|mu, sig^2) = lp(z | y) + lp(y | mu, sig^2)
     # note that we are using all the observations on the current stimuli z
     # and sum them together 
+    print(obs)
     lp_z_given_mu_sig_sq_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
                                                                       params.meshed_epsilon), dim = 0), 
                                                 params.lp_y_given_mu_sig_sq  
                                                 )
-
+    
     # goal: apply logSumExp based on the grouping of y
 
     # first we need to putting all the grouping base together 
