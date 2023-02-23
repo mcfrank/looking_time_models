@@ -6,7 +6,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 
-f = open('new_embeddings.json')
+f = open('embeddings.json')
 embedding_dict = json.load(f)
 
 # samples in rows, features in columns
