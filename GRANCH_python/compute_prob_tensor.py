@@ -22,18 +22,15 @@ def kl_div(new_post, prev_post):
 # score posterior predictive 
 def score_post_pred(model, params): 
 
-    print(model.current_t)
     obs = model.possible_observations
-    res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon, hypothetical_obs = True)
+    res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon)
     padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.repeat(res.size()[0], 1, 1, 1, 1)
     lp_hypo_z_given_mu_sigma_for_y = res + padded_lp_y_given_mu_sigma
-    
     # goal: apply logSumExp based on the grouping of y
     hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 3)
     log_posterior = torch.log(model.all_posterior[model.current_t])
-    print(log_posterior)
 
-    padded_log_posterior = log_posterior.repeat(3, 1, 1, 1)
+    padded_log_posterior = log_posterior.repeat(obs.size()[0], 1, 1, 1)
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, padded_log_posterior), dim = (1, 2,3))))
 
 # score posterior 
@@ -46,8 +43,7 @@ def score_posterior(model, params, hypothetical_obs):
         logsumxp_dim = (1, 2, 3)
         normalizing_term = helper.add_singleton_dim(unlz_p.logsumexp(dim = logsumxp_dim), 3)
    else: 
-        print("called")
-        print(model.current_t)
+        
         likelihood = model.all_likelihood[model.current_t]
         unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
 
@@ -69,7 +65,6 @@ def score_likelihood(model, params, hypothetical_obs):
         # needs to be changed when incorporating multiple feature
         current_obs = current_obs.flatten(start_dim = 0)
         obs = torch.cat([current_obs.repeat(ps_obs.size()[0], 1), ps_obs.unsqueeze(1)], dim = 1)
-        print(obs)
         z_ij_collapse_dim = 1
         y_dim = 3
 
@@ -87,17 +82,21 @@ def score_likelihood(model, params, hypothetical_obs):
 
     lp_z_given_mu_sigma_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
-                                                                      params.meshed_grid_epsilon, hypothetical_obs), dim =  z_ij_collapse_dim).squeeze(), 
+                                                                      params.meshed_grid_epsilon), dim =  z_ij_collapse_dim).squeeze(), 
                                                 params.lp_y_given_mu_sigma  
                            
-                                             )
-    
+                                             )    
+
     # goal: apply logSumExp based on the grouping of y
     likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = y_dim)
-
+    
 
     if(model.current_stimulus_idx > 0): 
-        likelihood = likelihood + model.get_last_stimuli_likelihood()
+        if hypothetical_obs: 
+            padded_last_stimuli_likelihood = model.get_last_stimuli_likelihood().repeat(likelihood.size()[0], 1, 1, 1)
+            likelihood = likelihood + padded_last_stimuli_likelihood
+        else: 
+            likelihood = likelihood + model.get_last_stimuli_likelihood()
 
     return likelihood
 
@@ -115,13 +114,11 @@ def score_y_given_mu_sigma(y_val, mu, sigma):
 # following the guidance here: https://github.com/pytorch/pytorch/issues/76709
 # needs to wrangle the shape of the z value
 
-def score_z_ij_given_y(z_val, y_val, epsilon, hypothetical_obs = False):
+def score_z_ij_given_y(z_val, y_val, epsilon):
     dist = Normal(y_val, epsilon)
-    if hypothetical_obs: 
-        padded_obs = helper.add_singleton_dim(z_val,4)
-    else: 
-        padded_obs = helper.add_singleton_dim(z_val, z_val.size()[0])
-    
+    # add 4 dimension because the grid are four dimension
+    # when padded 4 dimension singleton dimension the tensor became broadcastable
+    padded_obs = helper.add_singleton_dim(z_val,4)
     res = dist.expand((1,) + y_val.size()).log_prob(padded_obs)      
     return res
 
