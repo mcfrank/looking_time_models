@@ -41,7 +41,6 @@ def score_post_pred(hypo_obs, model, params):
     # is the same with the one using the homebased function
     hypo_likelihood = helper.group_by_logsumexp(grouping_base, lp_hypo_z_given_mu_sig_sq_for_y)    
     log_posterior = torch.log(model.all_posterior[model.current_t])
-    print(log_posterior)
     #print(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0))
 
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0)))
@@ -104,18 +103,11 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
     # crossed checked in R that likelihood_df group by operation 
     # is the same with the one using the homebased function
     likelihood = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
-
-    # if(test):
-
-        #print(grouping_base)
-        #print(lp_z_given_mu_sig_sq_for_y)
-        #ol = helper.group_by_logsumexp(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
-        #nl = helper.group_by_logsumexp_improved(grouping_base.float(), lp_z_given_mu_sig_sq_for_y.float())
-        #print(ol)
-        #print(nl)
+    
 
     if(model.current_stimulus_idx > 0): 
         likelihood = likelihood + model.get_last_stimuli_likelihood()
+        
 
     return likelihood
 
