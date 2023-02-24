@@ -22,6 +22,7 @@ def score_post_pred(hypo_obs, model, params):
                                                                    params.meshed_grid_y, 
                                                                    params.meshed_epsilon), 
                                                 params.lp_y_given_mu_sig_sq  
+                                                
                                                 )
 
     # goal: apply logSumExp based on the grouping of y
@@ -40,6 +41,9 @@ def score_post_pred(hypo_obs, model, params):
     # is the same with the one using the homebased function
     hypo_likelihood = helper.group_by_logsumexp(grouping_base, lp_hypo_z_given_mu_sig_sq_for_y)    
     log_posterior = torch.log(model.all_posterior[model.current_t])
+    print(log_posterior)
+    #print(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0))
+
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0)))
 
 # score posterior 
@@ -72,12 +76,16 @@ def score_likelihood(model, params, hypothetical_obs, test = False):
     # lp(z|mu, sig^2) = lp(z | y) + lp(y | mu, sig^2)
     # note that we are using all the observations on the current stimuli z
     # and sum them together 
-    print(obs)
+
+    res = score_z_ij_given_y(obs, params.meshed_grid_y, params.meshed_epsilon)
+    
     lp_z_given_mu_sig_sq_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
                                                                       params.meshed_epsilon), dim = 0), 
                                                 params.lp_y_given_mu_sig_sq  
                                                 )
+    
+    #print(lp_z_given_mu_sig_sq_for_y)
     
     # goal: apply logSumExp based on the grouping of y
 

@@ -13,34 +13,28 @@ import helper
 
 # compute KL divergence
 def kl_div(new_post, prev_post): 
+    # this is to make sure the prev post is of the same dimension as the new post
+    paded_prev_post = prev_post.repeat(new_post.size()[0], 1, 1, 1)
+
     return torch.sum(torch.mul(new_post, 
-                         torch.log(new_post/prev_post)))
+                         torch.log(new_post/paded_prev_post)), dim = (1, 2, 3))
 
 # score posterior predictive 
-def score_post_pred(hypo_obs, model, params): 
-    lp_hypo_z_given_mu_sigma_for_y = torch.add(score_z_ij_given_y(hypo_obs,
-                                                                   params.meshed_grid_y, 
-                                                                   params.meshed_epsilon), 
-                                                params.lp_y_given_mu_sigma  
-                                                )
+def score_post_pred(model, params): 
 
+    print(model.current_t)
+    obs = model.possible_observations
+    res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon, hypothetical_obs = True)
+    padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.repeat(res.size()[0], 1, 1, 1, 1)
+    lp_hypo_z_given_mu_sigma_for_y = res + padded_lp_y_given_mu_sigma
+    
     # goal: apply logSumExp based on the grouping of y
-    # first we need to putting all the grouping base together 
-    # note the order of the tensor matters to provide a grouping base 
-    # that algins with lp_z_given_mu_sigma_for_y grouping base 
-    grouping_base = torch.cat(
-            (
-             params.meshed_grid_mu.unsqueeze(1),
-             params.meshed_grid_sigma.unsqueeze(1),
-            params.meshed_epsilon.unsqueeze(1)
-            ),
-             dim = 1)
-
-    # crossed checked in R that likelihood_df group by operation 
-    # is the same with the one using the homebased function
-    hypo_likelihood = helper.group_by_logsumexp(grouping_base, lp_hypo_z_given_mu_sigma_for_y)    
+    hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 3)
     log_posterior = torch.log(model.all_posterior[model.current_t])
-    return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, log_posterior), 0)))
+    print(log_posterior)
+
+    padded_log_posterior = log_posterior.repeat(3, 1, 1, 1)
+    return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, padded_log_posterior), dim = (1, 2,3))))
 
 # score posterior 
 def score_posterior(model, params, hypothetical_obs):
@@ -52,13 +46,14 @@ def score_posterior(model, params, hypothetical_obs):
         logsumxp_dim = (1, 2, 3)
         normalizing_term = helper.add_singleton_dim(unlz_p.logsumexp(dim = logsumxp_dim), 3)
    else: 
+        print("called")
+        print(model.current_t)
         likelihood = model.all_likelihood[model.current_t]
         unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
 
         logsumxp_dim = (0, 1, 2)
         normalizing_term = unlz_p.logsumexp(dim = logsumxp_dim)
 
-   
    normalized_posterior = torch.exp(unlz_p - normalizing_term)
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
    return normalized_posterior
@@ -71,8 +66,10 @@ def score_likelihood(model, params, hypothetical_obs):
     if hypothetical_obs: 
         current_obs = model.get_all_observations_on_current_stimulus()
         ps_obs = model.possible_observations
+        # needs to be changed when incorporating multiple feature
+        current_obs = current_obs.flatten(start_dim = 0)
         obs = torch.cat([current_obs.repeat(ps_obs.size()[0], 1), ps_obs.unsqueeze(1)], dim = 1)
-        
+        print(obs)
         z_ij_collapse_dim = 1
         y_dim = 3
 
