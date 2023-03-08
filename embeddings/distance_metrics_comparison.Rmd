@@ -53,13 +53,128 @@ plot_embeddings <- embeddings_pca %>% select(V1,V2) %>%
   mutate(stim_name = euc_dist %>% colnames(), 
          animacy_type = case_when(str_detect(stim_name, "inanimate") ~ "inanimate",
                                      str_detect(stim_name, "animate") ~ "animate")) %>%
-  filter(!(animacy_type == 'veggie' & str_detect(stim_name, '_left.png')))
+  filter(!(animacy_type == 'veggie' & str_detect(stim_name, '_topleft.png'))) %>% 
+  filter((animacy_type == "veggie" & V1 < 0.5 & (V2 > -1 & V2 < 0.2)) | animacy_type != "veggie")
 
 ggplot(plot_embeddings, aes(x = V1, y = V2, color = animacy_type)) + geom_point() + xlab("PC1") + ylab("PC2") + theme_classic(base_size = 20)
 
 
+plot_embeddings %>% 
+  filter(animacy_type == "veggie") %>% 
+  separate(stim_name, into = c("type", "number", "pose"), sep = "_") %>% 
+  distinct(number)
+
+
+write_csv(plot_embeddings, here::here("adult_norming_embeddings.csv"))
+```
+
+
+```{r}
+plot_embeddings$stim_name
+```
+
+# Plot distances for subset
+
+```{r}
+
+subset_name = plot_embeddings$stim_name
+
+all_names =  euc_dist %>% colnames() 
+# assign row names
+euc_dist = euc_dist %>% as.data.frame() 
+rownames(euc_dist) = all_names
+
+animal_names = subset_name[grep('animate',subset_name)]
+veggie_names = subset_name[grep('veggie',subset_name)] 
+
+
+
+animal_poses = c('left', 'right')
+veggie_poses = c('left', 'right')
 
 ```
+
+# Animals
+```{r}
+distance_df_animals <- tibble(stim_name = vector(mode="character", length=length(animal_names)),
+                              pose_dist = vector(mode="character", length=length(animal_names)),
+                              animacy_dist = vector(mode="character", length=length(animal_names)), 
+                              identity_dist = vector(mode="character", length=length(animal_names)))
+
+idx = 0
+for (animal in animal_names) {
+   idx = idx + 1
+   pose = sapply(animal_poses, grepl, animal)
+   
+   # find names of stim relevant for each violation
+   pose_violation = str_replace(animal, names(which(pose)), names(which(!pose)))
+   identity_violations = animal_names[grep(names(which(pose)), animal_names)] 
+  # remove itself
+  identity_violations = identity_violations[identity_violations != animal] 
+  animacy_violations = veggie_names[grep(names(which(pose)), veggie_names)]
+
+  # get distances
+  pose_violation_dist = euc_dist[animal, pose_violation]
+  identity_violation_dist = mean(euc_dist[animal, identity_violations]  %>% as.numeric())
+  animacy_violations_dist =  mean(euc_dist[animal, animacy_violations] %>% as.numeric())
+  
+  distance_df_animals$stim_name[idx] = animal
+  distance_df_animals$pose_dist[idx] = pose_violation_dist
+  distance_df_animals$identity_dist[idx] = identity_violation_dist
+  distance_df_animals$animacy_dist[idx] = animacy_violations_dist
+
+}
+
+distance_df_animals = pivot_longer(distance_df_animals, cols = c('pose_dist', 'identity_dist', 'animacy_dist'), names_to = 'violation_type')
+
+ggplot(distance_df_animals, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 20) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose')) + ggtitle('Animals')
+
+```
+
+# Veggies
+```{r}
+# remove left veggies for now
+#veggie_names = veggie_names[!grepl('_topleft',veggie_names)] 
+
+distance_df_veggies <- tibble(stim_name = vector(mode="character", length=length(veggie_names)),
+                              pose_dist = vector(mode="character", length=length(veggie_names)),
+                              animacy_dist = vector(mode="character", length=length(veggie_names)), 
+                              identity_dist = vector(mode="character", length=length(veggie_names)))
+
+
+
+
+idx = 0
+for (veggie in veggie_names) {
+   idx = idx + 1
+   pose = sapply(veggie_poses, grepl, veggie)
+   
+   # find names of stim relevant for each violation
+   pose_violation = str_replace(veggie, names(which(pose)), names(which(!pose)))
+   identity_violations = veggie_names[grep(names(which(pose)), veggie_names)] 
+  # remove itself
+  identity_violations = identity_violations[identity_violations != veggie] 
+  animacy_violations = animal_names[grep(animal_poses[which(pose)], animal_names)]
+
+  # get distances
+  pose_violation_dist = euc_dist[veggie, pose_violation]
+  identity_violation_dist = mean(euc_dist[veggie, identity_violations]  %>% as.numeric())
+  animacy_violations_dist =  mean(euc_dist[veggie, animacy_violations] %>% as.numeric())
+  
+  distance_df_veggies$stim_name[idx] = veggie
+  distance_df_veggies$pose_dist[idx] = pose_violation_dist
+  distance_df_veggies$identity_dist[idx] = identity_violation_dist
+  distance_df_veggies$animacy_dist[idx] = animacy_violations_dist
+
+}
+
+distance_df_veggies = pivot_longer(distance_df_veggies, cols = c('pose_dist', 'identity_dist', 'animacy_dist'), names_to = 'violation_type')
+
+ggplot(distance_df_veggies, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 20) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose')) + ggtitle('Veggies')
+
+```
+
+
 
 # Plot distances
 ```{r}
