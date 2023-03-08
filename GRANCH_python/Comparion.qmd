@@ -4,185 +4,52 @@ format: html
 editor: visual
 ---
 
-# R
-
-```{r}
-library(reticulate)
-library(matrixStats)
-library(here)
-library(tidyverse)
-library(tictoc)
-
-lapply(list.files(here("GRANCH_python/R_ref")), 
-       function(x){
-         source(paste0(here("GRANCH_python/R_ref"), "/", x))
-       })
-```
-
-
-
-```{r}
-
-hypothetical_obs_grid_n <- 3
-n_feature <- 1
-
-  
-# sd_n: range decided by n*sd away 
-# sd_step: step decided by sd / sd_step 
-grid_mu_theta = seq(-1, 1, .2)
-
-# not sure about the principled way to select these three yet
-grid_sig_sq = seq(0.001, 2, 0.2)
-grid_y <- seq(-1, 1, .2)
-# grid_epsilon might be too small 
-grid_epsilon = seq(0.001, 2, 0.2)
-
-mu_priors = c(0)
-V_priors = c(0.001) # maybe this controls for how fast?
-alpha_priors = c(1) 
-beta_priors = c(1) 
-epsilons = c(0.00001) 
-mu_epsilon = c(0.001)
-sd_epsilon = c(4)
-world_EIGs = c(0.0001) 
-max_observation = 500
-
-model_params <- set_granch_params(
-                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, hypothetical_obs_grid_n,
-                mu_priors, V_priors, 
-                alpha_priors, beta_priors, 
-                epsilons, mu_epsilon, sd_epsilon,
-                world_EIGs, max_observation)
-
-model_params <- add_precalculated_prior_dfs(model_params)
-
-b <- 0.1
-d <- 0.3
-
-stims_df <- tibble(sequence_scheme = c("BBBBBB"),
-                   n_features = n_feature
-                   ) %>% 
-  mutate(
-    stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss,background = b  ,
-deviant =d
-)}))
-
-
-
-full_params_df <- make_simulation_params(n_sim = 1,
-                                        model_params, 
-                                        stims_df)
-
-```
-
-```{r}
-tic()
-res = granch_main_simulation(params = full_params_df)
-toc()
-r_model <- res[[2]]
-# magic number for temp testing purpose
-r_kls <- lapply(seq(1, 6, 1), function(x){
-    as.data.frame(t(res[[1]][[x]][[2]]))
-}) %>% bind_rows() %>% 
-  rename(obs_1 = V1, obs_2 = V2) %>% 
-  rownames_to_column("t") %>% 
-  mutate(type = "r")
-
-r_pps <- lapply(seq(1, 6, 1), function(x){
-    as.data.frame(t(res[[1]][[x]][[3]]))
-}) %>% bind_rows() %>% rename(obs_1 = V1, obs_2 = V2) %>% 
-  rownames_to_column("t") %>% 
-  mutate(type = "r")
-```
-
-# Python
-
 ```{python}
-import cProfile
-import re
+# helper functions from within the library
+import helper
+import importlib
+import numpy as np
 import torch 
 import pandas as pd
-import init_params
-import compute_prob
-import init_model
-import time
-import helper
-import main_sim
-import importlib 
+import pickle
+from pickle import FALSE, TRUE
+from scipy.stats import norm 
+import itertools
+from itertools import repeat 
+import scipy.stats as sts 
+from torch.distributions import Normal  
+import time 
+
+
+# in library 
+import init_params_tensor
+import init_model_tensor
+import main_sim_tensor
+import compute_prob_tensor
 
 
 importlib.reload(helper)
-importlib.reload(compute_prob)
+importlib.reload(compute_prob_tensor)
+importlib.reload(init_params_tensor)
 importlib.reload(init_params)
+importlib.reload(init_model_tensor)
 importlib.reload(init_model)
-importlib.reload(main_sim)
-
-
-
-
-p = init_params.granch_params(
-    grid_mu_theta = torch.linspace(start = -1, end = 1, steps = 11), 
-    grid_sig_sq = torch.linspace(start = 0.001, end = 1.8, steps = 10), 
-    grid_y = torch.linspace(start = -1, end = 1, steps = 11), 
-    grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = 10), 
-    hypothetical_obs_grid_n = 3, 
-    mu_prior = 0.001,
-    V_prior = 0.001, 
-    alpha_prior = 1, 
-    beta_prior = 1,
-    epsilon  = 0.000001, 
-    mu_epsilon = torch.tensor([0.001]), 
-    sd_epsilon = torch.tensor([4]), 
-    world_EIGs = 0.0001,
-    max_observation = 500)
-
-
-# set up the prior dfs 
-p.add_meshed_grid()
-p.add_lp_mu_sig_sq()
-p.add_y_given_mu_sig_sq()
-p.add_lp_epsilon()
-# this added components to be used that can be used to calculate posterior
-p.add_priors()
-
-
-s = init_model.granch_stimuli(1, 'BBBBBB')
-# s.get_stimuli_sequence("embedding_PCA.csv")
-
-
-
-
-m = init_model.granch_model(500, s)
-
-res = main_sim.granch_main_simulation(p, m, s)
-behavior = m.behavior
-
-
-
-
-start_time = time.perf_counter()
-main_sim.granch_main_simulation(p, m, s)
-end_time = time.perf_counter()
-
-start_time_2 = time.perf_counter()
-res = main_sim.granch_main_simulation(p, m, s)
-end_time_2 = time.perf_counter()
+importlib.reload(main_sim_tensor)
+importlib.reload(ps)
 
 
 ```
 
-# timing python
+# Basic
 
 ```{python}
-
-def run_everything():
-  start_time = time.perf_counter()
-  p = init_params.granch_params(
-      grid_mu_theta = torch.linspace(start = -1, end = 1, steps = 11),
-      grid_sig_sq = torch.linspace(start = 0.001, end = 1.8, steps = 10), 
-      grid_y = torch.linspace(start = -1, end = 1, steps = 11), 
-      grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = 10), 
-      hypothetical_obs_grid_n = 3, 
+# initialize parameters
+params = init_params_tensor.granch_params(
+      grid_mu = torch.linspace(start = -1, end = 1, steps = 5),
+      grid_sigma = torch.linspace(start = 0.001, end = 1.8, steps = 3), 
+      grid_y = torch.linspace(start = -1, end = 1, steps = 3), 
+      grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = 3), 
+      hypothetical_obs_grid_n = 5, 
       mu_prior = 0.001,
       V_prior = 0.001, 
       alpha_prior = 1, 
@@ -192,379 +59,140 @@ def run_everything():
       sd_epsilon = torch.tensor([4]), 
       world_EIGs = 0.0001,
       max_observation = 500)
-  p.add_meshed_grid()
-  p.add_lp_mu_sig_sq()
-  p.add_y_given_mu_sig_sq()
-  p.add_lp_epsilon()
-  p.add_priors()
-  s = init_model.granch_stimuli(1, 'BBBBBB')
-  m = init_model.granch_model(500, s)
-  res = main_sim.granch_main_simulation(p, m, s)
-  end_time = time.perf_counter()
-  return(end_time - start_time)
+
+# add the various different cached bits
+params.add_meshed_grid()
+params.add_lp_mu_sigma()
+params.add_y_given_mu_sigma()
+params.add_lp_epsilon()
+params.add_priors()
+
+tensor_stimuli = init_model_tensor.granch_stimuli(1, 'BBBBBB')
+tensor_model = init_model_tensor.granch_model(500, tensor_stimuli)
 
 
-  
-  
+res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
 ```
+
+
+# Testing stabiliy
 
 ```{python}
-times = [] 
-for x in range(2):
-  t = run_everything()
-  times.append(t)
-  print("time")
-  print(t)
-```
-
-
-```{python}
-times
-```
-
-# compare EIG 
-
-```{r}
-
-py_model <- py$behavior %>% 
-  unnest(cols = everything()) %>% 
-  rownames_to_column("t") %>% 
-  mutate(t = as.numeric(t)) %>% 
-  mutate(stimulus_idx = stimulus_id + 1) %>% 
-  select(t, stimulus_idx, EIG) %>% 
-  mutate(type = "py")
-
-r_model %>% 
-  select(t, stimulus_idx, EIG) %>% 
-  mutate(type = "r") %>% 
-  bind_rows(py_model) %>% 
-  filter(!is.na(EIG)) %>%
-  ggplot(aes(x = t, y = EIG, color = type)) + 
-  geom_point(position = position_dodge(width = .4)) 
-
-
-py$behavior %>% 
-  unnest(cols = everything()) %>% 
-  group_by(stimulus_id) %>% 
-  summarise(n = n()) %>% 
-  ggplot(aes(x = stimulus_id, y = n)) + 
-  geom_point() + 
-  ylim(0, 30)
-
-py$behavior %>% 
-  unnest(cols = everything()) %>% 
-  rownames_to_column("t") %>% 
-  filter(!is.na(EIG)) %>% 
-  ggplot(aes(x = as.numeric(t), y = EIG, color = stimulus_id)) + 
-  geom_point() + theme_classic()
-```
-
-
-```{r}
-# KLs
-
-py_kls <- py$all_ps_kl 
-py_pps <- py$all_ps_pp 
-
-bind_rows(r_kls %>% mutate(t = as.numeric(t)), py_kls) %>% 
-  pivot_longer(cols = starts_with("obs"), 
-               values_to = "kl", names_to = "obs") %>% 
-  ggplot(aes(x = t, y = kl, color = type)) + 
-  geom_point(position = position_dodge(width = .2)) + 
-  geom_line(position = position_dodge(width = .2)) + 
-  facet_wrap(~obs)
-
-bind_rows(r_pps %>% mutate(t = as.numeric(t)), py_pps) %>% 
-  pivot_longer(cols = starts_with("obs"), 
-               values_to = "pp", names_to = "obs") %>% 
-  ggplot(aes(x = t, y = pp, color = type)) + 
-  geom_point(position = position_dodge(width = .2)) + 
-  geom_line(position = position_dodge(width = .2)) + 
-  facet_wrap(~obs)
-
-
-# EIG 
-pymodel <- py$behavior %>% 
-  as.tibble() %>% 
-  unnest(cols = everything()) %>% 
-  mutate(stimulus_id = stimulus_id + 1, 
-         type = "py") %>% 
-  select(stimulus_id, EIG, type) %>% 
-  filter(!is.na(EIG))
-
-
-compare_model <- r_model %>% 
-  select(stimulus_idx, EIG) %>% 
-  rename(stimulus_id = stimulus_idx) %>% 
-  mutate(type = "r") %>% 
-  filter(!is.na(EIG)) %>% 
-  bind_rows(pymodel)
-
-compare_model %>% 
-  ggplot(aes(x = stimulus_id, 
-             y = EIG, 
-             color = type)) + 
-  geom_point(position = position_dodge(width = .2)) + 
-  geom_line(position = position_dodge(width = .2))
-```
-
-
-
-# posterior
-
-```{r}
-py_prior_df = py$prior_df
-py_ldf = py$ldf
-
-a = py_prior_df %>% 
-  distinct(grid_epsilon, 
-                   grid_mu_theta, 
-                   grid_sig_sq, lp_mu_sig_sq, lp_epsilon) 
-
-
-
-
-likelihood = py$ldf %>% 
-  group_by(grid_epsilon, grid_mu_theta, grid_sig_sq) %>% 
-  summarise(l = matrixStats::logSumExp(lp_z_given_mu_sig_sq_for_y)) 
-
-
-a_post <- a %>% 
-  left_join(likelihood, by = c("grid_epsilon", 
-                   "grid_mu_theta", 
-                   "grid_sig_sq")) %>% 
-  mutate(py_ulp = lp_mu_sig_sq + lp_epsilon + l)
-
-
-
-r_post <- all_sims_res$results[[1]][[1]][[1]] %>% 
-  distinct(grid_mu_theta, grid_sig_sq, grid_epsilon, 
-           lp_epsilon, lp_mu_sig_sq,
-           lp_z_given_mu_sig_sq, unnormalized_log_posterior, posterior) %>% 
-  rename(r_lp_epsilon = lp_epsilon, 
-         r_lp_mu_sig_sq = lp_mu_sig_sq)
-test_post = py$test_post
-
-
-# visualization has confirmed that the differnece in value has sth to do with the fluctuation of the prior resulted from the different function
-rpy_cp <- a_post %>% 
-  mutate(grid_mu_theta = round(grid_mu_theta, 2), 
-         grid_sig_sq = round(grid_sig_sq, 2), 
-         grid_epsilon = round(grid_epsilon,2)
-         ) %>% 
-  left_join(r_post, 
-             by = c("grid_mu_theta", "grid_sig_sq", "grid_epsilon")) %>% 
-  mutate(
-    diff_lp_epsilon = lp_epsilon - r_lp_epsilon, 
-    diff_lp_mu_sig_sq = lp_mu_sig_sq - r_lp_mu_sig_sq,
-    diff_likelihood = l - lp_z_given_mu_sig_sq,
-    diff_ulp = py_ulp - unnormalized_log_posterior)  
-
-
-
-```
-
-# compare Prior
-
-```{r}
-python_r_prior <- py$r_type_prior_df
-
-names(python_r_prior) <- c("grid_mu_theta", 
-                           "grid_sig_sq", 
-                           #"grid_y",
-                           "grid_epsilon", 
-                           "lp_mu_sig_sq", "lp_epsilon")
-
-r_prior <- all_sims_res$results[[1]][[1]][[1]]
-
-r_prior <- r_prior %>% 
-  select(grid_mu_theta, grid_sig_sq, 
-         grid_epsilon, lp_mu_sig_sq, lp_epsilon) %>% 
-  distinct(grid_mu_theta, grid_sig_sq, 
-         grid_epsilon, lp_mu_sig_sq, lp_epsilon)
-
-```
-
-```{r}
-# lp mu sig sq's gap between R and python seems to be pretty consistent 
-python_r_prior %>% 
-  mutate(type = "python") %>% 
-  bind_rows(r_prior %>% mutate(type = "R")) %>% 
-  group_by(type) %>% 
-  mutate(row_idx = row_number()) %>% 
-  mutate(grid_mu_theta = round(grid_mu_theta, 2), 
-         grid_sig_sq = round(grid_sig_sq, 2), 
-         grid_epsilon = round(grid_epsilon, 2)) %>% 
-  ggplot(aes(x = grid_mu_theta, 
-             y = lp_mu_sig_sq, 
-             color = type)) + 
-  geom_point() + 
-  facet_grid(grid_sig_sq ~ grid_epsilon)
-
-
-
-```
-
-# performance comparison
-
-```{r}
-calculate_run_time <- function(n){
-  
-  grid_mu_theta = rep(0.1, n)
-
-  # not sure about the principled way to select these three yet
-  grid_sig_sq = rep(0.1, n)
-  grid_y <- rep(0.1, n)
-# grid_epsilon might be too small 
-  grid_epsilon = rep(0.1, n)
-
-mu_priors = c(1)
-V_priors = c(1) # maybe this controls for how fast?
-alpha_priors = c(1) 
-beta_priors = c(1) 
-epsilons = c(0) 
-mu_epsilon = c(0.01)
-sd_epsilon = c(0.01)
-world_EIGs = c(0.01) 
-max_observation = 500
-
-model_params <- set_granch_params(
-                grid_mu_theta, grid_sig_sq, grid_y, grid_epsilon, hypothetical_obs_grid_n,
-                mu_priors, V_priors, 
-                alpha_priors, beta_priors, 
-                epsilons, mu_epsilon, sd_epsilon,
-                world_EIGs, max_observation)
-
-b <- 0.1
-d <- 0.3
-
-stims_df <- tibble(sequence_scheme = c("BBBBBB"),
-                   n_features = n_feature
-                   ) %>% 
-  mutate(
-    stimuli_sequence = map(sequence_scheme, function(ss){make_real_stimuli_df(ss,background = b  ,
-deviant =d
-)}))
-
-startTime <- Sys.time()
-model_params <- add_precalculated_prior_dfs(model_params)
-
-full_params_df <- make_simulation_params(n_sim = 1,
-                                        model_params, 
-                                        stims_df)
-
-granch_main_simulation(params = full_params_df)
-
-endTime <- Sys.time()
-
-df <- tibble(
-  n_row = length(grid_mu_theta) * length(grid_sig_sq) * length(grid_y) * length(grid_epsilon), 
-  time = endTime-startTime
-)
-return (df)
-
-}
-
-r_time <- lapply(seq(2, 10, 1), 
-       calculate_run_time) %>% 
-  bind_rows()
-```
-
-```{python}
-import time
-import pandas as pd
-import numpy as np
-
-def calculate_run_time(n):
-  p = init_params.granch_params(
-      grid_mu_theta = torch.tensor([0.1] * n), 
-      grid_sig_sq = torch.tensor([0.1] * n), 
-      grid_y = torch.tensor([0.1] * n), 
-      grid_epsilon =torch.tensor([0.1] * n), 
-      hypothetical_obs_grid_n = 2, 
-      mu_prior = 1,
-      V_prior = 1, 
-      alpha_prior = 1, 
-      beta_prior = 1, 
-      epsilon  = 0.0000000000000001, 
-      mu_epsilon = torch.tensor([0.01]), 
-      sd_epsilon = torch.tensor([0.01]), 
-      world_EIGs = 0.01,
-      max_observation = 500
-  )
+def test_step_stability(grid_step, hypo_obs_step): 
+  # initialize parameters
   start_time = time.perf_counter()
-  p.add_meshed_grid()
-  p.add_lp_mu_sig_sq()
-  p.add_y_given_mu_sig_sq()
-  p.add_lp_epsilon()
+  params = init_params_tensor.granch_params(
+      grid_mu = torch.linspace(start = -1, end = 1, steps = grid_step),
+      grid_sigma = torch.linspace(start = 0.001, end = 1.8, steps = grid_step), 
+      grid_y = torch.linspace(start = -1, end = 1, steps = grid_step), 
+      grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = grid_step), 
+      hypothetical_obs_grid_n = hypo_obs_step, 
+      mu_prior = 0.001,
+      V_prior = 0.001, 
+      alpha_prior = 1, 
+      beta_prior = 1,
+      epsilon  = 0.000001, 
+      mu_epsilon = torch.tensor([0.001]), 
+      sd_epsilon = torch.tensor([4]), 
+      world_EIGs = 0.0001,
+      max_observation = 500)
+  # add the various different cached bits
+  params.add_meshed_grid()
+  params.add_lp_mu_sigma()
+  params.add_y_given_mu_sigma()
+  params.add_lp_epsilon()
+  params.add_priors()
+  tensor_stimuli = init_model_tensor.granch_stimuli(1, 'BBBDBB')
+  tensor_model = init_model_tensor.granch_model(500, tensor_stimuli)
+  res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
   end_time = time.perf_counter()
-  s = init_model.granch_stimuli(1, 'BBBBBB')
-  m = init_model.granch_model(500, s)
-  return end_time-start_time
+  t = end_time - start_time
+  b = res.behavior
+  b["grid_step"] = grid_step 
+  b["hypo_obs_step"] = hypo_obs_step
+  b["time"] = t
+  return b 
 
-# can't do 1
 
-t_df = pd.DataFrame({"n": np.linspace(start = 2, stop = 50, num = 49, dtype = int)}) 
-
-t_df["t"] = t_df.applymap(calculate_run_time)
-t_df["n_row"] = np.linspace(start = 2, stop = 50, num = 49, dtype = int) ** 4
+  
 ```
 
-```{r}
-python_t_df <- py$t_df %>% 
-  mutate(type = "py") %>% 
-  select(n_row, t, type) 
+```{python}
+list(range(29, 30, 2))
+```
 
+```{python}
 
-r_time %>% 
-  mutate(type = "r") %>% 
-  rename(t = time) %>%
-  select(n_row, t, type) %>% 
-  mutate(t = as.numeric(t)) %>% 
-  bind_rows(python_t_df) %>% 
-  filter(n_row <= 10000) %>% 
-  ggplot(aes(x = n_row, 
-             y = t,
-             color = type)) + 
-  geom_point() + 
-  geom_line() 
-  
+grid_step_n = pd.DataFrame({"grid_step":[2, 3]})
+hypo_step_n = pd.DataFrame({"hypo_obs_step": [10]})
+grid_step_n["key"] = 0
+hypo_step_n["key"] = 0
 
-python_t_df %>% 
-  ggplot(aes(x = n_row, 
-             y = t,
-             color = type)) + 
-  geom_point() + 
-  geom_line() 
+step_df = grid_step_n.merge(hypo_step_n, on = "key", how = "outer")
+#print(step_df)
+res_df = pd.DataFrame()
+for i in range(0, len(step_df)): 
+  temp_res = test_step_stability(step_df["grid_step"][i], step_df["hypo_obs_step"][i])
+  temp_res.index.name = 't'
+  temp_res.reset_index(inplace = True)
+  res_df = pd.concat([res_df, temp_res])
+print(res_df)
   
 ```
 
 
-# compare KL and PP
-```{r}
-py_kl_pp = py$kl_pps %>% 
-  mutate(t = row_number(), 
-         type = "py")
-
-r_kl_pp = all_sims_res %>% 
-    ungroup() %>% 
-  select(kl, pp) %>% 
-  mutate(t = row_number() -1) %>% 
-  filter(t != 0) %>% 
-  filter(!is.na(kl)) %>% 
-  mutate(type = "r")
-
-bind_rosws(py_kl_pp, r_kl_pp) %>% 
-  pivot_longer(cols = c("kl", "pp"), 
-               names_to = "val_type", 
-               values_to = "value") %>% 
-  ggplot(aes(x = t, 
-             y = value, 
-             color = type)) + 
-  geom_point(position = position_dodge(width = .3)) + geom_line() + 
-  facet_wrap(~val_type, scales = "free")
+```{python}
+with open('res.pkl', 'rb') as inp:
+    res2 = pickle.load(inp)
+    
+res2
 ```
 
 
+# Plotting
 
+```{r}
+library(reticulate)
+library(here)
+library(tidyverse)
 
+```
+
+## eig
+
+```{r}
+py$res_df %>% 
+  filter(!is.na(EIG)) %>% 
+  mutate(eig = unlist(EIG)) %>% 
+  ggplot(aes(x = as.numeric(t), y = eig, color = as.factor(grid_step), group = as.factor(grid_step))) + 
+  geom_point(position = position_jitter(width = 3), alpha = .3) +  
+  theme_classic() + 
+  facet_wrap(~hypo_obs_step)
+```
+
+## sample
+
+```{r}
+py$res_df %>% 
+  filter(!is.na(EIG)) %>% 
+  mutate(eig = unlist(EIG), 
+         stimulus_id = unlist(stimulus_id)) %>% 
+  group_by(stimulus_id, grid_step, hypo_obs_step, time) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_id, y = sample_n, color = as.factor(grid_step), group = as.factor(grid_step))) + 
+  geom_point(alpha = .3) + 
+  geom_line() + 
+  theme_classic() + 
+  facet_wrap(~hypo_obs_step)
+```
+
+## time
+
+```{r}
+py$res_df %>% 
+  filter(!is.na(EIG)) %>% 
+  distinct(grid_step, hypo_obs_step, time) %>% 
+  ggplot(aes(x = as.factor(grid_step), y = time, color = as.factor(hypo_obs_step))) + 
+  geom_point(alpha = .3)+ 
+  theme_classic() 
+```

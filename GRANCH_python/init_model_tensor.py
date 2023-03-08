@@ -18,7 +18,7 @@ class granch_stimuli:
             0: torch.tensor([0.1]),#torch.rand(self.n_feature), 
             1: torch.tensor([0.1]),#torch.rand(self.n_feature), 
             2: torch.tensor([0.1]), 
-            3: torch.tensor([0.1]), 
+            3: torch.tensor([0.3]), 
             4: torch.tensor([0.1]), 
             5: torch.tensor([0.1])#torch.rand(self.n_feature)
         }
