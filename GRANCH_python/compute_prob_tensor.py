@@ -6,7 +6,6 @@ import scipy.stats as sts
 import numpy as np
 import torch 
 from torch.distributions import Normal  
-
 import helper
 
 # --- major functions -- 
@@ -138,17 +137,18 @@ def score_z_bar_given_y(z_bar, y_val, grid_epsilon):
 # NOTE: we are using numpy here, and these functions take VARIANCE (sigma^2) not STD (sigma), hence
 # the use of **2 for each of htem
 
-def score_mu_sigma(input_x, input_sigma, mu, nu, alpha, beta, log = True):
+def score_mu_sigma(input_x, input_sigma, mu, nu, alpha, beta):
     '''
     The probability density function of the normal-inverse-gamma distribution at
     input_x (mean) and input_sigma (variance).
     '''
 
     res = (
-        sts.norm.pdf(input_x.numpy(), loc=mu, scale=np.sqrt(input_sigma**2 / nu)) *
-        sts.invgamma.pdf(input_sigma.numpy()**2, a=alpha, scale=beta))
-
-    return torch.from_numpy(np.log(res)) if log else torch.from_numpy(res) 
+        Normal(mu, torch.sqrt(input_sigma ** 2 / nu)).log_prob(input_x)  + 
+        helper.InverseGamma(alpha, beta).log_prob(input_sigma ** 2)
+    )
+    
+    return res
 
 def score_epsilon(epsilon, mu_epsilon, sd_epsilon): 
     return Normal(mu_epsilon, sd_epsilon).log_prob(epsilon)
