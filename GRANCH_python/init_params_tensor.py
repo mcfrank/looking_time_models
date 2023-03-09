@@ -71,7 +71,8 @@ class granch_params:
             mu  = self.mu_prior, 
             nu = self.V_prior, 
             alpha = self.alpha_prior,
-            beta = self.beta_prior
+            beta = self.beta_prior, 
+            device = self.device
         )
 
 

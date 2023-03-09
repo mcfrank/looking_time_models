@@ -52,6 +52,8 @@ class granch_stimuli:
 class granch_model: 
     def __init__(self, max_observation, stimuli):
 
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
         self.current_t = 0
         self.current_stimulus_idx = 0
 
@@ -99,7 +101,7 @@ class granch_model:
     def update_possible_observations(self, noise_epsilon, hypothetical_obs_grid_n): 
         self.possible_observations = torch.linspace((self.stimuli.stimuli_sequence[self.current_stimulus_idx] - noise_epsilon).item(), 
                                                 (self.stimuli.stimuli_sequence[self.current_stimulus_idx] + noise_epsilon).item(), 
-                                                hypothetical_obs_grid_n)
+                                                hypothetical_obs_grid_n).to(self.device)
         
 
     def update_noisy_observation(self, noise_epsilon): 
@@ -113,7 +115,7 @@ class granch_model:
     def get_all_observations_on_current_stimulus(self): 
         obs_index = self.behavior.index[self.behavior['stimulus_id'] == 
                                     self.current_stimulus_idx].tolist()
-        return torch.tensor(self.all_observations.iloc[obs_index].values)
+        return torch.tensor(self.all_observations.iloc[obs_index].values).to(self.device)
 
     def get_last_stimuli_likelihood(self): 
         last_stimuli_last_obs_t = max(self.behavior.index[self.behavior['stimulus_id'] == 

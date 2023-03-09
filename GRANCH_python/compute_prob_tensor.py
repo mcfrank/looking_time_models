@@ -137,15 +137,17 @@ def score_z_bar_given_y(z_bar, y_val, grid_epsilon):
 # NOTE: we are using numpy here, and these functions take VARIANCE (sigma^2) not STD (sigma), hence
 # the use of **2 for each of htem
 
-def score_mu_sigma(input_x, input_sigma, mu, nu, alpha, beta):
+def score_mu_sigma(input_x, input_sigma, mu, nu, alpha, beta, device):
     '''
     The probability density function of the normal-inverse-gamma distribution at
     input_x (mean) and input_sigma (variance).
     '''
 
+    inv_gamma_distribution = helper.InverseGamma(alpha, beta)
+
     res = (
         Normal(mu, torch.sqrt(input_sigma ** 2 / nu)).log_prob(input_x)  + 
-        helper.InverseGamma(alpha, beta).log_prob(input_sigma ** 2)
+        inv_gamma_distribution.log_prob(input_sigma ** 2)
     )
     
     return res
