@@ -26,16 +26,14 @@ import init_params_tensor
 import init_model_tensor
 import main_sim_tensor
 import compute_prob_tensor
+import helper
 
 
 importlib.reload(helper)
 importlib.reload(compute_prob_tensor)
 importlib.reload(init_params_tensor)
-importlib.reload(init_params)
 importlib.reload(init_model_tensor)
-importlib.reload(init_model)
 importlib.reload(main_sim_tensor)
-importlib.reload(ps)
 
 
 ```
@@ -117,13 +115,11 @@ def test_step_stability(grid_step, hypo_obs_step):
   
 ```
 
-```{python}
-list(range(29, 30, 2))
-```
+
 
 ```{python}
 
-grid_step_n = pd.DataFrame({"grid_step":[2, 3]})
+grid_step_n = pd.DataFrame({"grid_step":[14]})
 hypo_step_n = pd.DataFrame({"hypo_obs_step": [10]})
 grid_step_n["key"] = 0
 hypo_step_n["key"] = 0
