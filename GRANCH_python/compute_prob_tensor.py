@@ -27,8 +27,8 @@ def score_post_pred(model, params):
     lp_hypo_z_given_mu_sigma_for_y = res + padded_lp_y_given_mu_sigma
     # goal: apply logSumExp based on the grouping of y
     hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 3)
-    log_posterior = torch.log(model.all_posterior[model.current_t])
-
+    log_posterior = torch.log(model.cur_posterior )
+    
     padded_log_posterior = log_posterior.repeat(obs.size()[0], 1, 1, 1)
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, padded_log_posterior), dim = (1, 2,3))))
 
@@ -43,7 +43,7 @@ def score_posterior(model, params, hypothetical_obs):
         normalizing_term = helper.add_singleton_dim(unlz_p.logsumexp(dim = logsumxp_dim), 3)
    else: 
         
-        likelihood = model.all_likelihood[model.current_t]
+        likelihood = model.cur_likelihood 
         unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
 
         logsumxp_dim = (0, 1, 2)
@@ -91,11 +91,17 @@ def score_likelihood(model, params, hypothetical_obs):
     
 
     if(model.current_stimulus_idx > 0): 
+
         if hypothetical_obs: 
-            padded_last_stimuli_likelihood = model.get_last_stimuli_likelihood().repeat(likelihood.size()[0], 1, 1, 1)
+            padded_last_stimuli_likelihood = model.prev_likelihood.repeat(likelihood.size()[0], 1, 1, 1)
             likelihood = likelihood + padded_last_stimuli_likelihood
+        
         else: 
-            likelihood = likelihood + model.get_last_stimuli_likelihood()
+            # likelihood from all observations on the current simulus + likelihood from past stimuli
+            likelihood = likelihood +model.prev_likelihood
+
+
+
 
     return likelihood
 

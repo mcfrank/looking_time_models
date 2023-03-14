@@ -119,7 +119,7 @@ def test_step_stability(grid_step, hypo_obs_step):
 
 ```{python}
 
-grid_step_n = pd.DataFrame({"grid_step":[14]})
+grid_step_n = pd.DataFrame({"grid_step":[10]})
 hypo_step_n = pd.DataFrame({"hypo_obs_step": [10]})
 grid_step_n["key"] = 0
 hypo_step_n["key"] = 0

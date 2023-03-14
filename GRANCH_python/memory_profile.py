@@ -67,28 +67,34 @@ def run_model():
    
     
     while t < params.max_observation and stimulus_idx < tensor_stimuli.n_trial: 
-    # update model behavior with current t and current stimulus_idx 
+    # update tensor_model behavior with current t and current stimulus_idx 
         tensor_model.current_t = t 
         tensor_model.current_stimulus_idx = stimulus_idx
-        tensor_model.update_model_stimulus_id()
-    
-    # make noisy observation and keep track 
-        tensor_model.update_noisy_observation(params.epsilon)
     
         # get all possible observation on current stimulus 
-        # if we didn't change stimulus 
+        # if we change stimulus 
         if tensor_model.current_t == 0 or (not tensor_model.if_same_stimulus_as_previous_t()): 
             tensor_model.update_possible_observations(params.epsilon, params.hypothetical_obs_grid_n)
-                        
-   
-        tensor_model.update_likelihood(compute_prob_tensor.score_likelihood(tensor_model, params, hypothetical_obs=False))
-        tensor_model.update_posterior(compute_prob_tensor.score_posterior(tensor_model,params, hypothetical_obs=False))
+            # update the previous likelihood to be the "current likelihood"
+            tensor_model.prev_likelihood = tensor_model.cur_likelihood
+
+
+        # update tensor_model stimulus id 
+        # update the noisy observation on current tensor_model stimulus 
+        tensor_model.update_model_stimulus_id()
+        tensor_model.update_noisy_observation(params.epsilon)
+
+        current_likelihood = compute_prob_tensor.score_likelihood(tensor_model, params, hypothetical_obs=False)
+        tensor_model.cur_likelihood = current_likelihood
+        
+        current_posterior = compute_prob_tensor.score_posterior(tensor_model,params, hypothetical_obs=False)
+        tensor_model.cur_posterior = current_posterior       
 
         # this will currently work for only single feature    
         # in the tensor mode we don't need to iterate through possibilities anymore
         tensor_model.ps_likelihood = compute_prob_tensor.score_likelihood(tensor_model, params, hypothetical_obs=True)
         tensor_model.ps_posteriror = compute_prob_tensor.score_posterior(tensor_model, params, hypothetical_obs=True)
-        tensor_model.ps_kl = compute_prob_tensor.kl_div(tensor_model.ps_posteriror, tensor_model.all_posterior[tensor_model.current_t])
+        tensor_model.ps_kl = compute_prob_tensor.kl_div(tensor_model.ps_posteriror, tensor_model.cur_posterior)
         tensor_model.ps_pp = compute_prob_tensor.score_post_pred(tensor_model, params)
     
         eig = torch.sum(tensor_model.ps_kl * tensor_model.ps_pp)
