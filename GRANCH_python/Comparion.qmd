@@ -27,6 +27,8 @@ import init_model_tensor
 import main_sim_tensor
 import compute_prob_tensor
 import helper
+import num_stab_help
+
 
 
 importlib.reload(helper)
@@ -34,6 +36,8 @@ importlib.reload(compute_prob_tensor)
 importlib.reload(init_params_tensor)
 importlib.reload(init_model_tensor)
 importlib.reload(main_sim_tensor)
+importlib.reload(num_stab_help)
+
 
 
 ```
@@ -120,7 +124,7 @@ def test_step_stability(grid_step, hypo_obs_step):
 ```{python}
 
 grid_step_n = pd.DataFrame({"grid_step":[10]})
-hypo_step_n = pd.DataFrame({"hypo_obs_step": [10]})
+hypo_step_n = pd.DataFrame({"hypo_obs_step": [5, 10, 15]})
 grid_step_n["key"] = 0
 hypo_step_n["key"] = 0
 
@@ -135,6 +139,21 @@ for i in range(0, len(step_df)):
 print(res_df)
   
 ```
+
+
+
+# Testing jittering 
+
+
+
+```{python}
+main_res = num_stab_help.run_jitter_simulation(grid_mu_start = -1, grid_mu_end = 1, grid_mu_step = 30,
+              grid_sigma_start = 0.001, grid_sigma_end = 1.8,grid_sigma_step = 30, 
+              grid_y_start = -1, grid_y_end = 1,grid_y_step = 30, 
+              grid_epsilon_start = 0.001, grid_epsilon_end = 1.8, grid_epsilon_step = 30,
+              jitter_range = 0.00001, jitter_n = 10)
+```
+
 
 
 ```{python}
@@ -155,6 +174,19 @@ library(tidyverse)
 ```
 
 ## eig
+```{r}
+py$main_res %>% 
+  mutate(eig = unlist(EIG)) %>% 
+  filter(!is.na(eig)) %>% 
+  mutate(stimulus_id = unlist(stimulus_id)) %>% 
+  group_by(stimulus_id, j_i) %>% 
+  summarise(sample_n = n()) %>% 
+  ggplot(aes(x = stimulus_id, y = sample_n)) + 
+  geom_point(alpha = .3, position = position_jitter(width = .3)) + 
+  geom_line() + 
+  theme_classic()
+```
+
 
 ```{r}
 py$res_df %>% 

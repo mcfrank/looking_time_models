@@ -28,7 +28,7 @@ def score_post_pred(model, params):
     # goal: apply logSumExp based on the grouping of y
     hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 3)
     log_posterior = torch.log(model.cur_posterior )
-    
+
     padded_log_posterior = log_posterior.repeat(obs.size()[0], 1, 1, 1)
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, padded_log_posterior), dim = (1, 2,3))))
 
