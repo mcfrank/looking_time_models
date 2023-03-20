@@ -40,6 +40,10 @@ def run_jitter_simulation(grid_mu_start, grid_mu_end, grid_mu_step,
               grid_y_start, grid_y_end,grid_y_step, 
               grid_epsilon_start, grid_epsilon_end,grid_epsilon_step,
               jitter_range, jitter_n): 
+    
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 
     all_jittered_params = set_param_jitter(grid_mu_start, grid_mu_end,
               grid_sigma_start, grid_sigma_end,
@@ -53,21 +57,21 @@ def run_jitter_simulation(grid_mu_start, grid_mu_end, grid_mu_step,
 
         params = init_params_tensor.granch_params(
             grid_mu = torch.linspace(start = all_jittered_params["grid_mu_starts"][i], 
-                                 end = all_jittered_params["grid_mu_ends"][i], steps = grid_mu_step),
+                                 end = all_jittered_params["grid_mu_ends"][i], steps = grid_mu_step).to(device),
             grid_sigma = torch.linspace(start = all_jittered_params["grid_sigma_starts"][i], 
-                                    end = all_jittered_params["grid_sigma_ends"][i],steps = grid_sigma_step), 
+                                    end = all_jittered_params["grid_sigma_ends"][i],steps = grid_sigma_step).to(device), 
             grid_y = torch.linspace(start = all_jittered_params["grid_y_starts"][i], 
-                                end = all_jittered_params["grid_y_ends"][i], steps = grid_y_step), 
+                                end = all_jittered_params["grid_y_ends"][i], steps = grid_y_step).to(device), 
             grid_epsilon = torch.linspace(start = all_jittered_params["grid_epsilon_starts"][i], 
-                                      end = all_jittered_params["grid_epsilon_ends"][i], steps = grid_epsilon_step), 
+                                      end = all_jittered_params["grid_epsilon_ends"][i], steps = grid_epsilon_step).to(device), 
             hypothetical_obs_grid_n = 10, 
             mu_prior = 0.001,
             V_prior = 0.001, 
-            alpha_prior = 1, 
-            beta_prior = 1,
+            alpha_prior = torch.tensor([1]).to(device), 
+            beta_prior = torch.tensor([1]).to(device),
             epsilon  = 0.000001, 
-            mu_epsilon = torch.tensor([0.001]), 
-            sd_epsilon = torch.tensor([4]), 
+            mu_epsilon = torch.tensor([0.001]).to(device), 
+            sd_epsilon = torch.tensor([4]).to(device), 
             world_EIGs = 0.0001,
             max_observation = 500)
         
