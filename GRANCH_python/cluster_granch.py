@@ -29,23 +29,25 @@ importlib.reload(init_model_tensor)
 importlib.reload(main_sim_tensor)
 
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 
 def test_step_stability(grid_step, hypo_obs_step): 
   # initialize parameters
   start_time = time.perf_counter()
   params = init_params_tensor.granch_params(
-      grid_mu = torch.linspace(start = -1, end = 1, steps = grid_step),
-      grid_sigma = torch.linspace(start = 0.001, end = 1.8, steps = grid_step), 
-      grid_y = torch.linspace(start = -1, end = 1, steps = grid_step), 
-      grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = grid_step), 
+      grid_mu = torch.linspace(start = -1, end = 1, steps = grid_step).to(device),
+      grid_sigma = torch.linspace(start = 0.001, end = 1.8, steps = grid_step).to(device), 
+      grid_y = torch.linspace(start = -1, end = 1, steps = grid_step).to(device), 
+      grid_epsilon =  torch.linspace(start = 0.001, end = 1.8, steps = grid_step).to(device), 
       hypothetical_obs_grid_n = hypo_obs_step, 
       mu_prior = 0.001,
       V_prior = 0.001, 
       alpha_prior = 1, 
       beta_prior = 1,
       epsilon  = 0.000001, 
-      mu_epsilon = torch.tensor([0.001]), 
-      sd_epsilon = torch.tensor([4]), 
+      mu_epsilon = torch.tensor([0.001]).to(device), 
+      sd_epsilon = torch.tensor([4]).to(device), 
       world_EIGs = 0.0001,
       max_observation = 500)
   # add the various different cached bits

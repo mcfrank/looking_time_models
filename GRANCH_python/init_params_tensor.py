@@ -22,6 +22,8 @@ class granch_params:
                  world_EIGs,
                  max_observation):
         
+
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         # grid parameters 
         self.grid_mu = grid_mu
         self.grid_sigma = grid_sigma
@@ -70,7 +72,7 @@ class granch_params:
             nu = self.V_prior, 
             alpha = self.alpha_prior,
             beta = self.beta_prior, 
-            log = True
+            device = self.device
         )
 
 
