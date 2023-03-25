@@ -52,6 +52,8 @@ class granch_stimuli:
 class granch_model: 
     def __init__(self, max_observation, stimuli):
 
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
         self.current_t = 0
         self.current_stimulus_idx = 0
 
@@ -66,14 +68,12 @@ class granch_model:
         self.all_observations = pd.DataFrame(0, index=np.arange(max_observation),
                                             columns = np.arange(stimuli.n_feature))
         
-        # intiialize an empty list to store the tensor later 
-        self.all_likelihood = [None] * self.max_observation
-        self.all_posterior = [None] * self.max_observation
+       
+        # try to just cached the last stimulus likelihood
+        self.cur_likelihood = None
+        self.prev_likelihood = None
+        self.cur_posterior = None
 
-
-        # help with debugging 
-        self.all_ps_kl = [None] * self.max_observation
-        self.all_ps_pp = [None] * self.max_observation
 
 
         self.ps_kl = torch.tensor([])
@@ -90,16 +90,11 @@ class granch_model:
         self.behavior.at[self.current_t, "Look_away"] = decision
 
 
-    def update_likelihood(self, new_likeihood): 
-        self.all_likelihood[self.current_t] = new_likeihood
-
-    def update_posterior(self, new_posterior): 
-        self.all_posterior[self.current_t] = new_posterior
 
     def update_possible_observations(self, noise_epsilon, hypothetical_obs_grid_n): 
         self.possible_observations = torch.linspace((self.stimuli.stimuli_sequence[self.current_stimulus_idx] - noise_epsilon).item(), 
                                                 (self.stimuli.stimuli_sequence[self.current_stimulus_idx] + noise_epsilon).item(), 
-                                                hypothetical_obs_grid_n)
+                                                hypothetical_obs_grid_n).to(self.device)
         
 
     def update_noisy_observation(self, noise_epsilon): 
@@ -113,7 +108,7 @@ class granch_model:
     def get_all_observations_on_current_stimulus(self): 
         obs_index = self.behavior.index[self.behavior['stimulus_id'] == 
                                     self.current_stimulus_idx].tolist()
-        return torch.tensor(self.all_observations.iloc[obs_index].values)
+        return torch.tensor(self.all_observations.iloc[obs_index].values).to(self.device)
 
     def get_last_stimuli_likelihood(self): 
         last_stimuli_last_obs_t = max(self.behavior.index[self.behavior['stimulus_id'] == 
@@ -121,6 +116,7 @@ class granch_model:
         return self.all_likelihood[last_stimuli_last_obs_t]
 
     def if_same_stimulus_as_previous_t(self): 
+
         last_t_stimulus = max(self.behavior[pd.notnull(self.behavior["stimulus_id"])]["stimulus_id"])
         return (self.current_stimulus_idx == last_t_stimulus)
 
