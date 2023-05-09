@@ -77,6 +77,9 @@ class granch_params:
 
 
     def add_y_given_mu_sigma(self): 
+
+
+
         self.lp_y_given_mu_sigma = compute_prob_tensor.score_y_given_mu_sigma(
             y_val = self.meshed_grid_y, 
             mu = self.meshed_grid_mu, 
