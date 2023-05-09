@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=32
-#SBATCH --time=48:00:00
+#SBATCH -p gpu
+#SBATCH -c 10
+#SBATCH -G 1
 #SBATCH --output=granch.log
 #SBATCH --mail-type=ALL
 
 # load the module
-ml python/3.6.1
+ml python/3.9
 
 python3 cluster_granch.py
