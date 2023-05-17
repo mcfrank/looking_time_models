@@ -18,9 +18,11 @@ Heatmaps
 ```{r}
 
 euc_dist <- read.csv('eucledian_distances.csv') 
+euc_dist <- euc_dist[,-1] %>% as.matrix()
+
 cosine_dist <- read.csv('cosine_distances.csv')
 
-euc_dist <- euc_dist[,-1] %>% as.matrix()
+
 cosine_dist <- cosine_dist[,-1] %>% as.matrix() 
 cosine_dist[cosine_dist < 0 ] = 0
 
@@ -60,7 +62,7 @@ embeddings_df <- embeddings_pca %>% select(V1,V2) %>%
 
 ggplot(embeddings_df, aes(x = V1, y = V2, color = animacy)) + facet_grid(~number) + geom_point() + xlab("PC1") + ylab("PC2") + theme_classic(base_size = 20)
 
-ggplot(embeddings_df, aes(x = V1, y = V2, color = number)) + facet_grid(~animacy) + geom_point() + xlab("PC1") + ylab("PC2") + theme_classic(base_size = 20)
+ggplot(embeddings_df, aes(x = V1, y = V2, color = number)) + facet_grid(~animacy) + geom_point() + xlab("PC1") + ylab("PC2") + theme_classic(base_size = 20) + scale_color_manual(values = c('green', 'blue'))
 
 ```
 
@@ -68,6 +70,13 @@ ggplot(embeddings_df, aes(x = V1, y = V2, color = number)) + facet_grid(~animacy
 
 # Animals
 ```{r}
+
+
+euc_dist = euc_dist %>% as.data.frame() 
+rownames(euc_dist) = euc_dist %>% colnames()
+
+animal_names = embeddings_df %>% filter(animacy == 'animate', !str_detect(stim_name, 'pair')) %>% pull(stim_name)
+
 distance_df_animals <- tibble(stim_name = vector(mode="character", length=length(animal_names)),
                               pose_dist = vector(mode="character", length=length(animal_names)),
                               animacy_dist = vector(mode="character", length=length(animal_names)), 
@@ -78,7 +87,7 @@ poses = c('left', 'right')
 
 
 idx = 0
-for (animal in embeddings_df %>% filter(animacy == 'animate') %>% pull(stim_name)) {
+for (animal in animal_names) {
    idx = idx + 1
    cur_pose = embeddings_df %>% filter(stim_name == animal) %>% pull(pose)
    cur_animacy = embeddings_df %>% filter(stim_name == animal) %>% pull(animacy)
@@ -96,7 +105,11 @@ for (animal in embeddings_df %>% filter(animacy == 'animate') %>% pull(stim_name
    animacy_violations = embeddings_df %>% filter(pose == cur_pose, animacy != cur_animacy, number == cur_number) %>% pull(stim_name)
    
    # number violation
-   number_violations = embeddings_df %>% filter(pose == cur_pose, animacy == cur_animacy, number != cur_number) %>% pull(stim_name)
+   if (cur_number == 'pair'){
+         number_violations = str_replace(animal, "_pair", "")
+   }else {
+      number_violations = str_replace(animal, ".png", "_pair.png")
+   }
 
    # get distances
    pose_violation_dist = euc_dist[animal, pose_violation] %>% as.numeric()
@@ -112,9 +125,14 @@ for (animal in embeddings_df %>% filter(animacy == 'animate') %>% pull(stim_name
 
 }
 
-long_distance_df = pivot_longer(distance_df_animals, cols = c('pose_dist', 'identity_dist', 'animacy_dist', 'number_dist'), names_to = 'violation_type') %>% mutate(violation_type = factor(violation_type, levels = c('animacy_dist', 'identity_dist', 'pose_dist', 'number_dist')))
+long_distance_df = pivot_longer(distance_df_animals, cols = c('pose_dist', 'identity_dist', 'animacy_dist', 'number_dist'), names_to = 'violation_type') %>% mutate(violation_type = factor(violation_type, levels = c('animacy_dist', 'identity_dist', 'pose_dist', 'number_dist')), number = ifelse(str_detect(stim_name, "pair"),"pair","single"), is_twelve = str_starts(stim_name, "animate_012")) 
 
-ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 20) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Animals')
+ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 20) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Animals') 
+
+
+ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 14) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Animals') + facet_wrap(~number) 
+
+ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value), color = is_twelve)) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 14) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Animals') + facet_wrap(~number) + scale_color_manual(values = c('black', 'red'))
 
 ```
 
@@ -149,7 +167,11 @@ for (veggie in embeddings_df %>% filter(animacy == 'inanimate') %>% pull(stim_na
    animacy_violations = embeddings_df %>% filter(pose == cur_pose, animacy != cur_animacy, number == cur_number) %>% pull(stim_name)
    
    # number violation
-   number_violations = embeddings_df %>% filter(pose == cur_pose, animacy == cur_animacy, number != cur_number) %>% pull(stim_name)
+   if (cur_number == 'pair'){
+         number_violations = str_replace(veggie, "_pair", "")
+   }else {
+      number_violations = str_replace(veggie, ".png", "_pair.png")
+   }
 
    # get distances
    pose_violation_dist = euc_dist[veggie, pose_violation] %>% as.numeric()
@@ -157,16 +179,18 @@ for (veggie in embeddings_df %>% filter(animacy == 'inanimate') %>% pull(stim_na
    animacy_violations_dist =  mean(euc_dist[veggie, animacy_violations] %>% as.numeric())
    number_violations_dist =  mean(euc_dist[veggie, number_violations] %>% as.numeric())
 
-  distance_df_animals$stim_name[idx] = veggie
-  distance_df_animals$pose_dist[idx] = pose_violation_dist
-  distance_df_animals$identity_dist[idx] = identity_violation_dist
-  distance_df_animals$animacy_dist[idx] = animacy_violations_dist
-  distance_df_animals$number_dist[idx] = number_violations_dist
+  distance_df_inanimate$stim_name[idx] = veggie
+  distance_df_inanimate$pose_dist[idx] = pose_violation_dist
+  distance_df_inanimate$identity_dist[idx] = identity_violation_dist
+  distance_df_inanimate$animacy_dist[idx] = animacy_violations_dist
+  distance_df_inanimate$number_dist[idx] = number_violations_dist
 
 }
 
-long_distance_df = pivot_longer(distance_df_animals, cols = c('pose_dist', 'identity_dist', 'animacy_dist', 'number_dist'), names_to = 'violation_type') %>% mutate(violation_type = factor(violation_type, levels = c('animacy_dist', 'identity_dist', 'pose_dist', 'number_dist')))
+long_distance_df = pivot_longer(distance_df_inanimate, cols = c('pose_dist', 'identity_dist', 'animacy_dist', 'number_dist'), names_to = 'violation_type') %>% mutate(violation_type = factor(violation_type, levels = c('animacy_dist', 'identity_dist', 'pose_dist', 'number_dist')),number = ifelse(str_detect(stim_name, "pair"),"pair","single"))
 
-ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 20) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Veggies')
+ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 20) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Veggies') 
+
+ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic(base_size = 14) + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Veggies') +  facet_grid(~number)
 
 ```
