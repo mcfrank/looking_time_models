@@ -38,14 +38,15 @@ alpha_epsilons = c(1)
 beta_epsilons = c(4)
 alpha_priors = c(1)
 beta_priors = c(10)
-noise_parameters = c(0.065)
-world_EIGs = c(0.01)
-forced_exposure_n = c(3)
+noise_parameters = c(0.1)
+world_EIGs = c(0.05)
+forced_exposure_n = c(1)
+num_forced_trials = c(2)
 max_observation = 2000
 
 model_params <- set_model_params(alpha_priors, beta_priors, 
                 alpha_epsilons, beta_epsilons, 
-                noise_parameters, world_EIGs, max_observation, forced_exposure_n)
+                noise_parameters, world_EIGs, max_observation, forced_exposure_n, num_forced_trials)
 
 
 # set stimuli-related parameters 
@@ -97,6 +98,12 @@ all_sims_res %>%
 
 
 ```{r}
+
+x<- all_sims_res %>% 
+  group_by(row_number, params_id, n_features, on_features_n, sequence_scheme, stimulus_idx) %>% 
+  filter(!is.na(stimulus_idx)) %>% 
+  summarise(sample_n = n())
+
 all_sims_res %>% 
   group_by(row_number, params_id, n_features, on_features_n, sequence_scheme, stimulus_idx) %>% 
   filter(!is.na(stimulus_idx)) %>% 

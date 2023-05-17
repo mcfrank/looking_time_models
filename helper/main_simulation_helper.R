@@ -58,7 +58,7 @@ main_simulation <- function(params = df,
   ### MAIN MODEL LOOP
   stimulus_idx <- 1
   t <- 1
-  
+  trial_t <- 1
   # while we haven't run out of stimuli or observations, 
   # sample a new observation
   # compute expected information gain
@@ -142,32 +142,34 @@ main_simulation <- function(params = df,
     
     
     # forced choice options
-    if (t < params$forced_exposure_n){
-      # less than the forced exposure n OR at the forced exposure n, should not to look away
-      model$p_look_away[t] = 0
-    }else if (t == params$forced_exposure_n){
-      # when finally at the last one, definitely needs to look away
-      model$p_look_away[t] = 1
-    }else{
+    if (stimulus_idx <= num_forced_trials) {
+      if (trial_t < params$forced_exposure_n){
+        # less than the forced exposure n OR at the forced exposure n, should not to look away
+        model$p_look_away[t] = 0
+      }else if (trial_t == params$forced_exposure_n){
+        # when finally at the last one, definitely needs to look away
+        model$p_look_away[t] = 1
+      }
+    }
+    else{
       # anything afterwards are all normal; also when forced_exposure_n = 0 it's all normal 
       model$p_look_away[t] = rectified_luce_choice(x = params$world_EIG, 
                                                    y = model$EIG[t])
     }
     
-   
-    
     # actual choice of whether to look away is sampled here
-    model$look_away[t] = rbinom(1, 1, prob = model$p_look_away[t]) == 1
+    model$look_away[t] = model$p_look_away[t] > 0.5
     
     # if look away, increment
     if (model$look_away[t] == TRUE) {
       stimulus_idx <- stimulus_idx + 1
+      trial_t <- 0
     }
   
     
 
     t <- t+1
- 
+    trial_t <- trial_t + 1
     } # FINISH HUGE WHILE LOOP
   
   return(model)  
