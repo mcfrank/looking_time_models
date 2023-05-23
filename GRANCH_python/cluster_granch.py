@@ -12,8 +12,9 @@ import pandas as pd
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 BATCH_INFO = {
-    "jitter_n": 5, 
-    "jitter_mode": "single_end"
+    "jitter_n": 20, 
+    "total_batch_n": 20, 
+    "jitter_mode": "sampling"
 }
 
 GRID_INFO = {
@@ -23,6 +24,8 @@ GRID_INFO = {
     "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 20, 
     "hypothetical_obs_grid_n": 10
 }
+
+
 
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
@@ -36,10 +39,10 @@ PRIOR_INFO = {
     "world_EIGs": 0.0001, "max_observation": 500
 }
 
-STIMULI_INFO = init_model_tensor.granch_stimuli(1, 'BBBBBB')
+stimuli_info_list = [init_model_tensor.granch_stimuli(1, 'BBBBBB', 0.1, 0.7), 
+                     init_model_tensor.granch_stimuli(1, 'BDBBBB', 0.1, 0.7), 
+                     init_model_tensor.granch_stimuli(1, 'BBBDBB', 0.1, 0.7),
+                     init_model_tensor.granch_stimuli(1, 'BBBBBD', 0.1, 0.7)]
 
-res = num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
-
-
-with open('res.pkl', 'wb') as outp:
-    pickle.dump(res, outp, pickle.HIGHEST_PROTOCOL)
+for STIMULI_INFO in stimuli_info_list: 
+    num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
