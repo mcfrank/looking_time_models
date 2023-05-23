@@ -8,7 +8,9 @@ import torch
 #import init_model_tensor
 #import main_sim_tensor
 import pandas as pd
+import pickle
 from granch_utils import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor 
+import gc
 
 
 # just in case wanna implement the sample version
@@ -41,48 +43,52 @@ def run_all_sim(
     tensor_stimuli = STIMULI_INFO
     tensor_model =  init_model_tensor.granch_model(max_observation, tensor_stimuli)
     # access all the grid_info 
-    res_df = pd.DataFrame()
 
-    for i in range(0,BATCH_GRID_INFO["jitter_n"]): 
+    for b_i in range(0, BATCH_GRID_INFO["total_batch_n"]): 
+        res_df = pd.DataFrame()
+        for i in range(0,BATCH_GRID_INFO["jitter_n"]): 
+            tensor_model =  init_model_tensor.granch_model(max_observation, tensor_stimuli)
 
-        params = init_params_tensor.granch_params(
-            grid_mu =  torch.linspace(start = BATCH_GRID_INFO["grid_mu_starts"][i], 
-                                      end = BATCH_GRID_INFO["grid_mu_ends"][i], 
-                                      steps = BATCH_GRID_INFO["grid_mu_step"]).to(device),
-            grid_sigma = torch.linspace(start = max(0.000000001, BATCH_GRID_INFO["grid_sigma_starts"][i]), 
-                                      end = BATCH_GRID_INFO["grid_sigma_ends"][i], 
-                                      steps = BATCH_GRID_INFO["grid_sigma_step"]).to(device),
-            grid_y = torch.linspace(start = BATCH_GRID_INFO["grid_y_starts"][i], 
-                                      end = BATCH_GRID_INFO["grid_y_ends"][i], 
-                                      steps = BATCH_GRID_INFO["grid_y_step"]).to(device),
-            grid_epsilon = torch.linspace(start = max(0.000000001, BATCH_GRID_INFO["grid_epsilon_starts"][i]), 
-                                      end = BATCH_GRID_INFO["grid_epsilon_ends"][i], 
-                                      steps = BATCH_GRID_INFO["grid_epsilon_step"]).to(device),
-            hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
-            mu_prior = mu_prior,
-            V_prior = V_prior, 
-            alpha_prior = alpha_prior, 
-            beta_prior = beta_prior,
-            epsilon  = epsilon, 
-            mu_epsilon = mu_epsilon, 
-            sd_epsilon = sd_epsilon, 
-            world_EIGs = world_EIGs,
-            max_observation = max_observation)
+            index = b_i * BATCH_GRID_INFO["jitter_n"] + i
+            params = init_params_tensor.granch_params(
+                grid_mu =  BATCH_GRID_INFO["grid_mus"][index].to(device),
+                grid_sigma = BATCH_GRID_INFO["grid_sigmas"][index].to(device),
+                grid_y = BATCH_GRID_INFO["grid_ys"][index].to(device),
+                grid_epsilon = BATCH_GRID_INFO["grid_epsilons"][index].to(device),
+                hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
+                mu_prior = mu_prior,
+                V_prior = V_prior, 
+                alpha_prior = alpha_prior, 
+                beta_prior = beta_prior,
+                epsilon  = epsilon, 
+                mu_epsilon = mu_epsilon, 
+                sd_epsilon = sd_epsilon, 
+                world_EIGs = world_EIGs,
+                max_observation = max_observation)
         
-        # add the various different cached bits
-        params.add_meshed_grid()
-        params.add_lp_mu_sigma()
-        params.add_y_given_mu_sigma()
-        params.add_lp_epsilon()
-        params.add_priors()
+            # add the various different cached bits
+            params.add_meshed_grid()
+            params.add_lp_mu_sigma()
+            params.add_y_given_mu_sigma()
+            params.add_lp_epsilon()
+            params.add_priors()
+            res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
+            b = res.behavior
+            b["j_i"] = i
 
-        res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
-        b = res.behavior
-        b["j_i"] = i
+            res_df = pd.concat([res_df, b])
+        
+        # Cache each batch 
+        print("cache batch ", b_i)
+        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}.pickle".format(i = b_i, 
+                                                                                  stimuli_info = STIMULI_INFO.sequence_scheme)
+        with open(batch_name, 'wb') as f:
+            pickle.dump(res_df, f)
+        del res_df
+        gc.collect()
 
-        res_df = pd.concat([res_df, b])
 
-    return res_df
+    return 
 
 
 
@@ -94,21 +100,50 @@ def get_batch_grid(BATCH_INFO,
                    GRID_INFO):
     
     if BATCH_INFO["jitter_mode"] == "sampling": 
-        pass 
+        grid_mu_distribution = uniform.Uniform(GRID_INFO["grid_mu_start"], GRID_INFO["grid_mu_end"])
+        grid_sigma_distribution = uniform.Uniform(max(0.0000001, GRID_INFO["grid_sigma_start"]), GRID_INFO["grid_sigma_end"])
+        grid_y_distribution = uniform.Uniform(GRID_INFO["grid_y_start"], GRID_INFO["grid_y_end"])
+        grid_epsilon_distribution = uniform.Uniform(max(0.0000001, GRID_INFO["grid_epsilon_start"]), GRID_INFO["grid_epsilon_end"])
+
+        batch_grid = {
+            "total_batch_n": BATCH_INFO["total_batch_n"],
+            "jitter_n": BATCH_INFO["jitter_n"]
+        }
+        batch_grid["grid_mus"] = []
+        batch_grid["grid_sigmas"] = []
+        batch_grid["grid_ys"] = []
+        batch_grid["grid_epsilons"] = []
+
+        for i in range(0, batch_grid["jitter_n"] * batch_grid["total_batch_n"]): 
+            grid_mu = grid_mu_distribution.sample([GRID_INFO["grid_mu_step"], ])
+            grid_sigma = grid_sigma_distribution.sample([GRID_INFO["grid_sigma_step"], ])
+            grid_y = grid_y_distribution.sample([GRID_INFO["grid_y_step"], ])
+            grid_epsilon = grid_epsilon_distribution.sample([GRID_INFO["grid_epsilon_step"], ])
+
+            batch_grid["grid_mus"].append(grid_mu)
+            batch_grid["grid_sigmas"].append(grid_sigma)
+            batch_grid["grid_ys"].append(grid_y)
+            batch_grid["grid_epsilons"].append(grid_epsilon)
+            
+
+
+
     elif BATCH_INFO["jitter_mode"] == "single_end": 
 
 
         jitter_range = (GRID_INFO["grid_mu_end"] - GRID_INFO["grid_mu_start"]) / GRID_INFO["grid_mu_step"]
+        total_batch_jitter = BATCH_INFO["jitter_n"] * BATCH_INFO["total_batch_n"]
 
         batch_grid = {
+            "total_batch_n": BATCH_INFO["total_batch_n"],
             "jitter_n": BATCH_INFO["jitter_n"],
-            "grid_mu_starts": add_jitter(GRID_INFO["grid_mu_start"], jitter_range, BATCH_INFO["jitter_n"]), 
+            "grid_mu_starts": add_jitter(GRID_INFO["grid_mu_start"], jitter_range, total_batch_jitter), 
             "grid_mu_step":  GRID_INFO["grid_mu_step"],
-            "grid_sigma_starts": add_jitter(GRID_INFO["grid_sigma_start"], jitter_range, BATCH_INFO["jitter_n"]), 
+            "grid_sigma_starts": add_jitter(GRID_INFO["grid_sigma_start"], jitter_range, total_batch_jitter), 
             "grid_sigma_step":  GRID_INFO["grid_sigma_step"],
-            "grid_y_starts": add_jitter(GRID_INFO["grid_y_start"], jitter_range, BATCH_INFO["jitter_n"]), 
+            "grid_y_starts": add_jitter(GRID_INFO["grid_y_start"], jitter_range, total_batch_jitter), 
             "grid_y_step":  GRID_INFO["grid_y_step"],
-            "grid_epsilon_starts": add_jitter(GRID_INFO["grid_epsilon_start"], jitter_range, BATCH_INFO["jitter_n"]),
+            "grid_epsilon_starts": add_jitter(GRID_INFO["grid_epsilon_start"], jitter_range, total_batch_jitter),
             "grid_epsilon_step": GRID_INFO["grid_epsilon_step"]
         }
         batch_grid["grid_mu_ends"] = batch_grid["grid_mu_starts"] + (GRID_INFO["grid_mu_end"] - GRID_INFO["grid_mu_start"])
@@ -116,4 +151,33 @@ def get_batch_grid(BATCH_INFO,
         batch_grid["grid_y_ends"] = batch_grid["grid_y_starts"] + (GRID_INFO["grid_y_end"] - GRID_INFO["grid_y_start"])
         batch_grid["grid_epsilon_ends"] = batch_grid["grid_epsilon_starts"] + (GRID_INFO["grid_epsilon_end"] - GRID_INFO["grid_epsilon_start"])
 
+        # create all the jitter tensor here: 
+        batch_grid["grid_mus"] = []
+        batch_grid["grid_sigmas"] = []
+        batch_grid["grid_ys"] = []
+        batch_grid["grid_epsilons"] = []
+
+
+        for i in range(0, batch_grid["jitter_n"] * batch_grid["total_batch_n"]): 
+            grid_mu = torch.linspace(start = batch_grid["grid_mu_starts"][i], 
+                                     end = batch_grid["grid_mu_ends"][i], 
+                                     steps = batch_grid["grid_mu_step"])
+            grid_sigma = torch.linspace(start = batch_grid["grid_sigma_starts"][i], 
+                                     end = batch_grid["grid_sigma_ends"][i], 
+                                     steps = batch_grid["grid_sigma_step"])
+            grid_y = torch.linspace(start = batch_grid["grid_y_starts"][i], 
+                                     end = batch_grid["grid_y_ends"][i], 
+                                     steps = batch_grid["grid_y_step"])
+            grid_epsilon = torch.linspace(start = batch_grid["grid_epsilon_starts"][i], 
+                                     end = batch_grid["grid_epsilon_ends"][i], 
+                                     steps = batch_grid["grid_epsilon_step"])
+
+            batch_grid["grid_mus"].append(grid_mu)
+            batch_grid["grid_sigmas"].append(grid_sigma)
+            batch_grid["grid_ys"].append(grid_y)
+            batch_grid["grid_epsilons"].append(grid_epsilon)
+    
+    
+    
+    
     return batch_grid

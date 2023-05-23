@@ -7,6 +7,7 @@ from torch.distributions import Normal
 
 
 # currently just using toy number
+
 class granch_stimuli: 
     def __init__(self, n_feature, sequence_scheme): 
         self.n_feature = n_feature 
@@ -45,6 +46,55 @@ class granch_stimuli:
         
         self.stimuli_sequence = stimuli_sequence
 
+
+# Toy Stimulis
+class granch_stimuli: 
+    def __init__(self, n_feature, sequence_scheme, toy_b, toy_d): 
+
+        self.n_feature = n_feature 
+        self.n_trial = len(sequence_scheme)
+        self.sequence_scheme = sequence_scheme
+
+        # currently as a toy example 
+        self.stimuli_sequence = {
+            0: torch.tensor([toy_b]),#torch.rand(self.n_feature), 
+            1: torch.tensor([toy_b]),#torch.rand(self.n_feature), 
+            2: torch.tensor([toy_b]), 
+            3: torch.tensor([toy_b]), 
+            4: torch.tensor([toy_b]), 
+            5: torch.tensor([toy_b])#torch.rand(self.n_feature)
+        }
+
+        if (sequence_scheme.find("D") != -1): 
+            self.stimuli_sequence[sequence_scheme.find("D")] = torch.tensor([toy_d])
+
+        if (self.n_trial < len(self.stimuli_sequence)): 
+            for i in range(self.n_trial, len(self.stimuli_sequence)):
+                self.stimuli_sequence.pop(i)
+            
+            
+        print(self.stimuli_sequence)
+
+    def get_stimuli_sequence(self, embedding_path): 
+        embeddings = pd.read_csv(embedding_path, header = None)
+        # select a pair to be background and deviant 
+        bd_pair = embeddings.sample(2).iloc[:, 0:self.n_feature]
+        b = torch.tensor(bd_pair.iloc[0, :])
+        d = torch.tensor(bd_pair.iloc[1, :])
+
+        # print("b")
+        idx = 0 
+        stimuli_sequence = {}
+        while idx < self.n_trial: 
+            if(self.sequence_scheme[idx] == "B"): 
+                stimuli_sequence[idx] = b
+            elif(self.sequence_scheme[idx] == "D"): 
+                stimuli_sequence[idx] = d
+            else: 
+                warn("Wrong sequence scheme ")
+            idx = idx + 1
+        
+        self.stimuli_sequence = stimuli_sequence
 
 
 

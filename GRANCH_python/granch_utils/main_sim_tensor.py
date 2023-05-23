@@ -10,7 +10,6 @@ def granch_main_simulation(params, model, stimuli):
     stimulus_idx = 0
     t = 0 # following python tradition we are using 0-indexed
    
-    
     while t < params.max_observation and stimulus_idx < stimuli.n_trial: 
     # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
@@ -56,9 +55,7 @@ def granch_main_simulation(params, model, stimuli):
 
         t = t+1  
 
-        
-
-
+   
 
     return(model)
 
