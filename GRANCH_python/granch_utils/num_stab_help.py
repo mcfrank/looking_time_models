@@ -80,8 +80,10 @@ def run_all_sim(
         
         # Cache each batch 
         print("cache batch ", b_i)
-        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}.pickle".format(i = b_i, 
-                                                                                  stimuli_info = STIMULI_INFO.sequence_scheme)
+        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}.pickle".format(i = b_i, 
+                                                                                  stimuli_info = STIMULI_INFO.sequence_scheme, 
+                                                                                  b_val = STIMULI_INFO.b_val, 
+                                                                                  d_val = STIMULI_INFO.d_val)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df

@@ -54,6 +54,8 @@ class granch_stimuli:
         self.n_feature = n_feature 
         self.n_trial = len(sequence_scheme)
         self.sequence_scheme = sequence_scheme
+        self.b_val = toy_b 
+        self.d_val = toy_d
 
         # currently as a toy example 
         self.stimuli_sequence = {
