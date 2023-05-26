@@ -80,10 +80,21 @@ def run_all_sim(
         
         # Cache each batch 
         print("cache batch ", b_i)
+        res_df["b_val"] = STIMULI_INFO.b_val.item()
+        res_df["d_val"] = STIMULI_INFO.d_val.item()
+        res_df["mu_prior"] = mu_prior 
+        res_df["v_prior"] = V_prior 
+        res_df["alpha_prior"] = alpha_prior
+        res_df["beta_prior"] = beta_prior
+        res_df["epsilon"] = epsilon
+
+
+
         batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}.pickle".format(i = b_i, 
                                                                                   stimuli_info = STIMULI_INFO.sequence_scheme, 
-                                                                                  b_val = STIMULI_INFO.b_val, 
-                                                                                  d_val = STIMULI_INFO.d_val)
+                                                                                  b_val = STIMULI_INFO.b_val.item(), 
+                                                                                  d_val = STIMULI_INFO.d_val.item()
+                                                                                 )
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df
@@ -183,3 +194,23 @@ def get_batch_grid(BATCH_INFO,
     
     
     return batch_grid
+
+
+
+def sample_multiple_pair(pair_each_stim):
+   
+
+    all_stimuli_info = []
+    for i in range(pair_each_stim): 
+        s1 = init_model_tensor.granch_stimuli(1, 'BBBBBB')
+        s2 = init_model_tensor.granch_stimuli(1, 'BDBBBB')
+        s3 = init_model_tensor.granch_stimuli(1, 'BBBDBB')
+        s4 = init_model_tensor.granch_stimuli(1, 'BBBBBD')
+        s1.get_stimuli_sequence("embedding_PCA.csv")
+        s2.get_stimuli_sequence("embedding_PCA.csv")
+        s3.get_stimuli_sequence("embedding_PCA.csv")
+        s4.get_stimuli_sequence("embedding_PCA.csv")
+        all_stimuli_info.extend([s1, s2, s3, s4])
+
+    return all_stimuli_info
+
