@@ -11,12 +11,12 @@ import pandas as pd
 #b1d7_df = pd.read_pickle("cache_results/cache_summary/b1d7.pickle")
 #b1d3_df = pd.read_pickle("cache_results/cache_summary/b1d3.pickle")
 
-b1d15_df = pd.read_pickle("cache_results/cache_summary/b1d15.pickle")
-b1d18_df = pd.read_pickle("cache_results/cache_summary/b1d18.pickle")
+#b1d15_df = pd.read_pickle("cache_results/cache_summary/b1d15.pickle")
+#b1d18_df = pd.read_pickle("cache_results/cache_summary/b1d18.pickle")
 summary_df =  pd.read_pickle("cache_results/cache_summary/summary.pickle")
 
 
-main_df = pd.concat([b1d15_df, b1d18_df, summary_df])
+main_df = pd.concat([summary_df])
 main_df = main_df[main_df["stimuli"].isin(["BBBBBB", "BBBBBD", "BDBBBB", "BBBDBB"])]
 
 
@@ -30,6 +30,18 @@ main_df
 # Visualization in R 
 
 ```{R}
+b1d3 <-summary_df %>% 
+  filter(stimuli_spec == "b0.1d0.3") 
+
+b1d7 <- summary_df %>% 
+  filter(stimuli_spec == "b0.1d0.7")
+
+b1d3 %>% 
+  left_join(b1d7, by = c("stimulus_id", "stimuli", "batch_id", "j_i")) 
+```
+
+
+```{R}
 library(tidyverse)
 library(here)
 library(reticulate)
@@ -37,18 +49,12 @@ library(ggthemes)
 
 summary_df <- py$main_df %>% 
   unnest(stimulus_id) %>% 
-  mutate(stimuli_spec = 
-           case_when(
-             is.na(stimuli_spec) ~ stim_spec, 
-             TRUE ~ stimuli_spec
-           )) %>% 
-  unnest(stimuli_spec) %>% 
-  group_by(stimulus_id, stimuli, batch_id, j_i, stimuli_spec) %>% 
+  group_by(stimulus_id, stimuli, batch_id, j_i) %>% 
   count() 
   
   
 summary_df %>% 
-  ggplot(aes(x = stimulus_id, y = n, color = stimuli_spec)) + 
+  ggplot(aes(x = stimulus_id, y = n,)) + 
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
   stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
   facet_wrap(~stimuli) + 
@@ -76,7 +82,11 @@ library(bayesAB)
 #plotNormalInvGamma(0.001, 0.001, 1, 1)
 
 
-plotNormalInvGamma(0, 2, 1, 1)
+#plotNormalInvGamma(0.001, 1, 1, 1)
+#plotNormalInvGamma(0.001, 0.1, 1, 1)
+#plotNormalInvGamma(0.001, 0.01, 1, 1)
+plotNormalInvGamma(0, 1, 30, 30
+                   )
 
 ```
 
