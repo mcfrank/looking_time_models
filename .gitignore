@@ -45,3 +45,7 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+GRANCH_python/cache_results/*.pickle
+GRANCH_python/cache_results/cache_summary/*.pickle
+

@@ -83,9 +83,9 @@ def run_all_sim(
         res_df["b_val"] = STIMULI_INFO.b_val.item()
         res_df["d_val"] = STIMULI_INFO.d_val.item()
         res_df["mu_prior"] = mu_prior 
-        res_df["v_prior"] = V_prior 
-        res_df["alpha_prior"] = alpha_prior
-        res_df["beta_prior"] = beta_prior
+        res_df["v_prior"] = V_prior     
+        res_df["alpha_prior"] = alpha_prior.item()
+        res_df["beta_prior"] = beta_prior.item()
         res_df["epsilon"] = epsilon
 
 
