@@ -98,6 +98,7 @@ summary_df <- py$main_df %>%
 
 summary_df
 ```
+# General trend  
   
 ```{R}
 summary_df %>% 
@@ -111,10 +112,14 @@ summary_df %>%
 
 
 
+# distance gradient?
+
 ```{R}
 
 
 summary_df %>% 
+  filter(grid_relationship == "normal") %>% 
+  filter(distance_type == "dist < 1") %>% 
   ggplot(aes(x = stimulus_id, y = n, color = distance_type)) + 
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
   stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
@@ -123,11 +128,14 @@ summary_df %>%
 
 ```
 
+## focus on the in bounds ones
+
 ```{R}
 
 summary_df %>% 
   filter(grid_relationship == "normal") %>% 
-  ggplot(aes(x = stimulus_id, y = n, color = distance_interval)) + 
+  mutate(distance = round(distance, 1)) %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(distance))) + 
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
   stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
   facet_grid(~stimuli) + 
@@ -159,8 +167,12 @@ library(bayesAB)
 #plotNormalInvGamma(0.001, 1, 1, 1)
 #plotNormalInvGamma(0.001, 0.1, 1, 1)
 #plotNormalInvGamma(0.001, 0.01, 1, 1)
-plotNormalInvGamma(0, 1, 30, 30
-                   )
+plotNormalInvGamma(0, 3, 10, 1)
+plotNormalInvGamma(0, 3, 1, 2)
+
+plotNormalInvGamma(0, 3, 2, 1)
+
+
 
 ```
 

@@ -15,18 +15,32 @@ class granch_stimuli:
         self.sequence_scheme = sequence_scheme
   
 
-    def get_stimuli_sequence(self, embedding_path): 
+    def get_stimuli_sequence(self, embedding_path, distance_range = []): 
         embeddings = pd.read_csv(embedding_path, header = None)
         # select a pair to be background and deviant 
         bd_pair = embeddings.sample(2).iloc[:, 0:self.n_feature]
         b = torch.tensor(bd_pair.iloc[0, :])
-        d = torch.tensor(bd_pair.iloc[1, :])
+
+        
+        if len(distance_range) != 0: 
+            d = (embeddings.sample(1).iloc[:, 0:self.n_feature]).iloc[0, :]
+            
+            #print(abs(d-b))
+            while abs(d[0]-b.item()) > distance_range[1] or  abs(d[0]-b.item()) < distance_range[0]: 
+                d = (embeddings.sample(1).iloc[:, 0:self.n_feature]).iloc[0, :]
+            d = torch.tensor(d)
+
+
+        else: 
+            # if didn't specify a distance range, then randomly select another
+            d = torch.tensor(bd_pair.iloc[1, :])
+
+
 
         self.b_val = b
         self.d_val = d
 
-
-        # print("b")
+       
         idx = 0 
         stimuli_sequence = {}
         while idx < self.n_trial: 
