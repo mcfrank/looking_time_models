@@ -197,7 +197,7 @@ def get_batch_grid(BATCH_INFO,
 
 
 
-def sample_multiple_pair(pair_each_stim):
+def sample_multiple_pair(pair_each_stim, distance_range = []):
    
 
     all_stimuli_info = []
@@ -206,10 +206,10 @@ def sample_multiple_pair(pair_each_stim):
         s2 = init_model_tensor.granch_stimuli(1, 'BDBBBB')
         s3 = init_model_tensor.granch_stimuli(1, 'BBBDBB')
         s4 = init_model_tensor.granch_stimuli(1, 'BBBBBD')
-        s1.get_stimuli_sequence("embedding_PCA.csv")
-        s2.get_stimuli_sequence("embedding_PCA.csv")
-        s3.get_stimuli_sequence("embedding_PCA.csv")
-        s4.get_stimuli_sequence("embedding_PCA.csv")
+        s1.get_stimuli_sequence("embedding_PCA.csv", distance_range)
+        s2.get_stimuli_sequence("embedding_PCA.csv", distance_range)
+        s3.get_stimuli_sequence("embedding_PCA.csv", distance_range)
+        s4.get_stimuli_sequence("embedding_PCA.csv", distance_range)
         all_stimuli_info.extend([s1, s2, s3, s4])
 
     return all_stimuli_info

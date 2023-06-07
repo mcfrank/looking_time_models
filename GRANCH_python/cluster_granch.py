@@ -7,6 +7,8 @@ import pyro
 import pickle
 import torch.distributions as dist
 import pandas as pd
+import os 
+import re
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -31,16 +33,36 @@ BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
 PRIOR_INFO = {
     "mu_prior": 0,  
-    "V_prior": 1, 
-    "alpha_prior": 30, 
-    "beta_prior": 30, 
-    "epsilon": 0.000001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
+    "V_prior": 3, 
+    "alpha_prior": 1, 
+    "beta_prior": 2, 
+    "epsilon": 0.001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
     "hypothetical_obs_grid_n": 10, 
     "world_EIGs": 0.0001, "max_observation": 500
 }
 
 
-stimuli_info_list = num_stab_help.sample_multiple_pair(10)
+stimuli_info_list = num_stab_help.sample_multiple_pair(10, [0.01, 1])
 
 for STIMULI_INFO in stimuli_info_list: 
     num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+
+
+folder_path = "cache_results/"
+df_list = []
+for file_name in os.listdir(folder_path): 
+    pattern_batch_info = r"batch_(\d+)_cache_([A-Z]+)"
+    #pattern_stim_spec = r"b_([\d\.]+)_d_([\d\.]+)"
+    if file_name.endswith(".pickle"):    
+        batch_id, stimuli = re.search(pattern_batch_info, file_name).groups()
+        file_path = os.path.join(folder_path, file_name)
+        df = pd.read_pickle(file_path)
+        df["batch_id"] = batch_id
+        df["stimuli"] = stimuli
+        df_list.append(df)
+
+main_df = pd.concat(df_list)
+main_df = main_df.dropna()
+
+with open("cache_results/cache_summary/summary.pickle", 'wb') as f:
+    pickle.dump(main_df, f)
