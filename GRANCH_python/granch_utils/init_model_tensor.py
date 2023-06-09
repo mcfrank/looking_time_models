@@ -13,6 +13,25 @@ class granch_stimuli:
         self.n_feature = n_feature 
         self.n_trial = len(sequence_scheme)
         self.sequence_scheme = sequence_scheme
+
+    def add_toy_example(self, b, d): 
+        
+
+        idx = 0 
+        stimuli_sequence = {}
+        while idx < self.n_trial: 
+            if(self.sequence_scheme[idx] == "B"): 
+                stimuli_sequence[idx] = torch.tensor([b])
+            elif(self.sequence_scheme[idx] == "D"): 
+                stimuli_sequence[idx] = torch.tensor([d])
+            else: 
+                warn("Wrong sequence scheme ")
+            idx = idx + 1
+
+        self.b_val = torch.tensor([b])
+        self.d_val = torch.tensor([d])
+        
+        self.stimuli_sequence = stimuli_sequence
   
 
     def get_stimuli_sequence(self, embedding_path, distance_range = []): 
