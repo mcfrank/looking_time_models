@@ -119,8 +119,9 @@ summary_df %>%
 
 summary_df %>% 
   filter(grid_relationship == "normal") %>% 
+  mutate(distance = round(distance, 1)) %>% 
   filter(distance_type == "dist < 1") %>% 
-  ggplot(aes(x = stimulus_id, y = n, color = distance_type)) + 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(distance))) + 
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
   stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
   facet_wrap(~stimuli) + 
@@ -133,7 +134,8 @@ summary_df %>%
 ```{R}
 
 summary_df %>% 
-  filter(grid_relationship == "normal") %>% 
+  #filter(grid_relationship == "normal") %>% 
+  filter(distance_type == "dist < 1") %>% 
   mutate(distance = round(distance, 1)) %>% 
   ggplot(aes(x = stimulus_id, y = n, color = as.factor(distance))) + 
   stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
@@ -170,7 +172,7 @@ library(bayesAB)
 plotNormalInvGamma(0, 3, 10, 1)
 plotNormalInvGamma(0, 3, 1, 2)
 
-plotNormalInvGamma(0, 3, 2, 1)
+#plotNormalInvGamma(0, 3, 2, 1)
 
 
 

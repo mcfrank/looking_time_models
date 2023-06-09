@@ -214,3 +214,31 @@ def sample_multiple_pair(pair_each_stim, distance_range = []):
 
     return all_stimuli_info
 
+def set_up_toy_example(b, d): 
+    
+    s1 = init_model_tensor.granch_stimuli(1, 'BBBBBB')
+    s2 = init_model_tensor.granch_stimuli(1, 'BDBBBB')
+    s3 = init_model_tensor.granch_stimuli(1, 'BBBDBB')
+    s4 = init_model_tensor.granch_stimuli(1, 'BBBBBD')
+
+    s1.add_toy_example(b, d)
+    s2.add_toy_example(b, d)
+    s3.add_toy_example(b, d)
+    s4.add_toy_example(b, d)
+
+    return [s1, s2, s3, s4]
+
+# currently assuming only changing one prior 
+def create_prior_list(seed_prior, prior_key, prior_val_list):
+    prior_list = []
+    prior_list.append(seed_prior)
+    for val in prior_val_list: 
+        prior = dict(seed_prior)
+        prior[prior_key] = val 
+        prior_list.append(prior)
+
+    return prior_list
+
+
+
+

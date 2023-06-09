@@ -42,10 +42,19 @@ PRIOR_INFO = {
 }
 
 
-stimuli_info_list = num_stab_help.sample_multiple_pair(10, [0.01, 1])
+
+p = num_stab_help.create_prior_list(PRIOR_INFO, "epsilon", prior_val_list=[0.5, 0.3, 0.1, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001])
+
+l_small = num_stab_help.set_up_toy_example(0.10101012, 0.40101012)
+l_big = num_stab_help.set_up_toy_example(0.10101012, 0.90101012)
+stimuli_info_list = []
+stimuli_info_list.extend(l_small)
+stimuli_info_list.extend(l_big)
+
 
 for STIMULI_INFO in stimuli_info_list: 
-    num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+    for PRIOR_INFO in p: 
+        num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
 
 
 folder_path = "cache_results/"
