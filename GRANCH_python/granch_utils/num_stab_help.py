@@ -87,13 +87,17 @@ def run_all_sim(
         res_df["alpha_prior"] = alpha_prior.item()
         res_df["beta_prior"] = beta_prior.item()
         res_df["epsilon"] = epsilon
+        res_df["weig"] = world_EIGs
 
 
 
-        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}.pickle".format(i = b_i, 
+
+        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
                                                                                   stimuli_info = STIMULI_INFO.sequence_scheme, 
                                                                                   b_val = STIMULI_INFO.b_val.item(), 
-                                                                                  d_val = STIMULI_INFO.d_val.item()
+                                                                                  d_val = STIMULI_INFO.d_val.item(), 
+                                                                                  e_val = epsilon, 
+                                                                                  w_eig = world_EIGs
                                                                                  )
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)

@@ -45,6 +45,7 @@ PRIOR_INFO = {
 
 p = num_stab_help.create_prior_list(PRIOR_INFO, "epsilon", prior_val_list=[0.5, 0.3, 0.1, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001])
 
+
 l_small = num_stab_help.set_up_toy_example(0.10101012, 0.40101012)
 l_big = num_stab_help.set_up_toy_example(0.10101012, 0.90101012)
 stimuli_info_list = []
