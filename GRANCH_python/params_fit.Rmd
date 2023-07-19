@@ -1,0 +1,504 @@
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggthemes)
+
+
+```
+
+# Randomly select 100 human subjects
+
+```{r}
+subject <- read_csv(here("data/full_human_d.csv")) %>% 
+  distinct(subject) %>% 
+  pull()
+
+train_subject <- sample(subject, 100)
+
+train_d <- read_csv(here("data/full_human_d.csv")) %>% 
+  filter(subject %in% train_subject)
+
+test_d <- read_csv(here("data/full_human_d.csv")) %>% 
+  filter(!subject %in% train_subject)
+
+write_csv(train_d, here("data/train_d.csv"))
+write_csv(test_d, here("data/test_d.csv"))
+```
+
+```{r}
+train_d <- read_csv(here("data/train_d.csv"))
+```
+
+
+```{r}
+tidy_train_d <- train_d %>% 
+  mutate(
+    stimuli_sequence = case_when(
+      total_trial_number == 2 & block_type == "deviant_block" ~ "BD", 
+      total_trial_number == 4 & block_type == "deviant_block" ~ "BBBD", 
+      total_trial_number == 6 & block_type == "deviant_block" ~ "BBBBBD", 
+      total_trial_number == 2 & block_type != "deviant_block" ~ "BB", 
+      total_trial_number == 4 & block_type != "deviant_block" ~ "BBBB", 
+      total_trial_number == 6 & block_type != "deviant_block" ~ "BBBBBB", 
+    )
+  ) %>% 
+  select(subject, total_rt, trial_number, trial_type, stimuli_sequence) %>% 
+  filter(total_rt < 100000)
+```
+
+
+```{r}
+tidy_train_d
+```
+
+
+
+
+
+# preprocessing of the simulation res 
+
+```{r}
+# get rid of every 201st row 
+model_d <- read_csv(here("data/model_res_old.csv")) %>% 
+   mutate(row_n = row_number()) %>% 
+  filter(row_n %% 201 != 0) %>% 
+  select(-row_n)
+```
+```{r}
+all_model_sim_res <- model_d %>% 
+  group_by(mu_prior, v_prior, alpha_prior, beta_prior, epsilon, world_EIG, stim_sequence) %>% 
+   summarise(across(c("stim1", "stim2", "stim3", "stim4", "stim5", "stim6"), ~ mean(.x, na.rm = TRUE))) %>% 
+   pivot_longer(
+    cols = c("stim1", "stim2", "stim3", "stim4", "stim5", "stim6"), 
+    values_to = "sample_n", 
+    names_to = "trial_number"
+  ) %>% 
+  mutate(
+    param_info = paste("mu", mu_prior, "v", v_prior, "a", alpha_prior, "b", beta_prior, "ep", epsilon, "eig", world_EIG, sep = "_"), 
+    trial_number = case_when(
+      trial_number == "stim1" ~ 1, 
+      trial_number == "stim2" ~ 2, 
+      trial_number == "stim3" ~ 3, 
+      trial_number == "stim4" ~ 4, 
+      trial_number == "stim5" ~ 5, 
+      trial_number == "stim6" ~ 6
+    )
+  ) %>% 
+  ungroup() %>% 
+  select(stim_sequence, trial_number, sample_n, param_info)
+  
+```
+
+## preprocessing small simulation results 
+
+```{r}
+small_simulation <- read_csv(here("data/summary_small_sim.csv")) %>% 
+  mutate(
+    param_info = weig, 
+    stim_sequence = stimuli, 
+    trial_number = stimulus_id + 1, 
+    sample_n = mean_sample_n
+  ) %>% 
+  select(stim_sequence, trial_number, sample_n, param_info)
+
+```
+
+
+## chopping the stimuli sequence 
+
+```{r}
+get_exact_sequence <- function(all_model_sim_res, seq_type){
+  
+  if(seq_type == "BB" | seq_type == "BBBB" | seq_type == "BBBBBB"){
+    
+    df <- all_model_sim_res %>% 
+      filter(stim_sequence == "BBBBBB") %>% 
+      filter(trial_number <= nchar(seq_type)) %>% 
+      mutate(stim_sequence = seq_type)
+    
+  }else if(seq_type == "BD"){
+    
+    df <- all_model_sim_res %>% 
+      filter(stim_sequence == "BDBBBB") %>% 
+      filter(trial_number <= nchar(seq_type)) %>% 
+      mutate(stim_sequence = seq_type)
+    
+  }else if(seq_type == "BBBD"){
+    
+    df <- all_model_sim_res %>% 
+      filter(stim_sequence == "BBBDBB") %>% 
+      filter(trial_number <= nchar(seq_type)) %>% 
+      mutate(stim_sequence = seq_type)
+    
+  }else if(seq_type == "BBBBBD"){
+    
+    df <- all_model_sim_res %>% 
+      filter(stim_sequence == "BBBBBD") 
+  }
+  
+  return (df) 
+  
+}
+```
+
+
+
+```{r}
+chopped_sim_res <- lapply(
+  c("BB", "BD", "BBBB", "BBBD", "BBBBBB", "BBBBBD"), 
+  function(x){
+    get_exact_sequence(small_simulation, x)
+  }
+) %>% 
+  bind_rows()
+
+```
+
+
+```{r}
+complete_sim_res <- all_model_sim_res %>% 
+  group_by(param_info) %>% 
+  count() %>% 
+  filter(n == 24)
+
+chopped_sim_res <- lapply(
+  c("BB", "BD", "BBBB", "BBBD", "BBBBBB", "BBBBBD"), 
+  function(x){
+    get_exact_sequence(all_model_sim_res %>% filter(param_info %in% complete_sim_res$param_info), x)
+  }
+) %>% 
+  bind_rows()
+```
+
+
+```{r}
+edited_sim_res <- chopped_sim_res %>% 
+  mutate(
+    edited_sample_n = case_when(
+      trial_number == 1 ~ sample_n, 
+      TRUE ~ sample_n + 1
+    )
+  )
+```
+
+
+# find correlation
+
+    
+
+```{r}
+tidy_train_summary_d <- tidy_train_d %>% 
+  group_by(trial_number, trial_type, stimuli_sequence) %>% 
+  summarise(total_rt = mean(total_rt))
+
+scaled_sim_res <- chopped_sim_res %>% 
+  rename(stimuli_sequence = stim_sequence) %>% 
+  left_join(tidy_train_summary_d, by = c("trial_number", "stimuli_sequence")) %>% 
+  group_by(param_info) %>% 
+  summarise(
+    mean_sim = mean((sample_n), na.rm = TRUE), 
+    sd_sim = sd((sample_n), na.rm = TRUE), 
+    mean_rt = mean((total_rt), na.rm = TRUE), 
+    sd_rt = sd((total_rt), na.rm = TRUE)
+  ) %>% 
+  left_join(chopped_sim_res %>% rename(stimuli_sequence = stim_sequence), by = "param_info") %>% 
+  left_join(tidy_train_summary_d, by = c("trial_number", "stimuli_sequence")) %>% 
+  mutate(
+    multiply_const = sd_rt /sd_sim
+  ) %>% 
+  mutate(
+    scaled_stim_sample_n = mean_rt + (sample_n - mean_sim) * multiply_const
+  ) %>% 
+  select(param_info, stimuli_sequence, trial_number, scaled_stim_sample_n,total_rt) %>% 
+  group_by(param_info) %>% 
+  nest()
+```
+
+
+
+
+```{r}
+scaled_sim_res %>% 
+  #filter(param_info %in% c("mu_0_v_1_a_10_b_35_ep_1e-04_eig_1")) %>% 
+  unnest(data) %>% 
+  mutate(total_rt = (total_rt)) %>% 
+  pivot_longer(cols = c("scaled_stim_sample_n", "total_rt"), 
+               names_to = "value_type", 
+               values_to = "value") %>% 
+  ggplot(aes(x = trial_number, y = value, color = value_type, group = value_type)) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  #scale_y_log10()+
+  
+  facet_grid(param_info ~ stimuli_sequence)
+```
+
+```{r}
+ rmse_interval <- function(rmse, deg_free, p_lower = 0.025, p_upper = 0.975){
+    tibble(.pred_lower = sqrt(deg_free / qchisq(p_upper, df = deg_free)) * rmse,
+           .pred_upper = sqrt(deg_free / qchisq(p_lower, df = deg_free)) * rmse)
+  }
+  
+```
+
+
+```{r}
+scaled_sim_res$r <- unlist(map(scaled_sim_res$data, function(x){
+    r <- cor(x$total_rt, x$scaled_stim_sample_n, method = "pearson")
+  }))
+
+
+
+# scaled_sim_res$r_ci <- unlist(map(scaled_sim_res$data, function(x){
+#    r_conf <- confintr::ci_cor(x$total_rt, x$sample_n, method = "pearson", type = "bootstrap")["interval"][[1]]
+#    r_conf_print <- paste0("[", round(r_conf[1],2), ", ", round(r_conf[2],2), "]")
+#    return(r_conf_print)
+#  }))
+ 
+scaled_sim_res$rmse <- unlist(map(scaled_sim_res$data, function(x){
+    rmse_log <- Metrics::rmse(x$total_rt, x$sample_n)
+  }))
+  
+scaled_sim_res$rmse_ci <- unlist(map(scaled_sim_res$data, function(x){
+    rmse <- Metrics::rmse(x$total_rt, x$sample_n)
+    rmse_interval <- rmse_interval(rmse, nrow(x))
+    rmse_conf_print <- paste0("[", round(rmse_interval$.pred_lower,2), ", ", 
+                              round(rmse_interval$.pred_upper,2), "]")
+  }))
+    
+    
+scaled_sim_res %>% 
+  ggplot(aes(x = r)) + 
+  geom_histogram()
+```
+
+```{r}
+scaled_sim_res %>% 
+  arrange(-r) %>% 
+  ggplot(aes(x = r)) + 
+  geom_histogram(bins = 40)
+```
+
+## plotting 
+
+```{r}
+scaled_sim_res %>% 
+  arrange(-r) %>% 
+  head(1) %>% 
+  unnest(data) %>% 
+  pivot_longer(cols = c("scaled_stim_sample_n", "total_rt"), 
+               names_to = "value_type", 
+               values_to = "value") %>% 
+  ggplot(aes(x = trial_number, y = value, color = value_type, group = value_type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) +
+  #scale_y_log10()+
+  
+  facet_wrap( ~ stimuli_sequence) +
+  theme_few()
+```
+
+
+
+```{r}
+tidy_train_d %>% 
+  ggplot(aes(x = trial_number, y = total_rt)) + 
+  #geom_point(alpha = .2, position = position_jitter(width = .2))+
+  stat_summary(fun.data = "mean_cl_boot") + 
+  facet_wrap(~stimuli_sequence)
+
+
+tidy_train_d %>% 
+  group_by(stimuli_sequence) %>% 
+  count()
+```
+
+
+
+
+
+```{r}
+scaled_sim_res %>% 
+   separate(param_info, into = c("mu", "mu_val", "v", "v_val", "a", "a_val", "b", "b_val", "ep", "ep_val", "eig", "eig_val"), 
+           sep = "_") %>% 
+  ggplot(aes(x = mu_val, y = r, color = eig_val)) + 
+  geom_point()+
+  facet_grid(b_val~a_val) + 
+  theme_few()
+
+
+scaled_sim_res %>% 
+  separate(param_info, into = c("mu", "mu_val", "v", "v_val", "a", "a_val", "b", "b_val", "ep", "ep_val", "eig", "eig_val"), 
+           sep = "_") %>% 
+  ggplot(aes(x = eig_val, y = r, color = ep_val)) + 
+  geom_point() + 
+  theme_few() +
+  facet_wrap(a_val ~ b_val)
+```
+
+
+# compare behavioral dataset
+
+```{r}
+
+
+cogsci_data <- read_csv(here("data/cogsci_data.csv"))
+
+cs_data <- cogsci_data %>% 
+  mutate(stimuli_sequence = case_when(
+    deviant_position == 2 ~ "BDBBBB", 
+    deviant_position == 4 ~ "BBBDBB", 
+    deviant_position == 6 ~ "BBBBBD", 
+    is.na(deviant_position) ~ "BBBBBB"
+  )) %>% 
+  select(stimuli_sequence, subject, trial_looking_time, trial_type, trial_number) %>% 
+  rename(total_rt = trial_looking_time) %>% 
+  mutate(dataset = "cogsci") %>% 
+  filter(
+    (stimuli_sequence == "BDBBBB" & trial_number < 3) | 
+    (stimuli_sequence == "BBBDBB" & trial_number < 5) | 
+      stimuli_sequence == "BBBBBB" | stimuli_sequence == "BBBBBD"
+  ) %>% 
+  mutate(stimuli_sequence = case_when(
+      stimuli_sequence == "BDBBBB" ~ "BD", 
+    stimuli_sequence == "BBBDBB" ~ "BBBD", 
+    TRUE ~ stimuli_sequence
+  )) %>% 
+  filter(!(stimuli_sequence %in% c("BB", "BBBB")))
+
+combined_data <- bind_rows(tidy_train_d %>% mutate(dataset = "recent"), cs_data) %>% 
+  filter(!(stimuli_sequence %in% c("BB", "BBBB")))
+```
+
+```{r}
+combined_data %>% 
+  ggplot(aes(x = trial_number, y = total_rt, color = dataset)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
+  facet_wrap(~stimuli_sequence) + 
+  theme_few()
+```
+
+# fit small simulation w/ original results 
+
+```{r}
+clean_cogsci <- cs_data <- cogsci_data %>% 
+  mutate(stimuli_sequence = case_when(
+    deviant_position == 2 ~ "BDBBBB", 
+    deviant_position == 4 ~ "BBBDBB", 
+    deviant_position == 6 ~ "BBBBBD", 
+    is.na(deviant_position) ~ "BBBBBB"
+  )) %>% 
+  select(stimuli_sequence, subject, trial_looking_time, trial_type, trial_number) %>% 
+  rename(total_rt = trial_looking_time) 
+ 
+
+summary_cogsci <- clean_cogsci %>% 
+  group_by(stimuli_sequence, trial_type, trial_number) %>% 
+  summarise(total_rt = mean(total_rt))
+
+small_simulation <- read_csv(here("data/summary_small_sim.csv")) %>% 
+  mutate(
+    param_info = weig, 
+    stim_sequence = stimuli, 
+    trial_number = stimulus_id + 1, 
+    sample_n = mean_sample_n
+  ) %>% 
+  select(stim_sequence, trial_number, sample_n, param_info)
+
+
+#small_simulation <- small_simulation %>% 
+#  mutate(sample_n = sample_n + 6)
+
+
+scaled_sim_res <- small_simulation  %>% 
+  rename(stimuli_sequence = stim_sequence) %>% 
+  left_join(summary_cogsci, by = c("trial_number", "stimuli_sequence")) %>% 
+  group_by(param_info) %>% 
+  summarise(
+    mean_sim = mean((sample_n), na.rm = TRUE), 
+    sd_sim = sd((sample_n), na.rm = TRUE), 
+    mean_rt = mean((total_rt), na.rm = TRUE), 
+    sd_rt = sd((total_rt), na.rm = TRUE)
+  ) %>% 
+  left_join(small_simulation %>% rename(stimuli_sequence = stim_sequence), by = "param_info") %>% 
+  left_join(summary_cogsci, by = c("trial_number", "stimuli_sequence")) %>% 
+  mutate(
+    multiply_const = sd_rt /sd_sim
+  ) %>% 
+  mutate(
+    scaled_stim_sample_n = mean_rt + (sample_n - mean_sim) * multiply_const
+  ) %>% 
+  select(param_info, stimuli_sequence, trial_number, sample_n, scaled_stim_sample_n,total_rt) %>% 
+  group_by(param_info) %>% 
+  nest()
+
+scaled_sim_res$r <- unlist(map(scaled_sim_res$data, function(x){
+    r <- cor(x$total_rt, x$sample_n, method = "pearson")
+  }))
+
+scaled_sim_res
+```
+
+
+# fit large simulation with cogsci
+
+```{r}
+
+
+summary_cogsci <- clean_cogsci %>% 
+  group_by(stimuli_sequence, trial_type, trial_number) %>% 
+  summarise(total_rt = mean(total_rt))
+
+#small_simulation <- small_simulation %>% 
+#  mutate(sample_n = sample_n + 6)
+
+
+scaled_sim_res <- all_model_sim_res  %>% 
+  rename(stimuli_sequence = stim_sequence) %>% 
+  left_join(summary_cogsci, by = c("trial_number", "stimuli_sequence")) %>% 
+  group_by(param_info) %>% 
+  summarise(
+    mean_sim = mean((sample_n), na.rm = TRUE), 
+    sd_sim = sd((sample_n), na.rm = TRUE), 
+    mean_rt = mean((total_rt), na.rm = TRUE), 
+    sd_rt = sd((total_rt), na.rm = TRUE)
+  ) %>% 
+  left_join(all_model_sim_res %>% rename(stimuli_sequence = stim_sequence), by = "param_info") %>% 
+  left_join(summary_cogsci, by = c("trial_number", "stimuli_sequence")) %>% 
+  mutate(
+    multiply_const = sd_rt /sd_sim
+  ) %>% 
+  mutate(
+    scaled_stim_sample_n = mean_rt + (sample_n - mean_sim) * multiply_const
+  ) %>% 
+  select(param_info, stimuli_sequence, trial_number, sample_n, scaled_stim_sample_n,total_rt) %>% 
+  group_by(param_info) %>% 
+  nest()
+
+scaled_sim_res$r <- unlist(map(scaled_sim_res$data, function(x){
+    r <- cor(x$total_rt, x$sample_n, method = "pearson")
+  }))
+
+cogsci_fit <- scaled_sim_res %>% 
+  arrange(-r) %>% 
+  mutate(fit_type = "cogsci")
+
+
+
+```
+
+
+```{r}
+newdata_fit <- scaled_sim_res %>% 
+  mutate(fit_type = "new_data")
+```
+
+
+```{r}
+bind_rows(cogsci_fit, newdata_fit) %>% 
+  ggplot(aes(x = fit_type, y = r, group = param_info)) + 
+  geom_point(alpha = .2, position = position_dodge(width = .2)) + 
+  geom_line(position = position_dodge(width = .2), alpha = .2) + 
+  theme_few()
+```
+

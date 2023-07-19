@@ -14,7 +14,7 @@ import pandas as pd
 #b1d15_df = pd.read_pickle("cache_results/cache_summary/b1d15.pickle")
 #b1d18_df = pd.read_pickle("cache_results/cache_summary/b1d18.pickle")
 summary_df =  pd.read_pickle("cache_results/cache_summary/summary.pickle")
-
+#summary_df =  pd.read_pickle("cache_results/cache_results/cache_summary/summary.pickle")
 
 main_df = pd.concat([summary_df])
 main_df = main_df[main_df["stimuli"].isin(["BBBBBB", "BBBBBD", "BDBBBB", "BBBDBB"])]
@@ -26,8 +26,7 @@ main_df
 
 ```
 
-
-# Visualization in R 
+# Visualization in R
 
 ```{R}
 library(tidyverse)
@@ -40,13 +39,6 @@ py$main_df
 ```
 
 ```{R}
-summary_df
-
-```
-
-
-
-```{R}
 library(tidyverse)
 library(here)
 library(reticulate)
@@ -54,52 +46,29 @@ library(ggthemes)
 
 summary_df <- py$main_df %>% 
   unnest(stimulus_id) %>% 
-  group_by(stimulus_id, stimuli, batch_id, j_i, b_val, d_val) %>% 
-  count() %>% 
-  mutate(distance = abs(b_val - d_val)) %>% 
-  mutate(distance_type = case_when(
-    distance < 1 ~ "dist < 1", 
-    distance > 1 & distance < 3 ~ "1 < dist < 3", 
-    distance > 3 ~ "dist > 3"
-  )) %>% 
-  mutate(
-    grid_mu_start = -4, 
-    grid_mu_end = 4, 
-    grid_sigma_start = 0.001, 
-    grid_sigma_end = 1.8,
-    grid_y_start = -4, 
-    grid_y_end = 4
-  ) %>% 
-  mutate(
-    grid_relationship = case_when(
-    abs(b_val) > 2 | abs(d_val) > 2 ~ "oob", 
-    #abs(b_val) > grid_mu_end | abs(d_val) > grid_mu_end ~ "oob", 
-    TRUE ~ "normal"
-    )
-  ) %>% 
-  mutate(
-    bd_order = case_when(
-      b_val < d_val ~ "b < d", 
-      b_val > d_val ~ "b > d"
-    )
-    
-  ) %>% 
-  mutate(
-    sigma_in_bound = (distance < grid_sigma_end), 
-    distance_interval = case_when(
-      distance < .5 ~ "d < .5", 
-      distance > .5 & distance < 1 ~ ".5 < d < 1", 
-      distance > 1 & distance < 1.4 ~ "1 < d < end", 
-      TRUE ~ "oob"
-    )
-  )
+  group_by(stimulus_id, stimuli, batch_id, b_val, d_val, j_i, epsilon, weig) %>% 
+  count() 
 
 
 
-summary_df
+summary_small_sim <- summary_df %>% 
+  group_by(stimulus_id, stimuli, b_val, d_val, epsilon, weig) %>% 
+  summarise(mean_sample_n = mean(n))
+
+write_csv(summary_small_sim, here("data/summary_small_sim.csv"))
 ```
-# General trend  
-  
+
+# READ GIANT FILE
+
+```{r}
+library(tidyverse)
+library(here)
+
+d <- read_csv(here("cache_results/combined_df_shortened.csv"))
+```
+
+# General trend
+
 ```{R}
 summary_df %>% 
   ggplot(aes(x = stimulus_id, y = n)) + 
@@ -108,11 +77,54 @@ summary_df %>%
   facet_wrap(~stimuli) + 
   theme_few()
 
+summary_df %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(weig~stimuli) + 
+  theme_few()
+
+summary_df %>% 
+  #filter(weig > 1) %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(weig~stimuli) + 
+  theme_few()
+
 ```
 
-
-
 # distance gradient?
+
+```{R}
+summary_df %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(d_val), group = as.factor(d_val)), group = d_val) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(epsilon~stimuli) + 
+  theme_few()
+```
+
+```{R}
+summary_df %>% 
+  filter(d_val < 0.5 | d_val > 0.8) %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(d_val), group = as.factor(d_val)), color = d_val) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(epsilon~stimuli) + 
+  theme_few()
+```
+
+```{r}
+summary_df %>% 
+  #filter(d_val < 0.5 | d_val > 0.8) %>% 
+  filter(stimuli == "BBBDBB") %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(d_val), group = as.factor(d_val)), color = d_val) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(~epsilon) + 
+  theme_few()
+```
 
 ```{R}
 
@@ -145,8 +157,6 @@ summary_df %>%
 
 ```
 
-
-
 ```{r}
 summary_df %>% 
   filter(
@@ -159,7 +169,6 @@ summary_df %>%
   theme_few()
  
 ```
-
 
 ```{r}
 library(bayesAB)
@@ -177,4 +186,3 @@ plotNormalInvGamma(0, 3, 1, 2)
 
 
 ```
-
