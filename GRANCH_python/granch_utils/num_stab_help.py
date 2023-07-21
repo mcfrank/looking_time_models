@@ -215,17 +215,27 @@ def get_batch_grid(BATCH_INFO,
 def sample_condition_experiment(pair_each_stim):
    
     all_violation_type = ["animacy", "number", "pose", "identity"]
-    all_sequence_type = ["BB", "BBBB", "BBBBBB", "BD", "BBBD", "BBBBBD"]
+    all_deviant_blocks = [ "BD", "BBBD", "BBBBBD"]
+    all_background_blocks = ["BB", "BBBB", "BBBBBB"]
 
     all_stimuli_info = []
 
+    # loop through everything with deviant blocks 
     for i in range(pair_each_stim): 
         for v_type in all_violation_type: 
-            for s_type in all_sequence_type: 
+            for s_type in all_deviant_blocks: 
                 s = init_model_tensor.granch_stimuli(1, s_type)
                 s.get_violation_stimuli_sequence("all_embeddings_afterPCA.csv", v_type)
                 
                 all_stimuli_info.extend([s])
+
+    # then go through the background blocks 
+    for i in range(pair_each_stim): 
+        for s_type in all_background_blocks: 
+            s = init_model_tensor.granch_stimuli(1, s_type)
+            # just put one because it doesn't really matter not gonna use the d
+            s.get_violation_stimuli_sequence("all_embeddings_afterPCA.csv", "animacy")
+            all_stimuli_info.extend([s])
 
     return all_stimuli_info
 
