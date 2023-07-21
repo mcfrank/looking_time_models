@@ -1,0 +1,5 @@
+python3 cluster_granch.py
+-1.68
+1.88
+tensor([1], device='cuda:0')
+tensor([35], device='cuda:0')

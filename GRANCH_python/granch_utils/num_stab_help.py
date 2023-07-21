@@ -78,9 +78,15 @@ def run_all_sim(
 
             res_df = pd.concat([res_df, b])
         
+        print(STIMULI_INFO.b_val.iloc[0].at[1])
+        print(STIMULI_INFO.d_val.iloc[0].at[1])
+   
+        print(alpha_prior)
+        print(beta_prior)
+
         # Cache each batch 
-        res_df["b_val"] = STIMULI_INFO.b_val.item()
-        res_df["d_val"] = STIMULI_INFO.d_val.item()
+        res_df["b_val"] = STIMULI_INFO.b_val.iloc[0].at[1]
+        res_df["d_val"] = STIMULI_INFO.d_val.iloc[0].at[1]
         res_df["mu_prior"] = mu_prior 
         res_df["v_prior"] = V_prior     
         res_df["alpha_prior"] = alpha_prior.item()
@@ -97,13 +103,13 @@ def run_all_sim(
 
         batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
                                                                                   stimuli_info = STIMULI_INFO.sequence_scheme, 
-                                                                                  b_val = STIMULI_INFO.b_val.item(), 
-                                                                                  d_val = STIMULI_INFO.d_val.item(), 
+                                                                                  b_val = STIMULI_INFO.b_val.iloc[0].at[1], 
+                                                                                  d_val = STIMULI_INFO.d_val.iloc[0].at[1], 
                                                                                   e_val = epsilon, 
                                                                                   w_eig = world_EIGs
                                                                                  )
         
-        batch_name = "cache_results/{t}.pickle".format(timestr = timestr)
+        batch_name = "cache_results/{t}.pickle".format(t = timestr)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df
