@@ -32,25 +32,22 @@ GRID_INFO = {
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
 PRIOR_INFO = {
-    "mu_prior": 0,  
-    "V_prior": 3, 
+    "mu_prior": -1,  
+    "V_prior": 1, 
     "alpha_prior": 1, 
-    "beta_prior": 2, 
+    "beta_prior": 35, 
     "epsilon": 0.001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
     "hypothetical_obs_grid_n": 10, 
-    "world_EIGs": 0.0001, "max_observation": 500
+    "world_EIGs": 0.00001, "max_observation": 500
 }
 
 
 
-p = num_stab_help.create_prior_list(PRIOR_INFO, "epsilon", prior_val_list=[0.5, 0.3, 0.1, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001])
+p = [PRIOR_INFO]
 
 
-l_small = num_stab_help.set_up_toy_example(0.10101012, 0.40101012)
-l_big = num_stab_help.set_up_toy_example(0.10101012, 0.90101012)
-stimuli_info_list = []
-stimuli_info_list.extend(l_small)
-stimuli_info_list.extend(l_big)
+stimuli_info_list = num_stab_help.sample_condition_experiment(1)
+
 
 
 for STIMULI_INFO in stimuli_info_list: 
@@ -64,11 +61,8 @@ for file_name in os.listdir(folder_path):
     pattern_batch_info = r"batch_(\d+)_cache_([A-Z]+)"
     #pattern_stim_spec = r"b_([\d\.]+)_d_([\d\.]+)"
     if file_name.endswith(".pickle"):    
-        batch_id, stimuli = re.search(pattern_batch_info, file_name).groups()
         file_path = os.path.join(folder_path, file_name)
         df = pd.read_pickle(file_path)
-        df["batch_id"] = batch_id
-        df["stimuli"] = stimuli
         df_list.append(df)
 
 main_df = pd.concat(df_list)

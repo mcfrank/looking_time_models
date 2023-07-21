@@ -39,8 +39,6 @@ option 1:
 - randomly sample from each violation pair's embedding pools, sample 20 pairs and each pair running 20 times, and average across that results 
 
 
-
-
 Option 2: 
 - sample across the board, retroactively finding the categories (issue: non-even distribution )
 
