@@ -1,7 +1,6 @@
 
 from granch_utils import  compute_prob_tensor,init_model_tensor, main_sim_tensor, init_params_tensor 
 from granch_utils import num_stab_help
-
 import torch 
 import pyro
 import pickle
@@ -9,7 +8,6 @@ import torch.distributions as dist
 import pandas as pd
 import os 
 import re
-
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -27,8 +25,6 @@ GRID_INFO = {
     "hypothetical_obs_grid_n": 10
 }
 
-
-
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
 PRIOR_INFO = {
@@ -41,14 +37,9 @@ PRIOR_INFO = {
     "world_EIGs": 0.00001, "max_observation": 500
 }
 
-
-
 p = [PRIOR_INFO]
 
-
 stimuli_info_list = num_stab_help.sample_condition_experiment(1)
-
-
 
 for STIMULI_INFO in stimuli_info_list: 
     for PRIOR_INFO in p: 

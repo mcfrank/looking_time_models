@@ -4,7 +4,7 @@
 #SBATCH --mem=16GB
 #SBATCH --constraint=16GB
 #SBATCH --gres=gpu:1
-#SBATCH --time=10:00:00
+#SBATCH --time=24:00:00
 #SBATCH --output=R-%x.%j.out
 #SBATCH --error=R-%x.%j.err
 
