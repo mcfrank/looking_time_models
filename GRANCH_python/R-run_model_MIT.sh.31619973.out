@@ -1,0 +1,6 @@
+python3 cluster_granch.py
+<granch_utils.init_model_tensor.granch_stimuli object at 0x146d72d4be80>
+       1
+52 -0.69
+1   -0.69
+Name: 52, dtype: float64

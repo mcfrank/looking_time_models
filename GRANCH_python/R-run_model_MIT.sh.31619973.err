@@ -1,0 +1,8 @@
+/om2/user/galraz/GRANCH/lib/python3.9/site-packages/torch/functional.py:504: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at /opt/conda/conda-bld/pytorch_1678402374358/work/aten/src/ATen/native/TensorShape.cpp:3483.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+Traceback (most recent call last):
+  File "/net/vast-storage.ib.cluster/scratch/scratch/tmp/galraz/looking_time_models/GRANCH_python/cluster_granch.py", line 55, in <module>
+    num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+  File "/net/vast-storage.ib.cluster/scratch/scratch/tmp/galraz/looking_time_models/GRANCH_python/granch_utils/num_stab_help.py", line 84, in run_all_sim
+    print(float(STIMULI_INFO.b_val))
+TypeError: float() argument must be a string or a number, not 'DataFrame'
