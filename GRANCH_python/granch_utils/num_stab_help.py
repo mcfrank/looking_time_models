@@ -79,7 +79,6 @@ def run_all_sim(
             res_df = pd.concat([res_df, b])
         
         # Cache each batch 
-        print("cache batch ", b_i)
         res_df["b_val"] = STIMULI_INFO.b_val.item()
         res_df["d_val"] = STIMULI_INFO.d_val.item()
         res_df["mu_prior"] = mu_prior 
@@ -88,8 +87,12 @@ def run_all_sim(
         res_df["beta_prior"] = beta_prior.item()
         res_df["epsilon"] = epsilon
         res_df["weig"] = world_EIGs
+        res_df["stim_squence"] = tensor_stimuli.sequence_scheme
+        res_df["violation_type"] = tensor_stimuli.violation_type
 
 
+
+        timestr = time.strftime("%Y%m%d-%H%M%S")
 
 
         batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
@@ -99,6 +102,8 @@ def run_all_sim(
                                                                                   e_val = epsilon, 
                                                                                   w_eig = world_EIGs
                                                                                  )
+        
+        batch_name = "cache_results/{t}.pickle".format(timestr = timestr)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df
@@ -199,6 +204,24 @@ def get_batch_grid(BATCH_INFO,
     
     return batch_grid
 
+
+
+def sample_condition_experiment(pair_each_stim):
+   
+    all_violation_type = ["animacy", "number", "pose", "identity"]
+    all_sequence_type = ["BB", "BBBB", "BBBBBB", "BD", "BBBD", "BBBBBD"]
+
+    all_stimuli_info = []
+
+    for i in range(pair_each_stim): 
+        for v_type in all_violation_type: 
+            for s_type in all_sequence_type: 
+                s = init_model_tensor.granch_stimuli(1, s_type)
+                s.get_violation_stimuli_sequence("all_embeddings_afterPCA.csv", v_type)
+                
+                all_stimuli_info.extend([s])
+
+    return all_stimuli_info
 
 
 def sample_multiple_pair(pair_each_stim, distance_range = []):
