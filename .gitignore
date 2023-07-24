@@ -48,8 +48,11 @@ vignettes/*.pdf
 
 GRANCH_python/cache_results
 GRANCH_python/cache_results/*.pickle
+GRANCH_python/model_results/*.pickle
 GRANCH_python/cache_results/cache_summary/*.pickle
+
 
 # slurm outputs
 *.err
 *.out
+
