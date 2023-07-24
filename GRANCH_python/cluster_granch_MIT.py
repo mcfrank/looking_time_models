@@ -54,6 +54,6 @@ if __name__ == '__main__':
     print('entered main script')
     parser = argparse.ArgumentParser()
     parser.add_argument("stim_info_path", type=str, help="path to stim torch object")
-
     args = parser.parse_args()
+    print(args)
     run_model(args)

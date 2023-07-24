@@ -101,7 +101,7 @@ def run_all_sim(
         timestr = time.strftime("%Y%m%d-%H%M%S")
 
 
-        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
+        batch_name = "model_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
                                                                                   stimuli_info = STIMULI_INFO.sequence_scheme, 
                                                                                   b_val = STIMULI_INFO.b_val.iloc[0].at[1], 
                                                                                   d_val = STIMULI_INFO.d_val.iloc[0].at[1], 
@@ -109,7 +109,7 @@ def run_all_sim(
                                                                                   w_eig = world_EIGs
                                                                                  )
         
-        batch_name = "cache_results/{t}.pickle".format(t = timestr)
+        batch_name = "model_results/{t}.pickle".format(t = timestr)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df

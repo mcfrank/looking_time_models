@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --mail-type=END
 #SBATCH -n 1 
 #SBATCH --mem=16GB
@@ -8,7 +8,13 @@
 #SBATCH --output=R-%x.%j.out
 #SBATCH --error=R-%x.%j.err
 
-cmd="python3 cluster_granch.py"
+stim_paths=("${@:2}")
+
+current_stim_path=${stim_paths[${SLURM_ARRAY_TASK_ID}]}
+
+echo $current_stim_path
+
+cmd="python3 cluster_granch_MIT.py $current_stim_path"
 
 echo $cmd 
 
