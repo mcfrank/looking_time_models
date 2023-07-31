@@ -2,7 +2,7 @@
 
 import torch
 from granch_utils import compute_prob_tensor
-
+import ipdb
 
 # main simulation function
 def granch_main_simulation(params, model, stimuli): 
@@ -11,6 +11,9 @@ def granch_main_simulation(params, model, stimuli):
     t = 0 # following python tradition we are using 0-indexed
    
     while t < params.max_observation and stimulus_idx < stimuli.n_trial: 
+
+        print("t", t)  
+
     # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
@@ -32,7 +35,9 @@ def granch_main_simulation(params, model, stimuli):
         model.cur_likelihood = current_likelihood
         
         current_posterior = compute_prob_tensor.score_posterior(model,params, hypothetical_obs=False)
-        model.cur_posterior = current_posterior       
+        model.cur_posterior = current_posterior     
+        
+        print("posterior_size: ", current_posterior.size())  
 
         # this will currently work for only single feature    
         # in the tensor mode we don't need to iterate through possibilities anymore

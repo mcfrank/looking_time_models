@@ -11,6 +11,8 @@ import pandas as pd
 import pickle
 from granch_utils import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor 
 import gc
+import ipdb
+
 
 
 # just in case wanna implement the sample version
@@ -77,12 +79,6 @@ def run_all_sim(
             b["j_i"] = i
 
             res_df = pd.concat([res_df, b])
-        
-        print(STIMULI_INFO.b_val.iloc[0].at[1])
-        print(STIMULI_INFO.d_val.iloc[0].at[1])
-   
-        print(alpha_prior)
-        print(beta_prior)
 
         # Cache each batch 
         res_df["b_val"] = STIMULI_INFO.b_val.iloc[0].at[1]
@@ -98,10 +94,10 @@ def run_all_sim(
 
 
 
-        timestr = time.strftime("%Y%m%d-%H%M%S")
+        timestr = time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
 
-        batch_name = "model_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
+        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
                                                                                   stimuli_info = STIMULI_INFO.sequence_scheme, 
                                                                                   b_val = STIMULI_INFO.b_val.iloc[0].at[1], 
                                                                                   d_val = STIMULI_INFO.d_val.iloc[0].at[1], 
@@ -109,7 +105,7 @@ def run_all_sim(
                                                                                   w_eig = world_EIGs
                                                                                  )
         
-        batch_name = "model_results/{t}.pickle".format(t = timestr)
+        batch_name = "cache_results/{t}.pickle".format(t = timestr)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df
@@ -152,6 +148,9 @@ def get_batch_grid(BATCH_INFO,
             batch_grid["grid_sigmas"].append(grid_sigma)
             batch_grid["grid_ys"].append(grid_y)
             batch_grid["grid_epsilons"].append(grid_epsilon)
+
+            print(batch_grid)
+
             
 
 

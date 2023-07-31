@@ -8,22 +8,28 @@ import torch.distributions as dist
 import pandas as pd
 import os 
 import re
+import ipdb
+
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+
+print(device)
+
 BATCH_INFO = {
-    "jitter_n": 20, 
-    "total_batch_n": 20, 
+    "jitter_n": 1, 
+    "total_batch_n": 1, 
     "jitter_mode": "sampling"
 }
 
 GRID_INFO = {
-    "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 20, 
-    "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 20, 
-    "grid_y_start": -4, "grid_y_end": 4, "grid_y_step": 20, 
-    "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 20, 
+    "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 2, 
+    "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 3, 
+    "grid_y_start": -4, "grid_y_end": 4, "grid_y_step": 4, 
+    "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 5, 
     "hypothetical_obs_grid_n": 10
 }
+
 
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 

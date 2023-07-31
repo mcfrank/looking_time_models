@@ -1,4 +1,3 @@
-
 from granch_utils import  compute_prob_tensor,init_model_tensor, main_sim_tensor, init_params_tensor 
 from granch_utils import num_stab_help
 import torch 
@@ -44,7 +43,7 @@ def run_model(args):
 
     p = [PRIOR_INFO]
 
-    stimuli_info_list = num_stab_help.sample_condition_experiment(10)
+    stimuli_info_list = num_stab_help.sample_condition_experiment(20)
 
     STIMULI_INFO = torch.load(args.stim_info_path)
     for PRIOR_INFO in p: 
