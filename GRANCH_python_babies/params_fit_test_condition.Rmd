@@ -1,0 +1,44 @@
+
+
+```{r}
+library(tidyverse)
+library(here)
+
+test_d <- read_csv(here("data/test_d.csv"))
+
+
+```
+# by condition plot 
+
+```{r}
+test_d %>% 
+   mutate(
+    stimuli_sequence = case_when(
+      total_trial_number == 2 & block_type == "deviant_block" ~ "BD", 
+      total_trial_number == 4 & block_type == "deviant_block" ~ "BBBD", 
+      total_trial_number == 6 & block_type == "deviant_block" ~ "BBBBBD", 
+      total_trial_number == 2 & block_type != "deviant_block" ~ "BB", 
+      total_trial_number == 4 & block_type != "deviant_block" ~ "BBBB", 
+      total_trial_number == 6 & block_type != "deviant_block" ~ "BBBBBB", 
+    )
+  ) %>% 
+  mutate(
+    trial_type_detailed = case_when(
+      trial_type == "background" ~ trial_type, 
+      TRUE ~ violation_type
+    )
+  ) %>% 
+
+  ggplot(aes(x = trial_number, y = total_rt, color = trial_type_detailed, group = trial_type_detailed)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) +
+  facet_wrap( ~ total_trial_number) +
+  theme_few()
+```
+
+option 1: 
+- randomly sample from each violation pair's embedding pools, sample 20 pairs and each pair running 20 times, and average across that results 
+
+
+Option 2: 
+- sample across the board, retroactively finding the categories (issue: non-even distribution )
+
