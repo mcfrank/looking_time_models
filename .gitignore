@@ -56,3 +56,5 @@ GRANCH_python/cache_results/cache_summary/*.pickle
 *.err
 *.out
 
+# pickle files
+*.pickle
