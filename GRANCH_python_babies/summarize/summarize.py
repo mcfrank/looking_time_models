@@ -9,12 +9,12 @@ for idx, file_name in enumerate(os.listdir(folder_path)):
     pattern_batch_info = r"batch_(\d+)_cache_([A-Z]+)"
     #pattern_stim_spec = r"b_([\d\.]+)_d_([\d\.]+)"
     if file_name.endswith(".pickle"):
-        print(file_name)
         file_path = os.path.join(folder_path, file_name)
         try:
             df = pd.read_pickle(file_path)
             df["batch_id"] = idx
             df_list.append(df)
+            print(pd.unique(df['stim_squence']))
         except: 
             pass
 

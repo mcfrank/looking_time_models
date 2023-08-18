@@ -1,5 +1,5 @@
 from granch_utils import  compute_prob_tensor,init_model_tensor, main_sim_tensor, init_params_tensor 
-from granch_utils import num_stab_help
+from granch_utils import num_stab_help, param_funcs
 import torch 
 import pyro
 import pickle
@@ -30,27 +30,25 @@ def run_model(args):
 
     BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
-    PRIOR_INFO = {
-        "mu_prior": -1,  
-        "V_prior": 1, 
-        "alpha_prior": 1, 
-        "beta_prior": 35, 
-        "epsilon": 0.001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
-        "hypothetical_obs_grid_n": 10, 
-        "world_EIGs": 0.00001, "max_observation": 500, "forced_exposure_max": 5
-    }
+    PRIOR_INFO = param_funcs.get_params(args.param_names_path, args.param_values_path) 
+
+    # convert prior info to float
+    for k, v in PRIOR_INFO.items():
+        PRIOR_INFO[k] = float(v)
 
     p = [PRIOR_INFO]
 
-    STIMULI_INFO = torch.load(args.stim_info_path)
+    stimuli_info_list = num_stab_help.sample_condition_experiment(5)
 
-    for PRIOR_INFO in p: 
+    for STIMULI_INFO in stimuli_info_list: 
+        print('running:', STIMULI_INFO)
         num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
-
+ 
 if __name__ == '__main__':
     print('entered main script')
     parser = argparse.ArgumentParser()
-    parser.add_argument("stim_info_path", type=str, help="path to stim torch object")
+    parser.add_argument("param_values_path", type=str, help="Path to csv with parameters")
+    parser.add_argument("param_names_path", type=str, help="Path to csv with parameter names")
     args = parser.parse_args()
     print(args)
     run_model(args)
