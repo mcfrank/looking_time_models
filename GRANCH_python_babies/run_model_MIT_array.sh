@@ -1,12 +1,12 @@
 #!/bin/bash -l
 
-project_path="/om2/scratch/tmp/galraz/looking_time_models/GRANCH_python"
-stim_dir="$project_path/stimuli_tensors"
+project_path="/om2/scratch/tmp/galraz/looking_time_models/GRANCH_python_babies"
+param_dir="$project_path/params/param_vals"
 
-stim_paths=($(find $stim_dir/ -type f))
+param_vals=($(find $param_dir/ -type f))
 
-len=$(expr ${#stim_paths[@]} - 1) 
+len=$(expr ${#param_vals[@]} - 1)  
 
-cmd="sbatch --array=0-$len $project_path/run_model_MIT.sh $project_path ${stim_paths[@]}"
+cmd="sbatch --array=0-$len $project_path/run_model_MIT.sh $project_path ${param_vals[@]}"
 
 $cmd
