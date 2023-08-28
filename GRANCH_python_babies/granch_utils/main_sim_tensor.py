@@ -65,13 +65,9 @@ def granch_main_simulation(params, model, stimuli):
             else: 
             # otherwise keep looking at this one
                 model.update_model_decision(False)
-                print('looked away based on EIG')
 
         t += 1  
         current_stim_t += 1
-
-        print("current_stim_t ", current_stim_t)
-        print("stimulus_idx ", stimulus_idx)
    
 
     return(model)

@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import ipdb 
+import uuid
 
 folder_path = "../cache_results/"
 df_list = []
@@ -18,14 +19,18 @@ for idx, file_name in enumerate(os.listdir(folder_path)):
         except: 
             pass
 
+    if (idx % 300) == 0: # save every 300 files
+        main_df = pd.concat(df_list)
+        main_df = main_df.dropna()
+        counts = main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"]).agg({'epsilon': 'first', 'b_val': 'first', 'd_val': 'first', 'mu_prior' : 'first',
+                                                                                                             'mu_prior': 'first','v_prior': 'first','alpha_prior': 'first','beta_prior': 'first',
+                                                                                                             'epsilon': 'first'}).reset_index()
+        counts["n_sample"] =  main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"], as_index=False).count()['EIG']
+        counts.to_csv("summarized_results_detailed.csv", mode = 'a', index=False, header=False)
+        df_list = []
 
-main_df = pd.concat(df_list)
-main_df = main_df.dropna()
-
-counts = main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"]).agg({'epsilon': 'first', 'b_val': 'first', 'd_val': 'first'}).reset_index()
-counts["n_sample"] =  main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"], as_index=False).count()['EIG']
-
+counts = pd.read_csv("summarized_results_detailed.csv")
 summary = counts.groupby(["stim_squence", "violation_type", 'stimulus_id', 'epsilon'], as_index = False).mean()
 combined_df = summary[["stim_squence", "violation_type", "stimulus_id", "n_sample", "epsilon"]]
 
-[counts.to_csv("summarized_results_detailed.csv")]
+combined_df.to_csv("summarized_results_coarse.csv")

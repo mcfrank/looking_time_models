@@ -56,8 +56,6 @@ GRANCH_python/cache_results/cache_summary/*.pickle
 *.err
 *.out
 
-<<<<<<< HEAD
 # pickle files
 *.pickle
-=======
->>>>>>> a72d9ef5681bb7004ee2bcd318fb351116044c27
+
