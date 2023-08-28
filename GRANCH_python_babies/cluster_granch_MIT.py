@@ -35,6 +35,9 @@ def run_model(args):
     # convert prior info to float
     for k, v in PRIOR_INFO.items():
         PRIOR_INFO[k] = float(v)
+        if PRIOR_INFO[k].is_integer():
+            PRIOR_INFO[k] = int(v)
+
 
     p = [PRIOR_INFO]
 
