@@ -11,7 +11,7 @@ import pandas as pd
 import pickle
 from granch_utils import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor 
 import gc
-import ipdb
+#import ipdb
 
 
 

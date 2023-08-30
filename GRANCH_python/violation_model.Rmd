@@ -1,0 +1,39 @@
+---
+title: "violations_gradient"
+output: html_document
+date: "2023-07-23"
+---
+
+```{r}
+library(tidyverse)
+
+model_data = read.csv('/Users/galraz/Downloads/summarized_results_gradient.csv')
+
+model_data= read.csv('/Users/galraz/Downloads/summarized_results_detailed.csv')
+
+
+```
+
+```{r}
+
+model_data <- model_data %>% mutate(background_seq = case_when(str_detect(stim_squence, 'D') ~ 'deviant', 
+                                                                          TRUE ~ 'background'))
+
+
+
+ggplot(model_data %>% filter(background_seq == 'deviant'), aes(x = stimulus_id, y = n_sample, group = violation_type, color = violation_type)) + stat_summary(
+    geom = "point",
+    fun = "mean") + xlab('Trial number') + stat_summary(
+    geom = "errorbar",
+    fun.data = "mean_se",
+    size = 1,
+    shape = 2,
+    fill = "red", width = 0.2
+  ) + theme_classic(base_size = 15) + facet_grid(~ stim_squence)
+
+
+ggplot(model_data %>% filter(background_seq == 'deviant'), aes(x = stimulus_id, y = n_sample, group = violation_type, color = violation_type)) + geom_line() + geom_point() + theme_classic(base_size = 15) + facet_grid(~ stim_squence)
+
+
+
+```

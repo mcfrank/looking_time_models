@@ -2,7 +2,8 @@
 
 import torch
 from granch_utils import compute_prob_tensor
-import ipdb
+import numpy as np
+#import ipdb
 
 # main simulation function
 def granch_main_simulation(params, model, stimuli): 
@@ -37,7 +38,6 @@ def granch_main_simulation(params, model, stimuli):
         current_posterior = compute_prob_tensor.score_posterior(model,params, hypothetical_obs=False)
         model.cur_posterior = current_posterior     
         
-        print("posterior_size: ", current_posterior.size())  
 
         # this will currently work for only single feature    
         # in the tensor mode we don't need to iterate through possibilities anymore
@@ -49,9 +49,12 @@ def granch_main_simulation(params, model, stimuli):
         eig = torch.sum(model.ps_kl * model.ps_pp)
         model.update_model_eig(eig.item())
 
+
+        # luce's choice rule 
+        p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
     
-        if (eig < params.world_EIGs): 
-        # if EIG below threshold, increment stimulus
+        if (np.random.binomial(1, p_look_away) == 0): 
+        # if the model is not looking away, increment stimulus
             stimulus_idx = stimulus_idx + 1
             model.update_model_decision(True)
         else: 
