@@ -3,7 +3,7 @@ gaussian_ranch/.RDataTmp
 gaussian_ranch/param_exploration/cached_res/*.RDS
 gaussian_ranch/exploration/params/cached_res/*.RDS
 
-GRANCH_python/data/*
+GRANCH_python/data/*.csv
 
 *.html
 *.nb.html
