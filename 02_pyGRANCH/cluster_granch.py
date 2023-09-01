@@ -44,7 +44,7 @@ PRIOR_INFO = {
 
 p = [PRIOR_INFO]
 
-stimuli_info_list = num_stab_help.sample_condition_experiment(1)
+stimuli_info_list = num_stab_help.sample_spore_experiment(1)
 
 for STIMULI_INFO in stimuli_info_list: 
     for PRIOR_INFO in p: 

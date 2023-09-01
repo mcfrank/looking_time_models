@@ -90,7 +90,7 @@ def run_all_sim(
         res_df["epsilon"] = epsilon
         res_df["weig"] = world_EIGs
         res_df["stim_squence"] = tensor_stimuli.sequence_scheme
-        res_df["violation_type"] = tensor_stimuli.violation_type
+        res_df["complexity_type"] = tensor_stimuli.complexity_type
 
 
 
