@@ -55,6 +55,72 @@ class granch_stimuli:
             # if didn't specify a distance range, then randomly select another
             d = torch.tensor(bd_pair.iloc[1, :])
 
+######### Below functions for running experiment with spores 
+
+    def parse_spore_stim_type(self, stim_name):
+        if "complex" in stim_name:
+            stim_obj = dict(complexity="complex")
+        else: 
+            stim_obj = dict(complexity="simple")
+
+        pattern = r'\d+'
+        match = re.search(pattern, stim_name)
+        stim_obj["id"] = match.group()
+        return stim_obj
+
+    
+    def filtered_spore_embedding_pool(self, embeddings, b_obj_type):
+        # first filter by the same complexity type 
+        filtered_pool = embeddings[(embeddings[0].str.contains(b_obj_type["complexity"]))]
+        # then filter out the same id 
+        filtered_pool = filtered_pool[(~filtered_pool[0].str.contains(b_obj_type['id']))]
+
+        return (filtered_pool)
+
+
+
+    def get_spore_stimuli_sequence(self, embedding_path, complexity_type): 
+        
+        embeddings = pd.read_csv(embedding_path, header = None)
+        embeddings = embeddings[(embeddings[0].str.contains(complexity_type))]
+
+        b = embeddings.sample(1)
+        b_name = b.iloc[:, 0].values[0]
+        b_val = b.iloc[:, 1:self.n_feature +1] 
+
+        b_obj_type = self.parse_spore_stim_type(b_name)
+
+        # select a pair to be background and deviant following the violati type
+        deviant_pool = self.filtered_spore_embedding_pool(embeddings,b_obj_type)
+
+        d = deviant_pool.sample(1)
+        d_val = d.iloc[:, 1:self.n_feature +1] 
+
+        b = torch.tensor(b_val.values[0])
+        d = torch.tensor(d_val.values[0])
+
+        self.b_val = b_val
+        self.d_val = d_val
+
+       
+        idx = 0 
+        stimuli_sequence = {}
+        while idx < self.n_trial: 
+            if(self.sequence_scheme[idx] == "B"): 
+                stimuli_sequence[idx] = b
+            elif(self.sequence_scheme[idx] == "D"): 
+                stimuli_sequence[idx] = d
+            else: 
+                warn("Wrong sequence scheme ")
+            idx = idx + 1
+        
+        self.stimuli_sequence = stimuli_sequence
+        self.complexity_type = complexity_type
+
+
+
+
+######### Below functions for running experiment with unity 
 
     def parse_stim_type(self, stim_name):
         if "pair" in stim_name:

@@ -211,6 +211,27 @@ def get_batch_grid(BATCH_INFO,
 
 
 
+
+def sample_spore_experiment(pair_each_stim):
+   
+    all_complexity_type = ["complex", "simple"]
+    all_background_blocks = ["BBBBBB", "BBBBBD", "BBBDBB", "BDBBBB"]
+
+    all_stimuli_info = []
+
+    # loop through everything with deviant blocks 
+    for i in range(pair_each_stim): 
+        for c_type in all_complexity_type: 
+            for s_type in all_background_blocks: 
+                s = init_model_tensor.granch_stimuli(1, s_type)
+                s.get_spore_stimuli_sequence("embeddings/spores_embeddings_afterPCA.csv", c_type)
+                all_stimuli_info.extend([s])
+
+    return all_stimuli_info
+
+
+
+
 def sample_condition_experiment(pair_each_stim):
    
     all_violation_type = ["animacy", "number", "pose", "identity"]

@@ -52,8 +52,7 @@ def granch_main_simulation(params, model, stimuli):
 
         # luce's choice rule 
         p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
-    
-        if (np.random.binomial(1, p_look_away) == 0): 
+        if (np.random.binomial(1, p_look_away) == 1): 
         # if the model is not looking away, increment stimulus
             stimulus_idx = stimulus_idx + 1
             model.update_model_decision(True)
