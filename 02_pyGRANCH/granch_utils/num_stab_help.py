@@ -9,7 +9,7 @@ import torch
 #import main_sim_tensor
 import pandas as pd
 import pickle
-from granch_utils import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor 
+from . import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor 
 import gc
 #import ipdb
 
@@ -245,7 +245,7 @@ def sample_condition_experiment(pair_each_stim):
         for v_type in all_violation_type: 
             for s_type in all_deviant_blocks: 
                 s = init_model_tensor.granch_stimuli(1, s_type)
-                s.get_violation_stimuli_sequence("all_embeddings_afterPCA.csv", v_type)
+                s.get_violation_stimuli_sequence("/om2/scratch/tmp/galraz/looking_time_models/02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", v_type)
                 
                 all_stimuli_info.extend([s])
 
@@ -254,7 +254,7 @@ def sample_condition_experiment(pair_each_stim):
         for s_type in all_background_blocks: 
             s = init_model_tensor.granch_stimuli(1, s_type)
             # just put one because it doesn't really matter not gonna use the d
-            s.get_violation_stimuli_sequence("all_embeddings_afterPCA.csv", "animacy")
+            s.get_violation_stimuli_sequence("/om2/scratch/tmp/galraz/looking_time_models/02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", "animacy")
             all_stimuli_info.extend([s])
 
     return all_stimuli_info

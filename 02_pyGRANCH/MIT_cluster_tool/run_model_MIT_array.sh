@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-project_path="/om2/scratch/tmp/galraz/looking_time_models/GRANCH_python"
+project_path="/om2/scratch/tmp/galraz/looking_time_models/02_pyGRANCH"
 stim_dir="$project_path/stimuli_tensors"
 
 stim_paths=($(find $stim_dir/ -type f))

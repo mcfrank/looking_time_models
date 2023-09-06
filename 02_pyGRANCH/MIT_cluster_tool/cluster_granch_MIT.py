@@ -1,4 +1,4 @@
-from granch_utils import  compute_prob_tensor,init_model_tensor, main_sim_tensor, init_params_tensor 
+from granch_utils import compute_prob_tensor,init_model_tensor, main_sim_tensor, init_params_tensor 
 from granch_utils import num_stab_help
 import torch 
 import pyro

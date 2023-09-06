@@ -6,7 +6,7 @@ import scipy.stats as sts
 import numpy as np
 import torch 
 from torch.distributions import Normal  
-from granch_utils import helper
+from . import helper
 
 # --- major functions -- 
 

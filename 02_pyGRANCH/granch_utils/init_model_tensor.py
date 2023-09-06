@@ -5,7 +5,7 @@ import numpy as np
 import torch 
 import re 
 from torch.distributions import Normal  
-
+import ipdb
 
 
 class granch_stimuli: 
@@ -117,11 +117,7 @@ class granch_stimuli:
         self.stimuli_sequence = stimuli_sequence
         self.complexity_type = complexity_type
 
-
-
-
 ######### Below functions for running experiment with unity 
-
     def parse_stim_type(self, stim_name):
         if "pair" in stim_name:
             stim_obj = dict(number="pair")
@@ -196,6 +192,7 @@ class granch_stimuli:
         
         b = embeddings.sample(1)
         b_name = b.iloc[:, 0].values[0]
+
         b_val = b.iloc[:, 1:self.n_feature +1] 
 
         b_obj_type = self.parse_stim_type(b_name)

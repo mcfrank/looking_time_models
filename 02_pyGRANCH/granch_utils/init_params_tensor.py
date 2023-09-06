@@ -1,5 +1,5 @@
 import torch
-from granch_utils import compute_prob_tensor
+from . import compute_prob_tensor
 import numpy as np
 import pandas as pd 
 
