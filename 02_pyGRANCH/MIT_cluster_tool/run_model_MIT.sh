@@ -14,7 +14,7 @@ current_stim_path=${stim_paths[${SLURM_ARRAY_TASK_ID}]}
 
 echo $current_stim_path
 
-cmd="python3 cluster_granch_MIT.py $current_stim_path"
+cmd="python -m 02_pyGRANCH.MIT_cluster_tool.cluster_granch_MIT $current_stim_path" 
 
 echo $cmd 
 

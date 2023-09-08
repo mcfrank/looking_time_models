@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
-project_path="/om2/scratch/tmp/galraz/looking_time_models/02_pyGRANCH"
-stim_dir="$project_path/stimuli_tensors"
+project_path="/om2/scratch/tmp/galraz/looking_time_models/02_pyGRANCH/MIT_cluster_tool/"
+stim_dir="$project_path/stimulus_job_arr/stimuli"
 
 stim_paths=($(find $stim_dir/ -type f))
 
