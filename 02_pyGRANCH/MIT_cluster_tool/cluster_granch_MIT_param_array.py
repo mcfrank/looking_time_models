@@ -35,15 +35,6 @@ def run_model(args):
 
     PRIOR_INFO = param_funcs.get_params(args.param_names_path, args.param_values_path) 
 
-    ipdb.set_trace()
-
-    # convert prior info to float
-    for k, v in PRIOR_INFO.items():
-        print(v)
-        PRIOR_INFO[k] = float(v)
-        if PRIOR_INFO[k].is_integer():
-            PRIOR_INFO[k] = int(v)
-
     if EXP_INFO['stim_set'] == "spore": 
         stimuli_info_list = num_stab_help.sample_spore_experiment(1)
     elif EXP_INFO['stim_set'] == "unity":
@@ -51,7 +42,7 @@ def run_model(args):
 
     for STIMULI_INFO in stimuli_info_list: 
         print('running:', STIMULI_INFO)
-        num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
 
 if __name__ == '__main__':
     print('entered main script')

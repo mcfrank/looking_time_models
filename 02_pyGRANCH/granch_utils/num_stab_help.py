@@ -26,8 +26,7 @@ def run_all_sim(
         EXP_INFO,
         BATCH_GRID_INFO, 
         PRIOR_INFO, 
-        STIMULI_INFO
-): 
+        STIMULI_INFO): 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # get stimulus set & paradigm 

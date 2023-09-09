@@ -16,6 +16,16 @@ def get_params(param_names_path, param_values_path):
     param_names = get_param_names(param_names_path)
     param_values = get_param_values(param_values_path)
 
+    print('param_names')
+    print(param_names)
+
+    print('param_values')
+    print(param_values)
+
+
+    # convert values to right format
+    param_values = [int(val) if float(val).is_integer() else float(val) for val in param_values]
+
     params = dict(zip(param_names, param_values)) 
 
     return params
