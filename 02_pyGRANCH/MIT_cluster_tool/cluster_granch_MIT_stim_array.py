@@ -45,13 +45,8 @@ def run_model(args):
 
     p = [PRIOR_INFO]
 
-    if EXP_INFO['stim_set'] == "spore": 
-        stimuli_info_list = num_stab_help.sample_spore_experiment(1)
-    elif EXP_INFO['stim_set'] == "unity":
-        stimuli_info_list = num_stab_help.sample_condition_experiment(1, EXP_INFO['paradigm'])
-
-
     STIMULI_INFO = torch.load(args.stim_info_path)
+    
     for PRIOR_INFO in p: 
         num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
 

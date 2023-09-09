@@ -1,4 +1,4 @@
-import time 
+from datetime import datetime 
 import numpy as np
 import seaborn as sns
 from torch.distributions import Normal, uniform
@@ -23,13 +23,17 @@ import gc
 
 
 def run_all_sim(
+        EXP_INFO,
         BATCH_GRID_INFO, 
         PRIOR_INFO, 
         STIMULI_INFO
 ): 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    
+    # get stimulus set & paradigm 
+    stim_set = EXP_INFO['stim_set']
+    paradigm = EXP_INFO['paradigm']
+
     # access all the priors 
     mu_prior = PRIOR_INFO["mu_prior"]
     V_prior = PRIOR_INFO["V_prior"]
@@ -42,6 +46,10 @@ def run_all_sim(
     hypothetical_obs_grid_n = PRIOR_INFO["hypothetical_obs_grid_n"]
     max_observation = PRIOR_INFO["max_observation"]
 
+    if paradigm == "infant":
+        forced_exposure_max = PRIOR_INFO["forced_exposure_max"]
+
+
     tensor_stimuli = STIMULI_INFO
     tensor_model =  init_model_tensor.granch_model(max_observation, tensor_stimuli)
     # access all the grid_info 
@@ -52,21 +60,41 @@ def run_all_sim(
             tensor_model =  init_model_tensor.granch_model(max_observation, tensor_stimuli)
 
             index = b_i * BATCH_GRID_INFO["jitter_n"] + i
-            params = init_params_tensor.granch_params(
-                grid_mu =  BATCH_GRID_INFO["grid_mus"][index].to(device),
-                grid_sigma = BATCH_GRID_INFO["grid_sigmas"][index].to(device),
-                grid_y = BATCH_GRID_INFO["grid_ys"][index].to(device),
-                grid_epsilon = BATCH_GRID_INFO["grid_epsilons"][index].to(device),
-                hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
-                mu_prior = mu_prior,
-                V_prior = V_prior, 
-                alpha_prior = alpha_prior, 
-                beta_prior = beta_prior,
-                epsilon  = epsilon, 
-                mu_epsilon = mu_epsilon, 
-                sd_epsilon = sd_epsilon, 
-                world_EIGs = world_EIGs,
-                max_observation = max_observation)
+
+            if paradigm == "adult":
+                params = init_params_tensor.granch_params(
+                    grid_mu =  BATCH_GRID_INFO["grid_mus"][index].to(device),
+                    grid_sigma = BATCH_GRID_INFO["grid_sigmas"][index].to(device),
+                    grid_y = BATCH_GRID_INFO["grid_ys"][index].to(device),
+                    grid_epsilon = BATCH_GRID_INFO["grid_epsilons"][index].to(device),
+                    hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
+                    mu_prior = mu_prior,
+                    V_prior = V_prior, 
+                    alpha_prior = alpha_prior, 
+                    beta_prior = beta_prior,
+                    epsilon  = epsilon, 
+                    mu_epsilon = mu_epsilon, 
+                    sd_epsilon = sd_epsilon, 
+                    world_EIGs = world_EIGs,
+                    max_observation = max_observation)
+            
+            if paradigm == "infant":
+                params = init_params_tensor.granch_params(
+                    grid_mu =  BATCH_GRID_INFO["grid_mus"][index].to(device),
+                    grid_sigma = BATCH_GRID_INFO["grid_sigmas"][index].to(device),
+                    grid_y = BATCH_GRID_INFO["grid_ys"][index].to(device),
+                    grid_epsilon = BATCH_GRID_INFO["grid_epsilons"][index].to(device),
+                    hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
+                    mu_prior = mu_prior,
+                    V_prior = V_prior, 
+                    alpha_prior = alpha_prior, 
+                    beta_prior = beta_prior,
+                    epsilon  = epsilon, 
+                    mu_epsilon = mu_epsilon, 
+                    sd_epsilon = sd_epsilon, 
+                    world_EIGs = world_EIGs,
+                    max_observation = max_observation,
+                    forced_exposure_max = forced_exposure_max)
         
             # add the various different cached bits
             params.add_meshed_grid()
@@ -90,22 +118,17 @@ def run_all_sim(
         res_df["epsilon"] = epsilon
         res_df["weig"] = world_EIGs
         res_df["stim_squence"] = tensor_stimuli.sequence_scheme
-        res_df["complexity_type"] = tensor_stimuli.complexity_type
 
-
-
-        timestr = time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-
-
-        batch_name = "cache_results/batch_{i}_cache_{stimuli_info}_b_{b_val}_d_{d_val}_e_{e_val}_eig_{w_eig}.pickle".format(i = b_i, 
-                                                                                  stimuli_info = STIMULI_INFO.sequence_scheme, 
-                                                                                  b_val = STIMULI_INFO.b_val.iloc[0].at[1], 
-                                                                                  d_val = STIMULI_INFO.d_val.iloc[0].at[1], 
-                                                                                  e_val = epsilon, 
-                                                                                  w_eig = world_EIGs
-                                                                                 )
+        if stim_set == "spore":
+            res_df["complexity_type"] = tensor_stimuli.complexity_type
         
-        batch_name = "cache_results/{t}.pickle".format(t = timestr)
+        if paradigm == "infant":
+            res_df["forced_exposure_max"] = forced_exposure_max
+
+        curr_time = datetime.now()
+        timestr = curr_time.strftime('%Y-%m-%d-%H:%M:%S.%f')[:-3] + stim_set + "-" + "paradigm"
+        
+        batch_name = "02_pyGRANCH/cache_results/{t}.pickle".format(t = timestr)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df
@@ -149,14 +172,7 @@ def get_batch_grid(BATCH_INFO,
             batch_grid["grid_ys"].append(grid_y)
             batch_grid["grid_epsilons"].append(grid_epsilon)
 
-            print(batch_grid)
-
-            
-
-
-
     elif BATCH_INFO["jitter_mode"] == "single_end": 
-
 
         jitter_range = (GRID_INFO["grid_mu_end"] - GRID_INFO["grid_mu_start"]) / GRID_INFO["grid_mu_step"]
         total_batch_jitter = BATCH_INFO["jitter_n"] * BATCH_INFO["total_batch_n"]
@@ -232,30 +248,57 @@ def sample_spore_experiment(pair_each_stim):
 
 
 
-def sample_condition_experiment(pair_each_stim):
+def sample_condition_experiment(pair_each_stim, paradigm):
+
+    if paradigm == "adult":
    
-    all_violation_type = ["animacy", "number", "pose", "identity"]
-    all_deviant_blocks = [ "BD", "BBBD", "BBBBBD"]
-    all_background_blocks = ["BB", "BBBB", "BBBBBB"]
+        all_violation_type = ["animacy", "number", "pose", "identity"]
+        all_deviant_blocks = [ "BD", "BBBD", "BBBBBD"]
+        all_background_blocks = ["BB", "BBBB", "BBBBBB"]
 
-    all_stimuli_info = []
+        all_stimuli_info = []
 
-    # loop through everything with deviant blocks 
-    for i in range(pair_each_stim): 
-        for v_type in all_violation_type: 
-            for s_type in all_deviant_blocks: 
+        # loop through everything with deviant blocks 
+        for i in range(pair_each_stim): 
+            for v_type in all_violation_type: 
+                for s_type in all_deviant_blocks: 
+                    s = init_model_tensor.granch_stimuli(1, s_type)
+                    s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", v_type)
+                    
+                    all_stimuli_info.extend([s])
+
+        # then go through the background blocks 
+        for i in range(pair_each_stim): 
+            for s_type in all_background_blocks: 
                 s = init_model_tensor.granch_stimuli(1, s_type)
-                s.get_violation_stimuli_sequence("/om2/scratch/tmp/galraz/looking_time_models/02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", v_type)
-                
+                # just put one because it doesn't really matter not gonna use the d
+                s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", "animacy")
                 all_stimuli_info.extend([s])
 
-    # then go through the background blocks 
-    for i in range(pair_each_stim): 
-        for s_type in all_background_blocks: 
-            s = init_model_tensor.granch_stimuli(1, s_type)
-            # just put one because it doesn't really matter not gonna use the d
-            s.get_violation_stimuli_sequence("/om2/scratch/tmp/galraz/looking_time_models/02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", "animacy")
-            all_stimuli_info.extend([s])
+    if paradigm == "infant":
+        all_violation_type = ["identity"]
+        all_deviant_blocks = ["B"*num_fam + "D" for num_fam in range(1,9)]
+        all_background_blocks = ["B"*num_fam for num_fam in range(1,10)]
+
+        all_stimuli_info = []
+
+        # loop through everything with deviant blocks 
+        for i in range(pair_each_stim): 
+            for v_type in all_violation_type: 
+                for s_type in all_deviant_blocks: 
+                    s = init_model_tensor.granch_stimuli(1, s_type)
+                    s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", v_type)
+                    
+                    all_stimuli_info.extend([s])
+
+        # then go through the background blocks 
+        for i in range(pair_each_stim): 
+            for s_type in all_background_blocks: 
+                s = init_model_tensor.granch_stimuli(1, s_type)
+                # just put one because it doesn't really matter not gonna use the d
+                s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", "animacy")
+                all_stimuli_info.extend([s])
+
 
     return all_stimuli_info
 

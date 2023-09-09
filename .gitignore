@@ -61,3 +61,6 @@ GRANCH_python/cache_results/cache_summary/*.pickle
 # pickle files
 *.pickle
 
+# stim tensors
+*.pt
+

@@ -9,15 +9,16 @@ import pandas as pd
 import os 
 import re
 
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
 
 print(device)
 
+# stim_set: "unity" or "spore", paradigm: "adult" or "infant"
+EXP_INFO = {"stim_set": "unity", "paradigm": "adult"}
+
 BATCH_INFO = {
-    "jitter_n": 1, 
-    "total_batch_n": 1, 
+    "jitter_n": 20, 
+    "total_batch_n": 20, 
     "jitter_mode": "sampling"
 }
 
@@ -28,7 +29,6 @@ GRID_INFO = {
     "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 5, 
     "hypothetical_obs_grid_n": 10
 }
-
 
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
@@ -44,11 +44,14 @@ PRIOR_INFO = {
 
 p = [PRIOR_INFO]
 
-stimuli_info_list = num_stab_help.sample_spore_experiment(1)
+if EXP_INFO['stim_set'] == "spore": 
+    stimuli_info_list = num_stab_help.sample_spore_experiment(1)
+elif EXP_INFO['stim_set'] == "unity":
+    stimuli_info_list = num_stab_help.sample_condition_experiment(1, EXP_INFO['paradigm'])
 
 for STIMULI_INFO in stimuli_info_list: 
     for PRIOR_INFO in p: 
-        num_stab_help.run_all_sim(BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
 
 
 folder_path = "cache_results/"

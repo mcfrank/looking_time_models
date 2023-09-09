@@ -38,9 +38,6 @@ def run_model(args):
         if PRIOR_INFO[k].is_integer():
             PRIOR_INFO[k] = int(v)
 
-
-    p = [PRIOR_INFO]
-
     stimuli_info_list = num_stab_help.sample_condition_experiment(5)
 
     for STIMULI_INFO in stimuli_info_list: 

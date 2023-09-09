@@ -10,14 +10,12 @@ def granch_main_simulation(params, model, stimuli):
 
     stimulus_idx = 0
     t = 0 # following python tradition we are using 0-indexed
-   
+    current_stim_t = 0
     while t < params.max_observation and stimulus_idx < stimuli.n_trial: 
 
-        print("t", t)  
-
-    # update model behavior with current t and current stimulus_idx 
+        # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
-        model.current_stimulus_idx = stimulus_idx
+        model.current_stim_t = current_stim_t
     
         # get all possible observation on current stimulus 
         # if we change stimulus 
@@ -49,20 +47,43 @@ def granch_main_simulation(params, model, stimuli):
         eig = torch.sum(model.ps_kl * model.ps_pp)
         model.update_model_eig(eig.item())
 
+        # if forced exposure is active
+        if hasattr(params, "forced_exposure_max"): 
+            # if it's not the last trial, you still have to look
+            if (stimulus_idx < (stimuli.n_trial - 1)) & (current_stim_t < params.forced_exposure_max - 1):
+                model.update_model_decision(False)
 
-        # luce's choice rule 
-        p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
-        if (np.random.binomial(1, p_look_away) == 1): 
-        # if the model is not looking away, increment stimulus
-            stimulus_idx = stimulus_idx + 1
-            model.update_model_decision(True)
-        else: 
-        # otherwise keep looking at this one
-            model.update_model_decision(False)
+            # if i'm in a fam trial and i reached the max exposure, i have to look away (to go to next stimulus)
+            elif (stimulus_idx < (stimuli.n_trial - 1)) & (current_stim_t == params.forced_exposure_max - 1):
+                model.update_model_decision(True)
+                stimulus_idx += 1
+                current_stim_t = -1 
 
-        t = t+1  
+            else:
+                if (eig < params.world_EIGs): 
+                # if EIG below threshold, increment stimulus
+                    stimulus_idx += 1
+                    current_stim_t = -1 # -1 so it starts with 0 when incremented 
+                    model.update_model_decision(True)
+                else: 
+                # otherwise keep looking at this one
+                    model.update_model_decision(False)
 
-   
+        # if it's a self-paced paradigm
+        else:
+            # luce's choice rule 
+            p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+            if (np.random.binomial(1, p_look_away) == 1): 
+            # if the model is looking away, increment stimulus
+                stimulus_idx = stimulus_idx + 1
+                current_stim_t = -1 # -1 so it starts with 0 when incremented 
+                model.update_model_decision(True)
+            else: 
+            # otherwise keep looking at this one
+                model.update_model_decision(False)
+
+        t += 1  
+        current_stim_t += 1 
 
     return(model)
 
