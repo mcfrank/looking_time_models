@@ -9,6 +9,7 @@ import pandas as pd
 import os 
 import re
 import argparse
+import numpy as np
 
 def run_model(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -34,6 +35,10 @@ def run_model(args):
     BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
     PRIOR_INFO = param_funcs.get_params(args.param_names_path, args.param_values_path) 
+
+    # replace forced exposure with nan for adult paradigm
+    if EXP_INFO["paradigm"] == "adult":
+        PRIOR_INFO["forced_exposure_max"] = np.nan
 
     if EXP_INFO['stim_set'] == "spore": 
         stimuli_info_list = num_stab_help.sample_spore_experiment(1)

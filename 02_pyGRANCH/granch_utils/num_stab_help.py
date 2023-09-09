@@ -44,9 +44,7 @@ def run_all_sim(
     world_EIGs = PRIOR_INFO["world_EIGs"]
     hypothetical_obs_grid_n = PRIOR_INFO["hypothetical_obs_grid_n"]
     max_observation = PRIOR_INFO["max_observation"]
-
-    if paradigm == "infant":
-        forced_exposure_max = PRIOR_INFO["forced_exposure_max"]
+    forced_exposure_max = PRIOR_INFO["forced_exposure_max"]
 
 
     tensor_stimuli = STIMULI_INFO
@@ -60,40 +58,22 @@ def run_all_sim(
 
             index = b_i * BATCH_GRID_INFO["jitter_n"] + i
 
-            if paradigm == "adult":
-                params = init_params_tensor.granch_params(
-                    grid_mu =  BATCH_GRID_INFO["grid_mus"][index].to(device),
-                    grid_sigma = BATCH_GRID_INFO["grid_sigmas"][index].to(device),
-                    grid_y = BATCH_GRID_INFO["grid_ys"][index].to(device),
-                    grid_epsilon = BATCH_GRID_INFO["grid_epsilons"][index].to(device),
-                    hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
-                    mu_prior = mu_prior,
-                    V_prior = V_prior, 
-                    alpha_prior = alpha_prior, 
-                    beta_prior = beta_prior,
-                    epsilon  = epsilon, 
-                    mu_epsilon = mu_epsilon, 
-                    sd_epsilon = sd_epsilon, 
-                    world_EIGs = world_EIGs,
-                    max_observation = max_observation)
-            
-            if paradigm == "infant":
-                params = init_params_tensor.granch_params(
-                    grid_mu =  BATCH_GRID_INFO["grid_mus"][index].to(device),
-                    grid_sigma = BATCH_GRID_INFO["grid_sigmas"][index].to(device),
-                    grid_y = BATCH_GRID_INFO["grid_ys"][index].to(device),
-                    grid_epsilon = BATCH_GRID_INFO["grid_epsilons"][index].to(device),
-                    hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
-                    mu_prior = mu_prior,
-                    V_prior = V_prior, 
-                    alpha_prior = alpha_prior, 
-                    beta_prior = beta_prior,
-                    epsilon  = epsilon, 
-                    mu_epsilon = mu_epsilon, 
-                    sd_epsilon = sd_epsilon, 
-                    world_EIGs = world_EIGs,
-                    max_observation = max_observation,
-                    forced_exposure_max = forced_exposure_max)
+            params = init_params_tensor.granch_params(
+                grid_mu =  BATCH_GRID_INFO["grid_mus"][index].to(device),
+                grid_sigma = BATCH_GRID_INFO["grid_sigmas"][index].to(device),
+                grid_y = BATCH_GRID_INFO["grid_ys"][index].to(device),
+                grid_epsilon = BATCH_GRID_INFO["grid_epsilons"][index].to(device),
+                hypothetical_obs_grid_n = hypothetical_obs_grid_n, 
+                mu_prior = mu_prior,
+                V_prior = V_prior, 
+                alpha_prior = alpha_prior, 
+                beta_prior = beta_prior,
+                epsilon  = epsilon, 
+                mu_epsilon = mu_epsilon, 
+                sd_epsilon = sd_epsilon, 
+                world_EIGs = world_EIGs,
+                max_observation = max_observation,
+                forced_exposure_max = forced_exposure_max)
         
             # add the various different cached bits
             params.add_meshed_grid()
@@ -117,15 +97,14 @@ def run_all_sim(
         res_df["epsilon"] = epsilon
         res_df["weig"] = world_EIGs
         res_df["stim_squence"] = tensor_stimuli.sequence_scheme
+        res_df["violation_type"] = tensor_stimuli.violation_type
+        res_df["forced_exposure_max"] = forced_exposure_max
 
         if stim_set == "spore":
             res_df["complexity_type"] = tensor_stimuli.complexity_type
-        
-        if paradigm == "infant":
-            res_df["forced_exposure_max"] = forced_exposure_max
 
         curr_time = datetime.now()
-        timestr = curr_time.strftime('%Y-%m-%d-%H:%M:%S.%f')[:-3] + stim_set + "-" + "paradigm"
+        timestr = curr_time.strftime('%m-%d-%H:%M:%S.%f')[:-3] + "-" + stim_set + "-" + paradigm
         
         batch_name = "02_pyGRANCH/cache_results/{t}.pickle".format(t = timestr)
         with open(batch_name, 'wb') as f:
@@ -243,9 +222,6 @@ def sample_spore_experiment(pair_each_stim):
                 all_stimuli_info.extend([s])
 
     return all_stimuli_info
-
-
-
 
 def sample_condition_experiment(pair_each_stim, paradigm):
 

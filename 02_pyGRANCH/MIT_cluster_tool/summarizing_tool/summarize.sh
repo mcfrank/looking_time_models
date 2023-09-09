@@ -5,4 +5,4 @@
 #SBATCH --output=summarize.%A_%a.out
 #SBATCH --time=10:00:00
 
-python summarize.py
+python -m 02_pyGRANCH.MIT_cluster_tool.summarizing_tool.summarize

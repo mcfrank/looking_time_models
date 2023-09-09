@@ -95,8 +95,6 @@ def run_all_sim(
         res_df["violation_type"] = tensor_stimuli.violation_type
         res_df["forced_exposure_max"] = forced_exposure_max
 
-
-
         timestr = time.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
 
 

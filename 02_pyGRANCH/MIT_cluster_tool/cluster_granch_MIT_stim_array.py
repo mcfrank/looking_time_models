@@ -9,6 +9,7 @@ import pandas as pd
 import os 
 import re
 import argparse
+import numpy as np
 
 def run_model(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -40,8 +41,8 @@ def run_model(args):
         "beta_prior": 35, 
         "epsilon": 0.001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
         "hypothetical_obs_grid_n": 10, 
-        "world_EIGs": 0.00001, "max_observation": 500
-    }
+        "world_EIGs": 0.00001, "max_observation": 500, 
+        "forced_exposure_max": np.nan}
 
     p = [PRIOR_INFO]
 

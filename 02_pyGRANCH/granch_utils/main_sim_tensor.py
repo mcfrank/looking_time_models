@@ -3,7 +3,7 @@
 import torch
 from . import compute_prob_tensor
 import numpy as np
-#import ipdb
+import ipdb
 
 # main simulation function
 def granch_main_simulation(params, model, stimuli): 
@@ -47,8 +47,8 @@ def granch_main_simulation(params, model, stimuli):
         eig = torch.sum(model.ps_kl * model.ps_pp)
         model.update_model_eig(eig.item())
 
-        # if forced exposure is active
-        if hasattr(params, "forced_exposure_max"): 
+        # if forced exposure is not nan
+        if ~np.isnan(params.forced_exposure_max): 
             # if it's not the last trial, you still have to look
             if (stimulus_idx < (stimuli.n_trial - 1)) & (current_stim_t < params.forced_exposure_max - 1):
                 model.update_model_decision(False)
@@ -73,6 +73,18 @@ def granch_main_simulation(params, model, stimuli):
         else:
             # luce's choice rule 
             p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+            
+            if not ((p_look_away > 0) & (p_look_away < 1)):
+                print("p_look_away")
+                print(p_look_away)
+                print("params.world_EIGs")
+                print(params.world_EIGs)
+                print("eig.item()")
+                print(eig.item())
+
+
+                ipdb.set_trace()
+
             if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus
                 stimulus_idx = stimulus_idx + 1
