@@ -60,21 +60,31 @@ def granch_main_simulation(params, model, stimuli):
                 current_stim_t = -1 
 
             else:
-                if (eig < params.world_EIGs): 
-                # if EIG below threshold, increment stimulus
-                    stimulus_idx += 1
+                p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+                if (np.random.binomial(1, p_look_away) == 1): 
+            # if the model is looking away, increment stimulus
+                    stimulus_idx = stimulus_idx + 1
                     current_stim_t = -1 # -1 so it starts with 0 when incremented 
                     model.update_model_decision(True)
                 else: 
                 # otherwise keep looking at this one
                     model.update_model_decision(False)
+                
+                # if (eig < params.world_EIGs): 
+                # # if EIG below threshold, increment stimulus
+                #     stimulus_idx += 1
+                #     current_stim_t = -1 # -1 so it starts with 0 when incremented 
+                #     model.update_model_decision(True)
+                # else: 
+                # # otherwise keep looking at this one
+                #     model.update_model_decision(False)
 
         # if it's a self-paced paradigm
         else:
             # luce's choice rule 
             p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
             
-            if not ((p_look_away > 0) & (p_look_away < 1)):
+            if not ((p_look_away >= 0) & (p_look_away <= 1)):
                 print("p_look_away")
                 print(p_look_away)
                 print("params.world_EIGs")
