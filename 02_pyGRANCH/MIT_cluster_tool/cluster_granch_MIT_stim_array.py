@@ -19,8 +19,8 @@ def run_model(args):
     EXP_INFO = {"stim_set": "unity", "paradigm": "adult"}
 
     BATCH_INFO = {
-        "jitter_n": 20, 
-        "total_batch_n": 20, 
+        "jitter_n": 3, 
+        "total_batch_n": 3, 
         "jitter_mode": "sampling"
     }
 

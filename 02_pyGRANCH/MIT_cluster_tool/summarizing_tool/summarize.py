@@ -9,7 +9,7 @@ folder_path = "02_pyGRANCH/cache_results/"
 df_list = []
 
 # infant or adult runs
-paradigm = 'adult'
+paradigm = 'infant'
 stims = 'unity'
 
 # get list of file names
@@ -22,11 +22,11 @@ for idx, file_name in enumerate(file_names):
         df_list.append(df)
 
 main_df = pd.concat(df_list)
-main_df = main_df.dropna()
+main_df = main_df.dropna(subset=['stimulus_id'])
 
 counts = main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"]).agg({'epsilon': 'first', 'b_val': 'first', 'd_val': 'first', 'mu_prior' : 'first',
                                                                                                         'mu_prior': 'first','v_prior': 'first','alpha_prior': 'first','beta_prior': 'first',
-                                                                                                        'epsilon': 'first'}).reset_index()
+                                                                                                        'epsilon': 'first', 'forced_exposure_max': 'first'}).reset_index()
 
 counts["n_sample"] =  main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"], as_index=False).count()['EIG']
 

@@ -5,7 +5,7 @@ import numpy as np
 import torch 
 import re 
 from torch.distributions import Normal  
-
+import ipdb
 
 
 class granch_stimuli: 
@@ -217,10 +217,6 @@ class granch_model:
     def update_noisy_observation(self, noise_epsilon): 
         current_stimulus = self.stimuli.stimuli_sequence[self.current_stimulus_idx]
         self.all_observations.loc[self.current_t]  = Normal(current_stimulus, noise_epsilon).sample().tolist()
-
-
-
-    
 
     def get_all_observations_on_current_stimulus(self): 
         obs_index = self.behavior.index[self.behavior['stimulus_id'] == 

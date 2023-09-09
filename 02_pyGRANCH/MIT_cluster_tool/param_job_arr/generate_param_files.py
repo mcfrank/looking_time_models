@@ -10,7 +10,7 @@ real_run = True
 ## this generates parameter values for the main model pipeline
     
 # empty all files first
-files = glob.glob('params/param_vals/*')
+files = glob.glob('02_pyGRANCH/MIT_cluster_tool/param_job_arr/params/param_vals/*')
 for f in files:
     os.remove(f)
 
@@ -20,7 +20,7 @@ if real_run:
                 'V_prior': np.arange(1, 4, 1).tolist(),
                 'alpha_prior': [1,5,15,35],
                 'beta_prior': [1,5,15,35],
-                 "epsilon": [0.001, 0.0001], "mu_epsilon": [0.001], "sd_epsilon": [4], 
+                "epsilon": [0.001, 0.0001, 0.00001], "mu_epsilon": [0.001], "sd_epsilon": [4], 
                 "hypothetical_obs_grid_n": [10], 
                 "world_EIGs": [0.0001], "max_observation": [500], "forced_exposure_max":[5,10]}
 else:
@@ -36,12 +36,11 @@ all_params_combinations = itertools.product(*list(param_dict.values()))
 
 # write param value files
 for param_idx, combination in enumerate(list(all_params_combinations)):
-    print('test')
-    with open('params/param_vals/params' + str(param_idx) + '.csv', 'w') as myfile:
+    with open('02_pyGRANCH/MIT_cluster_tool/param_job_arr/params/param_vals/params' + str(param_idx) + '.csv', 'w') as myfile:
         wr = csv.writer(myfile)
         wr.writerow(list(combination))
 
 # write param name file
-with open('params/param_names.csv', 'w') as myfile:
+with open('02_pyGRANCH/MIT_cluster_tool/param_job_arr/params/param_names.csv', 'w') as myfile:
     wr = csv.writer(myfile)
     wr.writerow(param_dict.keys()) 

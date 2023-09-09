@@ -15,7 +15,7 @@ def granch_main_simulation(params, model, stimuli):
 
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
-        model.current_stim_t = current_stim_t
+        model.current_stimulus_idx = stimulus_idx
     
         # get all possible observation on current stimulus 
         # if we change stimulus 
@@ -81,9 +81,6 @@ def granch_main_simulation(params, model, stimuli):
                 print(params.world_EIGs)
                 print("eig.item()")
                 print(eig.item())
-
-
-                ipdb.set_trace()
 
             if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus

@@ -268,8 +268,6 @@ class granch_model:
     def update_model_decision(self, decision): 
         self.behavior.at[self.current_t, "Look_away"] = decision
 
-
-
     def update_possible_observations(self, noise_epsilon, hypothetical_obs_grid_n): 
         self.possible_observations = torch.linspace((self.stimuli.stimuli_sequence[self.current_stimulus_idx] - noise_epsilon).item(), 
                                                 (self.stimuli.stimuli_sequence[self.current_stimulus_idx] + noise_epsilon).item(), 
@@ -279,10 +277,6 @@ class granch_model:
     def update_noisy_observation(self, noise_epsilon): 
         current_stimulus = self.stimuli.stimuli_sequence[self.current_stimulus_idx]
         self.all_observations.loc[self.current_t]  = Normal(current_stimulus, noise_epsilon).sample().tolist()
-
-
-
-    
 
     def get_all_observations_on_current_stimulus(self): 
         obs_index = self.behavior.index[self.behavior['stimulus_id'] == 

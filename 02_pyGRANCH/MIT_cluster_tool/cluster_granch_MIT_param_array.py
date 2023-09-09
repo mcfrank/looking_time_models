@@ -16,7 +16,7 @@ def run_model(args):
     print('device:', device)
 
     # stim_set: "unity" or "spore", paradigm: "adult" or "infant"
-    EXP_INFO = {"stim_set": "unity", "paradigm": "adult"}
+    EXP_INFO = {"stim_set": "unity", "paradigm": "infant"}
 
     BATCH_INFO = {
         "jitter_n": 20, 
@@ -41,9 +41,9 @@ def run_model(args):
         PRIOR_INFO["forced_exposure_max"] = np.nan
 
     if EXP_INFO['stim_set'] == "spore": 
-        stimuli_info_list = num_stab_help.sample_spore_experiment(1)
+        stimuli_info_list = num_stab_help.sample_spore_experiment(5)
     elif EXP_INFO['stim_set'] == "unity":
-        stimuli_info_list = num_stab_help.sample_condition_experiment(1, EXP_INFO['paradigm'])
+        stimuli_info_list = num_stab_help.sample_condition_experiment(5, EXP_INFO['paradigm'])
 
     for STIMULI_INFO in stimuli_info_list: 
         print('running:', STIMULI_INFO)
