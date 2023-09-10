@@ -9,8 +9,8 @@ folder_path = "02_pyGRANCH/cache_results/"
 df_list = []
 
 # infant or adult runs
-paradigm = 'infant'
-stims = 'unity'
+paradigm = 'adult'
+stims = 'spore'
 
 # get list of file names
 file_names = [f for f in os.listdir(folder_path) if f.endswith('.pickle') and paradigm in f and stims in f]

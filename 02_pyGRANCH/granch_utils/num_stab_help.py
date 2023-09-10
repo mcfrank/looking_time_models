@@ -97,11 +97,15 @@ def run_all_sim(
         res_df["epsilon"] = epsilon
         res_df["weig"] = world_EIGs
         res_df["stim_squence"] = tensor_stimuli.sequence_scheme
-        res_df["violation_type"] = tensor_stimuli.violation_type
         res_df["forced_exposure_max"] = forced_exposure_max
 
         if stim_set == "spore":
             res_df["complexity_type"] = tensor_stimuli.complexity_type
+            res_df["violation_type"] = "identity"
+
+        else:
+            res_df["violation_type"] = tensor_stimuli.violation_type
+
 
         curr_time = datetime.now()
         timestr = curr_time.strftime('%m-%d-%H:%M:%S.%f')[:-3] + "-" + stim_set + "-" + paradigm
@@ -218,7 +222,7 @@ def sample_spore_experiment(pair_each_stim):
         for c_type in all_complexity_type: 
             for s_type in all_background_blocks: 
                 s = init_model_tensor.granch_stimuli(1, s_type)
-                s.get_spore_stimuli_sequence("embeddings/spores_embeddings_afterPCA.csv", c_type)
+                s.get_spore_stimuli_sequence("02_pyGRANCH/embeddings/spores_embeddings_afterPCA.csv", c_type)
                 all_stimuli_info.extend([s])
 
     return all_stimuli_info
@@ -252,8 +256,8 @@ def sample_condition_experiment(pair_each_stim, paradigm):
 
     if paradigm == "infant":
         all_violation_type = ["identity"]
-        all_deviant_blocks = ["B"*num_fam + "D" for num_fam in range(1,9)]
-        all_background_blocks = ["B"*num_fam for num_fam in range(1,10)]
+        all_deviant_blocks = ["B"*num_fam + "D" for num_fam in range(1,10)]
+        all_background_blocks = ["B"*num_fam for num_fam in range(1,11)]
 
         all_stimuli_info = []
 

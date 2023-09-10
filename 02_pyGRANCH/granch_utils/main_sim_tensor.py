@@ -61,6 +61,15 @@ def granch_main_simulation(params, model, stimuli):
 
             else:
                 p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+
+                if not ((p_look_away >= 0) & (p_look_away <= 1)):
+                    print("p_look_away")
+                    print(p_look_away)
+                    print("params.world_EIGs")
+                    print(params.world_EIGs)
+                    print("eig.item()")
+                    print(eig.item())
+                    
                 if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus
                     stimulus_idx = stimulus_idx + 1
