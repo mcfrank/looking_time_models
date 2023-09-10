@@ -43,8 +43,13 @@ def granch_main_simulation(params, model, stimuli):
         model.ps_posteriror = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)
         model.ps_kl = compute_prob_tensor.kl_div(model.ps_posteriror, model.cur_posterior)
         model.ps_pp = compute_prob_tensor.score_post_pred(model, params)
-    
+
+        # compute EIG
         eig = torch.sum(model.ps_kl * model.ps_pp)
+        
+        # threshold at 0 for now to deal with negative EIG's
+        eig = torch.clamp(eig, min=0)
+
         model.update_model_eig(eig.item())
 
         # if forced exposure is not nan
