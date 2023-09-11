@@ -1,6 +1,5 @@
 from datetime import datetime 
 import numpy as np
-import seaborn as sns
 from torch.distributions import Normal, uniform
 import torch.distributions as dist
 import torch
@@ -209,7 +208,6 @@ def get_batch_grid(BATCH_INFO,
 
 
 
-
 def sample_spore_experiment(pair_each_stim):
    
     all_complexity_type = ["complex", "simple"]
@@ -222,7 +220,7 @@ def sample_spore_experiment(pair_each_stim):
         for c_type in all_complexity_type: 
             for s_type in all_background_blocks: 
                 s = init_model_tensor.granch_stimuli(1, s_type)
-                s.get_spore_stimuli_sequence("02_pyGRANCH/embeddings/spores_embeddings_afterPCA.csv", c_type)
+                s.get_spore_stimuli_sequence("embeddings/spores_embeddings_afterPCA.csv", c_type)
                 all_stimuli_info.extend([s])
 
     return all_stimuli_info
@@ -242,7 +240,7 @@ def sample_condition_experiment(pair_each_stim, paradigm):
             for v_type in all_violation_type: 
                 for s_type in all_deviant_blocks: 
                     s = init_model_tensor.granch_stimuli(1, s_type)
-                    s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", v_type)
+                    s.get_violation_stimuli_sequence("embeddings/unity_embeddings_afterPCA.csv", v_type)
                     
                     all_stimuli_info.extend([s])
 

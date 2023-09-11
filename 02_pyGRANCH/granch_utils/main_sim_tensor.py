@@ -48,7 +48,7 @@ def granch_main_simulation(params, model, stimuli):
         eig = torch.sum(model.ps_kl * model.ps_pp)
         
         # threshold at 0 for now to deal with negative EIG's
-        eig = torch.clamp(eig, min=0)
+        #eig = torch.clamp(eig, min=0)
 
         model.update_model_eig(eig.item())
 
@@ -65,7 +65,8 @@ def granch_main_simulation(params, model, stimuli):
                 current_stim_t = -1 
 
             else:
-                p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+                p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
+                #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
 
                 if not ((p_look_away >= 0) & (p_look_away <= 1)):
                     print("p_look_away")
@@ -96,7 +97,8 @@ def granch_main_simulation(params, model, stimuli):
         # if it's a self-paced paradigm
         else:
             # luce's choice rule 
-            p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+            p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
+            #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
             
             if not ((p_look_away >= 0) & (p_look_away <= 1)):
                 print("p_look_away")
