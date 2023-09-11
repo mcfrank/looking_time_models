@@ -48,10 +48,10 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-GRANCH_python/cache_results
-GRANCH_python/cache_results/*.pickle
-GRANCH_python/model_results/*.pickle
-GRANCH_python/cache_results/cache_summary/*.pickle
+02_pyGRANCH/cache_results
+02_pyGRANCH/cache_results/*.pickle
+02_pyGRANCH/model_results/*.pickle
+02_pyGRANCH/cache_results/cache_summary/*.pickle
 
 
 # slurm outputs
@@ -64,3 +64,5 @@ GRANCH_python/cache_results/cache_summary/*.pickle
 # stim tensors
 *.pt
 
+# output summarize files
+*02_pyGRANCH/MIT_cluster_tool/summarizing_tool/*.csv

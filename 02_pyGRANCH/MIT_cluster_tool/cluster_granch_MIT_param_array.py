@@ -16,7 +16,7 @@ def run_model(args):
     print('device:', device)
 
     # stim_set: "unity" or "spore", paradigm: "adult" or "infant"
-    EXP_INFO = {"stim_set": "unity", "paradigm": "infant"}
+    EXP_INFO = {"stim_set": "spore", "paradigm": "adult"}
 
     BATCH_INFO = {
         "jitter_n": 20, 
