@@ -33,7 +33,7 @@ for idx, file_name in enumerate(file_list[::-1]):
         main_df = main_df.dropna()
         counts = main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"]).agg({'epsilon': 'first', 'b_val': 'first', 'd_val': 'first', 'mu_prior' : 'first',
                                                                                                              'mu_prior': 'first','v_prior': 'first','alpha_prior': 'first','beta_prior': 'first',
-                                                                                                             'epsilon': 'first'}).reset_index()
+                                                                                                  'epsilon': 'first'}).reset_index()
         counts["n_sample"] =  main_df.groupby(['batch_id', 'j_i',  "stimulus_id", "stim_squence", "violation_type"], as_index=False).count()['EIG']
         counts.to_csv("summarized_results_detailed_new_files.csv", mode = 'a', index=False, header=False)
         df_list = []
