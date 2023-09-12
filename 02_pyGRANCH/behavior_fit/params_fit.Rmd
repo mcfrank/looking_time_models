@@ -6,6 +6,7 @@ library(here)
 library(ggthemes)
 
 source(here("behavior_fit/helper/fitting.r"))
+source(here("behavior_fit/helper/scaling.r"))
 ```
 
 # Randomly select 100 human subjects
@@ -15,12 +16,12 @@ subject <- read_csv(here("behavior_fit/data/raw_data/cogsci_all.csv")) %>%
   distinct(subject) %>% 
   pull()
 
-train_subject <- sample(subject, 01 * (length(subject)))
+train_subject <- sample(subject, 0.1 * (length(subject)))
 
 
 raw_data <- read_csv(here("behavior_fit/data/raw_data/cogsci_all.csv")) 
 
-tidy_data <- train_d %>% 
+tidy_data <- raw_data %>% 
   mutate(
     stimuli_sequence = case_when(
       deviant_position == 2 ~ "BDBBBB", 
@@ -100,8 +101,87 @@ fitting_res <- get_fitting_stats(all_sim_d)
 
 
 ```{r}
-fitting_res 
+test_d <- read_csv(here("behavior_fit/data/processed_data/test_d.csv"))
+
+summary_test_d <- test_d %>% 
+  group_by(stimuli_sequence, trial_number, trial_type) %>% 
+  summarise(mean_lt = mean(trial_looking_time))
+
+all_test_d <- summary_test_d %>% 
+  left_join(summarised_sample, BY = c("stimuli_sequence", "trial_number")) %>% 
+  ungroup() %>% 
+  group_by(param_info) %>% 
+  nest(data = -param_info)
+
+fitting_test_res <- get_fitting_stats(all_test_d)
 ```
+
+
+```{r}
+
+fitting_test_res %>% arrange(-r)
+fitting_test_res %>% 
+```
+
+
+# scaling
+
+```{r}
+scaling_param <- get_scaling_param(all_sim_d)
+fitting_test_res %>% 
+  filter(param_info == (fitting_res %>% arrange(-r) %>% head(1))$param_info) %>% 
+  left_join(scaling_param %>% select(-data), by = c("param_info")) %>% 
+  unnest(data) %>% 
+   mutate(
+    scaled_sample = (mean_sample - intercept) / coef
+  ) %>% 
+  pivot_longer(cols  = c("scaled_sample", "mean_lt"), values_to = "val", names_to = "val_type") %>% 
+  ggplot(aes(x = trial_number, y = val, color = val_type)) + 
+  geom_point() + 
+  theme_few() + 
+  facet_wrap(~stimuli_sequence) + 
+  theme_few()
+```
+
+
+```{r}
+fit_d <- fitting_res %>% filter(param_info == "mu_0_v_1_a_1_b_1_ep_0.001") %>% 
+  unnest(data) %>% 
+  ungroup()
+
+# mean_sample = b + a * mean_lt 
+# scaled_mean_sample = (mean_sample - b) / a 
+
+fit_res <- lm(mean_sample~ mean_lt, d = fit_d) %>% broom::tidy()
+intercept = filter(fit_res, term == "(Intercept)")$estimate
+coef = filter(fit_res, term == "mean_lt")$estimate
+
+scaled_d <- fit_d %>% 
+  mutate(
+    scaled_sample = (mean_sample - intercept) / coef
+  )
+
+scaled_d %>% 
+  pivot_longer(cols = c("mean_lt", "scaled_sample"), 
+               names_to = "type", 
+               values_to = "val") %>% 
+  ggplot(aes(x = trial_number, y = val, color = type)) + 
+  geom_point() +
+  facet_wrap(~stimuli_sequence) + 
+  theme_few()
+```
+
+
+
+
+
+
+
+
+```{r}
+fitting_res %>% arrange(rmse)
+```
+
 
 
 
