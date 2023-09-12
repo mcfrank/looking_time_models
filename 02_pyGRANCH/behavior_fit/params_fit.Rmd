@@ -5,67 +5,110 @@ library(tidyverse)
 library(here)
 library(ggthemes)
 
-
+source(here("behavior_fit/helper/fitting.r"))
 ```
 
 # Randomly select 100 human subjects
 
 ```{r}
-subject <- read_csv(here("data/full_human_d.csv")) %>% 
+subject <- read_csv(here("behavior_fit/data/raw_data/cogsci_all.csv")) %>% 
   distinct(subject) %>% 
   pull()
 
-train_subject <- sample(subject, 100)
-
-train_d <- read_csv(here("data/full_human_d.csv")) %>% 
-  filter(subject %in% train_subject)
-
-test_d <- read_csv(here("data/full_human_d.csv")) %>% 
-  filter(!subject %in% train_subject)
-
-write_csv(train_d, here("data/train_d.csv"))
-write_csv(test_d, here("data/test_d.csv"))
-```
-
-```{r}
-train_d <- read_csv(here("data/train_d.csv"))
-```
+train_subject <- sample(subject, 01 * (length(subject)))
 
 
-```{r}
-tidy_train_d <- train_d %>% 
+raw_data <- read_csv(here("behavior_fit/data/raw_data/cogsci_all.csv")) 
+
+tidy_data <- train_d %>% 
   mutate(
     stimuli_sequence = case_when(
-      total_trial_number == 2 & block_type == "deviant_block" ~ "BD", 
-      total_trial_number == 4 & block_type == "deviant_block" ~ "BBBD", 
-      total_trial_number == 6 & block_type == "deviant_block" ~ "BBBBBD", 
-      total_trial_number == 2 & block_type != "deviant_block" ~ "BB", 
-      total_trial_number == 4 & block_type != "deviant_block" ~ "BBBB", 
-      total_trial_number == 6 & block_type != "deviant_block" ~ "BBBBBB", 
+      deviant_position == 2 ~ "BDBBBB", 
+      deviant_position == 4 ~ "BBBDBB", 
+      deviant_position == 6 ~ "BBBBBD", 
+      is.na(deviant_position) ~ "BBBBBB"
+    ), 
+    complexity = case_when(
+      grepl("complex", block_type) ~ "complex", 
+      grepl("simple", block_type) ~ "simple"
     )
   ) %>% 
-  select(subject, total_rt, trial_number, trial_type, stimuli_sequence) %>% 
-  filter(total_rt < 100000)
+  select(subject, trial_number, trial_type, stimuli_sequence, complexity, trial_looking_time) 
+
+
+
+
+train_d <-  tidy_data %>% 
+  filter(subject %in% train_subject)
+
+test_d <-  tidy_data  %>% 
+  filter(!subject %in% train_subject)
+
+write_csv(train_d, here("behavior_fit/data/processed_data/train_d.csv"))
+write_csv(test_d, here("behavior_fit/data/processed_data/test_d.csv"))
+```
+
+# Select param 
+
+
+## cleaning behavioral data 
+
+```{r}
+train_d <- read_csv(here("behavior_fit/data/processed_data/train_d.csv"))
+
+summary_train_d <- train_d %>% 
+  group_by(stimuli_sequence, trial_number, trial_type) %>% 
+  summarise(mean_lt = mean(trial_looking_time))
+```
+
+## preprocessing of the simulation res 
+
+```{r}
+raw_sim <- read_csv(here("behavior_fit/data/raw_data/summarized_results_detailed_spore_adult.csv"), col_names = FALSE)
+```
+```{r}
+colnames(raw_sim) <- c("sub_id", "batch_id", "trial_num", "stim_sequence", "violation", "epsilon", "b_val", "d_val", "mu_prior", "v_prior", "alpha_prior", "beta_prior", "n_samples")
+
+summarised_sample <- raw_sim %>% 
+  # param info needs to fixed 
+  mutate( param_info = paste("mu", mu_prior, "v", v_prior, "a", alpha_prior, "b", beta_prior, "ep", epsilon, sep = "_")) %>% 
+  group_by(param_info, stim_sequence, trial_num) %>% 
+  summarise(mean_sample = mean(n_samples)) %>% 
+  mutate(trial_num = trial_num + 1) %>% 
+  rename(trial_number = trial_num, 
+         stimuli_sequence = stim_sequence)
+
+```
+
+
+## putting things together 
+
+```{r}
+all_sim_d <- summary_train_d %>% 
+  left_join(summarised_sample, BY = c("stimuli_sequence", "trial_number")) %>% 
+  ungroup() %>% 
+  group_by(param_info) %>% 
+  nest(data = -param_info)
+```
+
+## fitting 
+
+
+```{r}
+fitting_res <- get_fitting_stats(all_sim_d)
 ```
 
 
 ```{r}
-tidy_train_d
+fitting_res 
 ```
 
 
 
+# ARCHIVE
 
 
-# preprocessing of the simulation res 
 
-```{r}
-# get rid of every 201st row 
-model_d <- read_csv(here("data/model_res_old.csv")) %>% 
-   mutate(row_n = row_number()) %>% 
-  filter(row_n %% 201 != 0) %>% 
-  select(-row_n)
-```
 ```{r}
 all_model_sim_res <- model_d %>% 
   group_by(mu_prior, v_prior, alpha_prior, beta_prior, epsilon, world_EIG, stim_sequence) %>% 
