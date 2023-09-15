@@ -15,7 +15,7 @@ print(device)
 
 # stim_set: "unity" or "spore", paradigm: "adult" or "infant"
 EXP_INFO = {"stim_set": "unity", "paradigm": "adult"}
-
+MODEL_TYPE = "no_learning"
 BATCH_INFO = {
     "jitter_n": 20, 
     "total_batch_n": 20, 
@@ -51,7 +51,8 @@ elif EXP_INFO['stim_set'] == "unity":
 
 for STIMULI_INFO in stimuli_info_list: 
     for PRIOR_INFO in p: 
-        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO, MODEL_TYPE = "no_learning")
+        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO, MODEL_TYPE = "no_noise")
 
 
 folder_path = "cache_results/"
@@ -67,5 +68,3 @@ for file_name in os.listdir(folder_path):
 main_df = pd.concat(df_list)
 main_df = main_df.dropna()
 
-with open("cache_results/cache_summary/summary.pickle", 'wb') as f:
-    pickle.dump(main_df, f)

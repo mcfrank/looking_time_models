@@ -8,7 +8,7 @@ import torch
 #import main_sim_tensor
 import pandas as pd
 import pickle
-from . import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor 
+from . import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor, lesioned_sim
 import gc
 #import ipdb
 
@@ -84,10 +84,10 @@ def run_all_sim(
             if MODEL_TYPE == "normal": 
                 res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
             elif MODEL_TYPE == "no_learning": 
-                pass
+                res = lesioned_sim.granch_no_learning_simulation(params, tensor_model, tensor_stimuli)
             elif MODEL_TYPE == "no_noise": 
-                pass 
-            
+                res = lesioned_sim.granch_no_noise_simulation(params, tensor_model, tensor_stimuli) 
+
             b = res.behavior
             b["j_i"] = i
 
