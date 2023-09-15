@@ -97,6 +97,7 @@ all_sim_d <- summary_train_d %>%
 
 ```{r}
 fitting_res <- get_fitting_stats(all_sim_d)
+saveRDS(fitting_res, here("behavior_fit/cached_res/train_fit.RDS"))
 ```
 
 
@@ -116,32 +117,19 @@ all_test_d <- summary_test_d %>%
   nest(data = -param_info)
 
 fitting_test_res <- get_fitting_stats(all_test_d)
+saveRDS(fitting_test_res, here("behavior_fit/cached_res/test_fit.RDS"))
 ```
 
 
-```{r}
-fitting_res %>% rename(train_r = r, 
-                       train_rmse = rmse) %>% 
-  left_join(fitting_test_res %>% 
-              rename(test_r = r, test_rmse = rmse), by = "param_info") %>% 
-  select(param_info, train_r, test_r, train_rmse, test_rmse) %>% 
-  pivot_longer(
-    cols = c("train_r", "test_r", "train_rmse", "test_rmse")
-  ) %>% 
-  separate(
-    name, into = c("data_type", "measure_type"), sep = "_"
-  ) %>% 
-  ggplot(aes(x = data_type, y = value)) + 
-  geom_jitter(width = .2, alpha = .3) + 
-  facet_wrap(~measure_type, scales = "free") + 
-  theme_few()
-```
 
 
 # scaling
 
 ```{r}
 scaling_param <- get_scaling_param(all_sim_d)
+saveRDS(scaling_param, here("behavior_fit/cached_res/scaling.RDS"))
+
+
 fitting_test_res %>% 
   filter(param_info == (fitting_res %>% arrange(-r) %>% head(1))$param_info) %>% 
   left_join(scaling_param %>% select(-data), by = c("param_info")) %>% 
@@ -158,6 +146,7 @@ fitting_test_res %>%
 ```
 
 ## get error bar 
+
 ```{r}
 scaling_key <- fitting_test_res %>% 
   filter(param_info == (fitting_res %>% arrange(-r) %>% head(1))$param_info) %>% 
@@ -266,7 +255,7 @@ all_sim_cd <- summary_train_cd %>%
   nest(data = -param_info)
 
 fitting_c_res <- get_fitting_stats(all_sim_cd)
-
+saveRDS(fitting_c_res, here("behavior_fit/cached_res/train_by_complexity_fit.RDS"))
 
 summary_test_cd <- test_d %>% 
   group_by(stimuli_sequence, trial_number, trial_type, complexity) %>% 
@@ -279,6 +268,8 @@ all_test_cd <- summary_test_cd %>%
   nest(data = -param_info)
 
 fitting_test_c_res <- get_fitting_stats(all_test_cd)
+saveRDS(fitting_test_c_res, here("behavior_fit/cached_res/test_by_complexity_fit.RDS"))
+
 
 ```
 
@@ -293,6 +284,7 @@ fitting_test_c_res %>%
 
 ```{r}
 scaling_c_param <- get_scaling_param(all_sim_cd)
+saveRDS(scaling_c_param, here("behavior_fit/cached_res/scaling_by_complexity.RDS"))
 
 fitting_test_c_res %>% 
   filter(param_info == (fitting_c_res %>% arrange(-r) %>% head(1))$param_info) %>% 
