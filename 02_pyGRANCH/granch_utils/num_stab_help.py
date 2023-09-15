@@ -25,7 +25,8 @@ def run_all_sim(
         EXP_INFO,
         BATCH_GRID_INFO, 
         PRIOR_INFO, 
-        STIMULI_INFO): 
+        STIMULI_INFO, 
+        MODEL_TYPE = "normal"): 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # get stimulus set & paradigm 
@@ -80,7 +81,13 @@ def run_all_sim(
             params.add_y_given_mu_sigma()
             params.add_lp_epsilon()
             params.add_priors()
-            res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
+            if MODEL_TYPE == "normal": 
+                res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
+            elif MODEL_TYPE == "no_learning": 
+                pass
+            elif MODEL_TYPE == "no_noise": 
+                pass 
+            
             b = res.behavior
             b["j_i"] = i
 

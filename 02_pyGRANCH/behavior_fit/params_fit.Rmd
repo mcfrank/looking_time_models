@@ -100,6 +100,8 @@ fitting_res <- get_fitting_stats(all_sim_d)
 ```
 
 
+
+
 ```{r}
 test_d <- read_csv(here("behavior_fit/data/processed_data/test_d.csv"))
 
@@ -118,9 +120,21 @@ fitting_test_res <- get_fitting_stats(all_test_d)
 
 
 ```{r}
-
-fitting_test_res %>% arrange(-r)
-fitting_test_res %>% 
+fitting_res %>% rename(train_r = r, 
+                       train_rmse = rmse) %>% 
+  left_join(fitting_test_res %>% 
+              rename(test_r = r, test_rmse = rmse), by = "param_info") %>% 
+  select(param_info, train_r, test_r, train_rmse, test_rmse) %>% 
+  pivot_longer(
+    cols = c("train_r", "test_r", "train_rmse", "test_rmse")
+  ) %>% 
+  separate(
+    name, into = c("data_type", "measure_type"), sep = "_"
+  ) %>% 
+  ggplot(aes(x = data_type, y = value)) + 
+  geom_jitter(width = .2, alpha = .3) + 
+  facet_wrap(~measure_type, scales = "free") + 
+  theme_few()
 ```
 
 
@@ -142,6 +156,28 @@ fitting_test_res %>%
   facet_wrap(~stimuli_sequence) + 
   theme_few()
 ```
+
+## get error bar 
+```{r}
+scaling_key <- fitting_test_res %>% 
+  filter(param_info == (fitting_res %>% arrange(-r) %>% head(1))$param_info) %>% 
+  left_join(scaling_param %>% select(-data), by = c("param_info")) %>% 
+  select(param_info, intercept, coef)
+
+best_fitting_raw <- raw_sim %>% 
+  mutate( param_info = paste("mu", mu_prior, "v", v_prior, "a", alpha_prior, "b", beta_prior, "ep", epsilon, sep = "_")) %>% 
+  filter(param_info == scaling_key$param_info)
+
+best_fitting_scaled <- best_fitting_raw %>% 
+  mutate(scaled_sample = (n_samples - scaling_key$intercept) / scaling_key$coef)
+
+best_fitting_scaled %>% 
+  ggplot(aes(x = trial_num, y = scaled_sample)) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  facet_wrap(~stim_sequence) + theme_few()
+```
+
+
 
 
 ```{r}
@@ -173,8 +209,107 @@ scaled_d %>%
 
 
 
+# Complexity
+
+```{r}
+cd %>% 
+  distinct(b_val, d_val, complexity) %>% 
+  pivot_longer(cols  = c("b_val", "d_val")) %>% 
+  ggplot(aes(x= complexity, y = value, color = name)) + 
+    geom_jitter(alpha = .3, width = .2) + 
+  theme_few()
+```
 
 
+```{r}
+cd %>% 
+  distinct(b_val, d_val, complexity) %>% 
+  mutate(dist = abs(b_val - d_val)) %>% 
+  ggplot(aes(x = complexity, y = dist)) + 
+  geom_jitter(alpha = .3, width = .2) + 
+  theme_few()
+```
+
+
+
+```{r}
+cd <- read_csv(here("behavior_fit/data/raw_data/sim_with_complexity.csv"), 
+               col_names = FALSE)
+
+colnames(cd) <- c("sub_id", "batch_id", "trial_num", "stim_sequence", "violation", "epsilon", "b_val", "d_val", "mu_prior", "v_prior", "alpha_prior", "beta_prior", "complexity", "n_samples")
+
+summarised_cd <- cd %>% 
+  # param info needs to fixed 
+  mutate( param_info = paste("mu", mu_prior, "v", v_prior, "a", alpha_prior, "b", beta_prior, "ep", epsilon, sep = "_")) %>% 
+  group_by(param_info, stim_sequence, complexity, trial_num) %>% 
+  summarise(mean_sample = mean(n_samples)) %>% 
+  mutate(trial_num = trial_num + 1) %>% 
+  rename(trial_number = trial_num, 
+         stimuli_sequence = stim_sequence)
+
+```
+
+
+
+```{r}
+summary_train_cd <- train_d %>% 
+  group_by(stimuli_sequence, trial_number, trial_type, complexity) %>% 
+  summarise(mean_lt = mean(trial_looking_time))
+```
+
+
+```{r}
+all_sim_cd <- summary_train_cd %>% 
+  left_join(summarised_cd, by = c("stimuli_sequence", "trial_number", "complexity")) %>% 
+  ungroup() %>% 
+  group_by(param_info) %>% 
+  nest(data = -param_info)
+
+fitting_c_res <- get_fitting_stats(all_sim_cd)
+
+
+summary_test_cd <- test_d %>% 
+  group_by(stimuli_sequence, trial_number, trial_type, complexity) %>% 
+  summarise(mean_lt = mean(trial_looking_time))
+
+all_test_cd <- summary_test_cd %>% 
+  left_join(summarised_cd, by = c("stimuli_sequence", "trial_number", "complexity")) %>% 
+  ungroup() %>% 
+  group_by(param_info) %>% 
+  nest(data = -param_info)
+
+fitting_test_c_res <- get_fitting_stats(all_test_cd)
+
+```
+
+```{r}
+fitting_c_res %>% 
+  arrange(-r)
+
+fitting_test_c_res %>% 
+  arrange(-r)
+```
+
+
+```{r}
+scaling_c_param <- get_scaling_param(all_sim_cd)
+
+fitting_test_c_res %>% 
+  filter(param_info == (fitting_c_res %>% arrange(-r) %>% head(1))$param_info) %>% 
+  left_join(scaling_c_param %>% select(-data), by = c("param_info")) %>% 
+  unnest(data) %>% 
+   mutate(
+    scaled_sample = (mean_sample - intercept) / coef
+  ) %>% 
+  pivot_longer(cols  = c("scaled_sample", "mean_lt"), values_to = "val", names_to = "val_type") %>% 
+  ggplot(aes(x = trial_number, y = val, color = complexity))+ 
+  geom_point() + 
+  #geom_line() + 
+  theme_few() + 
+  #facet_wrap(~stimuli_sequence) + 
+  facet_grid(stimuli_sequence~val_type) + 
+  theme_few() 
+```
 
 
 
