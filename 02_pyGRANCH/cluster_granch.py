@@ -13,9 +13,11 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 print(device)
 
+#mu_0_v_1_a_1_b_1_ep_1e-04
+
 # stim_set: "unity" or "spore", paradigm: "adult" or "infant"
-EXP_INFO = {"stim_set": "unity", "paradigm": "adult"}
-MODEL_TYPE = "no_learning"
+EXP_INFO = {"stim_set": "spore", "paradigm": "adult"}
+#MODEL_TYPE = "no_learning"
 BATCH_INFO = {
     "jitter_n": 20, 
     "total_batch_n": 20, 
@@ -33,13 +35,13 @@ GRID_INFO = {
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
 PRIOR_INFO = {
-    "mu_prior": -1,  
+    "mu_prior": 0,  
     "V_prior": 1, 
     "alpha_prior": 1, 
-    "beta_prior": 35, 
-    "epsilon": 0.001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
+    "beta_prior": 1, 
+    "epsilon": 0.0001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
     "hypothetical_obs_grid_n": 10, 
-    "world_EIGs": 0.00001, "max_observation": 500
+    "world_EIGs": 0.0001, "max_observation": 500
 }
 
 p = [PRIOR_INFO]
@@ -55,7 +57,9 @@ for STIMULI_INFO in stimuli_info_list:
         num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO, MODEL_TYPE = "no_noise")
 
 
-folder_path = "cache_results/"
+folder_path = "cache_results/no_learning/"
+folder_path = "cache_results/no_noise/"
+
 df_list = []
 for file_name in os.listdir(folder_path): 
     pattern_batch_info = r"batch_(\d+)_cache_([A-Z]+)"
