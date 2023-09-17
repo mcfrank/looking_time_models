@@ -7,12 +7,10 @@ import numpy as np
 import ipdb
 
 def granch_no_learning_simulation(params, model, stimuli): 
-
     stimulus_idx = 0
     t = 0 # following python tradition we are using 0-indexed
     current_stim_t = 0
     while t < params.max_observation and stimulus_idx < stimuli.n_trial: 
-
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
@@ -60,6 +58,7 @@ def granch_no_learning_simulation(params, model, stimuli):
         else:
             # luce's choice rule 
             p_look_away = np.random.uniform(0, 1)
+            print (p_look_away)
     
             if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus
