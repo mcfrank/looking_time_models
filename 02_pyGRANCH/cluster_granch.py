@@ -24,6 +24,8 @@ BATCH_INFO = {
     "jitter_mode": "sampling"
 }
 
+
+
 GRID_INFO = {
     "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 2, 
     "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 3, 

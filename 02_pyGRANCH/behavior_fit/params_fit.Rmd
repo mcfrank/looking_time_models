@@ -315,8 +315,22 @@ nn_test_d <- summary_test_d %>%
   group_by(param_info) %>% 
   nest(data = -param_info)
 
-fitting_test_c_res <- get_fitting_stats(nn_test_d)
+fitting_nn_res <- get_fitting_stats(nn_test_d)
 #saveRDS(fitting_test_c_res, here("behavior_fit/cached_res/test_by_complexity_fit.RDS"))
+```
+
+```{r}
+scale_key <- readRDS(here("behavior_fit/cached_res/scaling.RDS"))
+intercept = -10.3
+coef = 0.00601
+
+nn %>% 
+   mutate(
+    scaled_sample = (n_samples - intercept) / coef
+  ) %>% 
+  ggplot(aes(x = trial_num, y = scaled_sample)) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  facet_wrap(~stim_sequence)
 ```
 
 
