@@ -117,6 +117,11 @@ saveRDS(behavioral_model_summary, here("behavior_fit/cached_res/complexity_behav
 saveRDS(model_model_summary, here("behavior_fit/cached_res/complexity_model_lm.RDS"))
 ```
 
+```{r}
+behavioral_model_summary
+model_model_summary
+```
+
 
 
 # New plot 
@@ -131,8 +136,11 @@ no_learning <- read_csv(here("behavior_fit/data/raw_data/no_learning.csv"),
                      col_names = FALSE)
 colnames(no_learning) <- c("sub_id", "batch_id", "trial_num", "stim_sequence", "violation", "epsilon", "b_val", "d_val", "mu_prior", "v_prior", "alpha_prior", "beta_prior", "n_samples")
 
+nn_scale <- readRDS(here("behavior_fit/cached_res/nn_scale.RDS"))
+nl_scale <- readRDS(here("behavior_fit/cached_res/nl_scale.RDS"))
+
 no_noise_scaled <- no_noise %>% 
-  mutate(scaled_sample = (n_samples - scaling_df$intercept) / scaling_df$coef) %>% 
+  mutate(scaled_sample = (n_samples - nn_scale$intercept) / nn_scale$coef) %>% 
   mutate(trial_number = trial_num + 1, 
          trial_looking_time = scaled_sample, 
          stimuli_sequence = stim_sequence, 
@@ -148,7 +156,7 @@ no_noise_scaled <- no_noise %>%
   
 
 no_learning_scaled <- no_learning %>% 
-  mutate(scaled_sample = (n_samples - scaling_df$intercept) / scaling_df$coef) %>% 
+  mutate(scaled_sample = (n_samples - nl_scale$intercept) / nl_scale$coef) %>% 
   mutate(trial_number = trial_num + 1, 
          trial_looking_time = scaled_sample, 
          stimuli_sequence = stim_sequence, 
@@ -178,6 +186,7 @@ bind_rows(no_learning_scaled, no_noise_scaled, granch_scaled, test_plot_d) %>%
   scale_color_manual(values = c("red", "blue")) + 
   stat_summary(geom = "line") + 
   stat_summary(fun.data = "mean_cl_boot") + 
+  #ylim(0, 20000) + 
   #scale_y_log10() + 
   #scale_x_log10() + 
   facet_wrap(~type, nrow = 1)+ 
@@ -200,6 +209,20 @@ split_half_reliability <- splithalf(test_d, outcome = "RT",
           score = "average", 
           var.RT = "trial_looking_time", 
           var.participant = "subject")
+```
+
+# fit stats
+
+```{r}
+test_fit <- readRDS(here("behavior_fit/cached_res/test_fit.RDS"))
+nn_fit <- readRDS(here("behavior_fit/cached_res/nn_fit.RDS"))
+nl_fit <- readRDS(here("behavior_fit/cached_res/nl_test_fit.RDS"))
+test_fit %>% 
+  arrange(-r) %>% 
+  head(1)
+
+nn_fit
+nl_fit
 ```
 
 

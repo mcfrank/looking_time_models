@@ -316,7 +316,11 @@ nn_test_d <- summary_test_d %>%
   nest(data = -param_info)
 
 fitting_nn_res <- get_fitting_stats(nn_test_d)
-#saveRDS(fitting_test_c_res, here("behavior_fit/cached_res/test_by_complexity_fit.RDS"))
+scaling_nn <- get_scaling_param(nn_test_d)
+
+
+saveRDS(fitting_nn_res, here("behavior_fit/cached_res/nn_fit.RDS"))
+saveRDS(scaling_nn, here("behavior_fit/cached_res/nn_scale.RDS"))
 ```
 
 ```{r}
@@ -357,7 +361,9 @@ nl_test_d <- summary_test_d %>%
   nest(data = -param_info)
 
 nl_res <- get_fitting_stats(nl_test_d)
+nl_scale <- get_scaling_param(nl_test_d)
 saveRDS(nl_res, here("behavior_fit/cached_res/nl_test_fit.RDS"))
+saveRDS(nl_scale, here("behavior_fit/cached_res/nl_scale.RDS"))
 
 ```
 
