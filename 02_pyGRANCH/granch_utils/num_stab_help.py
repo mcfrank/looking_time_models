@@ -138,8 +138,8 @@ def get_batch_grid(BATCH_INFO,
         grid_mu_distribution = uniform.Uniform(GRID_INFO["grid_mu_start"], GRID_INFO["grid_mu_end"])
         grid_sigma_distribution = uniform.Uniform(max(0.0000001, GRID_INFO["grid_sigma_start"]), GRID_INFO["grid_sigma_end"])
         grid_y_distribution = uniform.Uniform(GRID_INFO["grid_y_start"], GRID_INFO["grid_y_end"])
-        grid_epsilon_distribution = uniform.Uniform(max(0.0000001, GRID_INFO["grid_epsilon_start"]), GRID_INFO["grid_epsilon_end"])
-
+        #grid_epsilon_distribution = uniform.Uniform(max(0.0000001, GRID_INFO["grid_epsilon_start"]), GRID_INFO["grid_epsilon_end"])
+        grid_epsilon_distribution = uniform.Uniform(max( 0.0000000000000000000000000000001, GRID_INFO["grid_epsilon_start"]), GRID_INFO["grid_epsilon_end"])
         batch_grid = {
             "total_batch_n": BATCH_INFO["total_batch_n"],
             "jitter_n": BATCH_INFO["jitter_n"]

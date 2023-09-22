@@ -97,6 +97,5 @@ class granch_params:
     def add_priors(self):
         # not the most efficient 
         # but currently do so to avoid misalignment between prior and likelihood
-       
        self.prior = self.lp_mu_sigma + self.lp_epsilon
-    
+       #self.prior = self.lp_mu_sigma 
