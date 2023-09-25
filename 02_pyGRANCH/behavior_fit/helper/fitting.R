@@ -7,7 +7,8 @@ get_fitting_stats <- function(all_sim_d){
   }))
   
   all_sim_d$r_ci <- unlist(map(all_sim_d$data, function(x){
-    r_conf <- confintr::ci_cor(x$mean_lt, x$mean_sample, method = "pearson", type = "bootstrap")["interval"][[1]]
+    r_conf <- cor.test(x$mean_lt, x$mean_sample, method = "pearson", type = "bootstrap")$conf.int
+    #r_conf <- confintr::ci_cor(x$mean_lt, x$mean_sample, method = "pearson", type = "bootstrap")["interval"][[1]]
     r_conf_print <- paste0("[", round(r_conf[1],2), ", ", round(r_conf[2],2), "]")
     return(r_conf_print)
   }))
