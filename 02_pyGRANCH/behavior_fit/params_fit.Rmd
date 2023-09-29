@@ -47,6 +47,28 @@ test_d <-  tidy_data  %>%
 
 write_csv(train_d, here("behavior_fit/data/processed_data/train_d.csv"))
 write_csv(test_d, here("behavior_fit/data/processed_data/test_d.csv"))
+
+
+#need to get the block number back 
+
+test_d <- raw_data %>% 
+  filter(subject %in% unique(test_d$subject)) %>% 
+  mutate(
+    stimuli_sequence = case_when(
+      deviant_position == 2 ~ "BDBBBB", 
+      deviant_position == 4 ~ "BBBDBB", 
+      deviant_position == 6 ~ "BBBBBD", 
+      is.na(deviant_position) ~ "BBBBBB"
+    ), 
+    complexity = case_when(
+      grepl("complex", block_type) ~ "complex", 
+      grepl("simple", block_type) ~ "simple"
+    )
+  ) %>% 
+  select(subject, block_number, trial_number, trial_type, stimuli_sequence, complexity, trial_looking_time) 
+
+write_csv(test_d, here("behavior_fit/data/processed_data/test_d.csv"))
+
 ```
 
 # Select param 
@@ -127,7 +149,10 @@ saveRDS(fitting_test_res, here("behavior_fit/cached_res/test_fit.RDS"))
 
 ```{r}
 scaling_param <- get_scaling_param(all_sim_d)
-saveRDS(scaling_param, here("behavior_fit/cached_res/scaling.RDS"))
+scaling_param_f <- get_scaling_param_flipped(all_sim_d)
+saveRDS(scaling_param_f, here("behavior_fit/cached_res/scaling_f.RDS"))
+
+#saveRDS(scaling_param, here("behavior_fit/cached_res/scaling.RDS"))
 
 
 fitting_test_res %>% 
@@ -318,6 +343,8 @@ nn_test_d <- summary_test_d %>%
 fitting_nn_res <- get_fitting_stats(nn_test_d)
 scaling_nn <- get_scaling_param(nn_test_d)
 
+nn_flipped_scale <- get_scaling_param_flipped(nn_test_d)
+saveRDS(nn_flipped_scale, here("behavior_fit/cached_res/nn_scale_f.RDS"))
 
 saveRDS(fitting_nn_res, here("behavior_fit/cached_res/nn_fit.RDS"))
 saveRDS(scaling_nn, here("behavior_fit/cached_res/nn_scale.RDS"))
@@ -361,10 +388,11 @@ nl_test_d <- summary_test_d %>%
   nest(data = -param_info)
 
 nl_res <- get_fitting_stats(nl_test_d)
-nl_scale <- get_scaling_param(nl_test_d)
+nl_scale <- get_scaling_param_constraint(nl_test_d)
+nl_flipped_scale <- get_scaling_param_flipped(nl_test_d)
 saveRDS(nl_res, here("behavior_fit/cached_res/nl_test_fit.RDS"))
 saveRDS(nl_scale, here("behavior_fit/cached_res/nl_scale.RDS"))
-
+saveRDS(nl_flipped_scale, here("behavior_fit/cached_res/nl_scale_f.RDS"))
 ```
 
 

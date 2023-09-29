@@ -77,18 +77,16 @@ behavioral_model_summary <- summary(m2)$coefficients %>% as.data.frame()
 ```{r}
 raw_cd <- read_csv(here("behavior_fit/data/raw_data/sim_with_complexity.csv"))
 colnames(raw_cd) <- c("sub_id", "batch_id", "trial_num", "stim_sequence", "violation", "epsilon", "b_val", "d_val", "mu_prior", "v_prior", "alpha_prior", "beta_prior", "complexity", "n_samples")
-scaling_df <- readRDS(here("behavior_fit/cached_res/scaling.RDS")) %>% 
+scaling_df <- readRDS(here("behavior_fit/cached_res/scaling_f.RDS")) %>% 
   filter(param_info == readRDS(here("behavior_fit/cached_res/train_fit.RDS")) %>% arrange(-r) %>% head(1) %>% pull(param_info))
-
-
 
 best_fitting_cd<- raw_cd %>% 
   mutate( param_info = paste("mu", mu_prior, "v", v_prior, "a", alpha_prior, "b", beta_prior, "ep", epsilon, sep = "_")) %>% 
   filter(param_info == scaling_df$param_info)
 
 best_fitting_scaled_cd <- best_fitting_cd %>% 
-  mutate(scaled_sample = (n_samples - scaling_df$intercept) / scaling_df$coef)
-
+  #mutate(scaled_sample = (n_samples - scaling_df$intercept) / scaling_df$coef)
+  mutate(scaled_sample = n_samples *  scaling_df$coef + scaling_df$intercept)
 ```
 
 
@@ -102,7 +100,7 @@ best_fitting_scaled_cd <- best_fitting_scaled_cd %>%
            stim_sequence == "BBBDBB" & trial_number == 4 ~ "deviant", 
            stim_sequence == "BBBBBD" & trial_number == 6 ~ "deviant", 
            TRUE ~ "background"
-         )) %>% 
+         )) 
   
 
 m2_model <- lmer(log(trial_looking_time) ~ I((exp(1)**(-trial_number))) * trial_type * complexity + (1|sub_id), 
@@ -126,7 +124,7 @@ model_model_summary
 
 # New plot 
 
-```{r}
+```{r fig.width = 6, fig.height = 3}
 library(ggthemes)
 no_noise <- read_csv(here("behavior_fit/data/raw_data/no_noise.csv"), 
                      col_names = FALSE)
@@ -136,11 +134,15 @@ no_learning <- read_csv(here("behavior_fit/data/raw_data/no_learning.csv"),
                      col_names = FALSE)
 colnames(no_learning) <- c("sub_id", "batch_id", "trial_num", "stim_sequence", "violation", "epsilon", "b_val", "d_val", "mu_prior", "v_prior", "alpha_prior", "beta_prior", "n_samples")
 
-nn_scale <- readRDS(here("behavior_fit/cached_res/nn_scale.RDS"))
-nl_scale <- readRDS(here("behavior_fit/cached_res/nl_scale.RDS"))
+#nn_scale <- readRDS(here("behavior_fit/cached_res/nn_scale.RDS"))
+nn_scale <- readRDS(here("behavior_fit/cached_res/nn_scale_f.RDS"))
+#nl_scale <- readRDS(here("behavior_fit/cached_res/nl_scale.RDS"))
+nl_scale <- readRDS(here("behavior_fit/cached_res/nl_scale_f.RDS"))
 
 no_noise_scaled <- no_noise %>% 
-  mutate(scaled_sample = (n_samples - nn_scale$intercept) / nn_scale$coef) %>% 
+  #mutate(scaled_sample = (n_samples - nn_scale$intercept) / nn_scale$coef) %>% 
+  mutate(scaled_sample = n_samples * nn_scale$coef + nn_scale$intercept) %>% 
+  mutate(id = as.character(paste0(sub_id, batch_id))) %>% 
   mutate(trial_number = trial_num + 1, 
          trial_looking_time = scaled_sample, 
          stimuli_sequence = stim_sequence, 
@@ -151,12 +153,14 @@ no_noise_scaled <- no_noise %>%
            stim_sequence == "BBBBBD" & trial_number == 6 ~ "deviant", 
            TRUE ~ "background"
          )) %>% 
-  select(trial_number, trial_type, scaled_sample, stimuli_sequence) %>% 
+  select(id, trial_number, trial_type, scaled_sample, stimuli_sequence) %>% 
   mutate(type = "No Noise")
   
 
 no_learning_scaled <- no_learning %>% 
-  mutate(scaled_sample = (n_samples - nl_scale$intercept) / nl_scale$coef) %>% 
+  #mutate(scaled_sample = (n_samples - nl_scale$intercept) / nl_scale$coef) %>% 
+  mutate(scaled_sample = n_samples *  nl_scale$coef + nl_scale$intercept) %>% 
+ mutate(id = as.character(paste0(sub_id, batch_id))) %>% 
   mutate(trial_number = trial_num + 1, 
          trial_looking_time = scaled_sample, 
          stimuli_sequence = stim_sequence, 
@@ -167,34 +171,419 @@ no_learning_scaled <- no_learning %>%
            stim_sequence == "BBBBBD" & trial_number == 6 ~ "deviant", 
            TRUE ~ "background"
          )) %>% 
-  select(trial_number, trial_type, scaled_sample, stimuli_sequence) %>% 
+  select(id, trial_number, trial_type, scaled_sample, stimuli_sequence) %>% 
   mutate(type = "No Learning")
 
 
 granch_scaled <- best_fitting_scaled_cd %>% 
   mutate(stimuli_sequence = stim_sequence) %>% 
-  select(trial_number, trial_type, scaled_sample, stimuli_sequence) %>% 
+  rename(id = sub_id) %>% 
+  mutate(id = as.character(id)) %>% 
+  select(id, trial_number, trial_type, scaled_sample, stimuli_sequence) %>% 
   mutate(type = "GRANCH (adult) ")
 
 test_plot_d <- test_d %>% 
-  select(trial_number, trial_type, trial_looking_time, stimuli_sequence) %>% 
+  select(trial_number, block_number, trial_type, trial_looking_time, stimuli_sequence, subject) %>% 
   rename(scaled_sample = trial_looking_time) %>% 
   mutate(type = "Adult behaviors")
 
 bind_rows(no_learning_scaled, no_noise_scaled, granch_scaled, test_plot_d) %>% 
+  mutate(trial_type = if_else(trial_type == "background", "Familiar", "Novel")) %>% 
   ggplot(aes(x = trial_number, y = scaled_sample, color = trial_type, group = trial_type)) + 
+  
   scale_color_manual(values = c("red", "blue")) + 
-  stat_summary(geom = "line") + 
+  #stat_summary(geom = "line", position = position_dodge(width = .2 )) + 
+  geom_smooth(method = "gam")+
   stat_summary(fun.data = "mean_cl_boot") + 
   #ylim(0, 20000) + 
   #scale_y_log10() + 
   #scale_x_log10() + 
   facet_wrap(~type, nrow = 1)+ 
-  theme_few() 
+  #theme_few() + 
+  theme_classic()+ 
+  guides(color=guide_legend(title="Test type")) + 
+  ylab("Looking time (ms)") + 
+  xlab("Trial number") + 
+  theme(legend.position = "none") 
+
 
 ```
 
 
+```{r}
+bind_rows(no_learning_scaled, no_noise_scaled, granch_scaled, test_plot_d) %>% 
+  mutate(trial_type = if_else(trial_type == "background", "Familiar", "Novel")) %>% 
+  group_by(stimuli_sequence, type, id) %>% 
+  mutate(cum_scaled_sample = cumsum(scaled_sample)) %>% 
+  ggplot(aes(x = cum_scaled_sample, y = scaled_sample, color = trial_type, group = trial_type)) + 
+  scale_color_manual(values = c("red", "blue")) + 
+  stat_summary(geom = "line", position = position_dodge(width = .2 )) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+  #ylim(0, 20000) + 
+  #scale_y_log10() + 
+  #scale_x_log10() + 
+  facet_wrap(~type, nrow = 1)+ 
+  #theme_few() + 
+  theme_classic()+ 
+  guides(color=guide_legend(title="Test type")) + 
+  ylab("Looking time (ms)") + 
+  xlab("Trial number") + 
+  theme(legend.position = "none") 
+
+
+  
+```
+```{r}
+test_plot_d %>% 
+  group_by(subject, block_number) %>% 
+  mutate(cum_scaled_sample = cumsum(scaled_sample)) %>% 
+  mutate(cum_scaled_sample = case_when(
+    trial_number == 1 ~ 0, 
+    TRUE ~ cum_scaled_sample
+  )) %>% 
+  # get rid of post-deviant habituation 
+  filter(
+    !(stimuli_sequence == "BDBBBB" & trial_number > 2), 
+    !(stimuli_sequence == "BBBDBB" & trial_number > 4) 
+  ) %>% 
+ filter(stimuli_sequence == "BBBBBB") %>% 
+  #filter(subject == "SS1630945779290") %>% 
+  #filter(subject %in% c("SS1630953517709","SS1630953532068","SS1630953553324","SS1630953556646")) %>% 
+  ggplot(aes(x = cum_scaled_sample, y = scaled_sample)) + 
+  geom_smooth(method = "lm") + 
+  #geom_point()
+  stat_summary_bin(bins = 6) + 
+  title("All Data")
+```
+
+
+```{r}
+test_plot_d %>% 
+  filter(subject %in% c("SS1630953517709","SS1630953532068","SS1630953553324","SS1630953556646", 
+                        "SS1630955737024","SS1630955787141","SS1630955858861","SS1630956004245", 
+                        "SS1630953324158","SS1630953334692","SS1630953368511","SS1630953410717")) %>% 
+  group_by(subject, block_number) %>% 
+  mutate(cum_scaled_sample = cumsum(scaled_sample)) %>% 
+  mutate(cum_scaled_sample = case_when(
+    trial_number == 1 ~ 0, 
+    TRUE ~ cum_scaled_sample
+  )) %>% 
+  filter(stimuli_sequence == "BBBBBB")  %>% 
+  ggplot(aes(x = cum_scaled_sample, y = scaled_sample)) + 
+  geom_point() + 
+  geom_smooth(method = "lm")+ 
+  facet_wrap(~subject)
+
+test_plot_d %>% 
+  ggplot(aes(x = trial_number, y = scaled_sample)) + 
+  #geom_point() + 
+  stat_summary(fun.data = "mean_cl_boot")
+```
+
+## check lower percentile 
+
+```{r}
+lt_qt_df <- test_plot_d %>% 
+  group_by(subject) %>% 
+  summarise(mean_lt  = mean(scaled_sample)) %>% 
+  summarise(quantile = scales::percent(c(0.25, 0.5, 0.75)),
+            lt_qt = quantile(mean_lt, c(0.25, 0.5, 0.75)))
+
+lw_subject <- test_plot_d %>% 
+  group_by(subject) %>% 
+  summarise(mean_lt  = mean(scaled_sample)) %>% 
+  filter(mean_lt < filter(lt_qt_df, quantile =="25%")$lt_qt) %>% 
+  pull(subject)
+```
+
+
+
+```{r}
+cumsum_d <- test_plot_d %>% 
+  #filter(subject %in% lw_subject) %>% 
+  group_by(subject, block_number) %>% 
+  mutate(cum_scaled_sample = c(0, cumsum(scaled_sample)[-length(scaled_sample)]))
+
+
+
+
+# so the values ARE increasing by trial 
+cumsum_d %>% 
+   filter(stimuli_sequence == "BBBBBB") %>% 
+  ggplot(aes(x = trial_number, y = cum_scaled_sample)) + 
+  stat_summary(fun.data = "mean_cl_boot")
+
+# and the patterns ARE decreasing 
+cumsum_d %>% 
+    filter(stimuli_sequence == "BBBBBB") %>% 
+
+  ggplot(aes(x = trial_number, y = scaled_sample)) + 
+  stat_summary(fun.data = "mean_cl_boot")
+
+
+summary_cumsum_d <- cumsum_d %>% ungroup() %>% summarise(mean = mean(cum_scaled_sample), 
+                                                         sd = sd(cum_scaled_sample))
+
+
+  
+
+cumsum_d %>% 
+  #filter(subject %in% lw_subject) %>% 
+  #filter(cum_scaled_sample < (summary_cumsum_d$mean + 2 * summary_cumsum_d$sd)) %>% 
+  #filter(cum_scaled_sample < 15000) %>% 
+  filter(stimuli_sequence == "BBBBBB") %>% 
+  ggplot(aes(x = log(cum_scaled_sample), y = scaled_sample)) +
+  #geom_point() + 
+  stat_summary_bin(bins = 6)+
+  geom_smooth(method = "lm", se = TRUE) + 
+  labs(title = c("All BBBBBB - log-transformed"))
+
+
+cumsum_d %>% 
+  #filter(subject == "SS1630945779290") %>% 
+  #filter(stimuli_sequence == "BBBBBB") %>% 
+  group_by(trial_number) %>% 
+  summarise(
+    mean_cum = mean(cum_scaled_sample), 
+    mean_s = mean(scaled_sample)
+  ) %>% 
+  ggplot(aes(x = mean_cum, y = mean_s)) + 
+  geom_point()+ 
+   geom_smooth(method = "lm") + 
+  xlab("mean cumulative looking time") + 
+  ylab("mean looking time")
+  
+cumsum_d %>% 
+  ggplot(aes(x = cum_scaled_sample, y = scaled_sample, color = as.factor(trial_number), group = trial_number)) +
+  geom_smooth(method = "lm") + 
+  geom_point(alpha = .5)  + 
+  xlab("cumulative looking time") + 
+  ylab("looking time")
+
+  #stat_summary_bin(bins = 6)
+```
+
+
+# New plot attemp 2
+
+```{r fig.width = 6, fig.height = 3}
+
+cumsum_d <- test_plot_d %>% 
+  #filter(subject %in% lw_subject) %>% 
+  group_by(subject, block_number) %>% 
+  mutate(cum_scaled_sample = c(0, cumsum(scaled_sample)[-length(scaled_sample)])) 
+
+
+block_len <- 6
+granch_scaled$block <- 
+  rep(seq(1, 1 + nrow(granch_scaled) %/% block_len), each = block_len, length.out = nrow(granch_scaled))
+
+no_noise_scaled$block <- rep(seq(1, 1 + nrow(no_noise_scaled) %/% block_len), each = block_len, length.out = nrow(no_noise_scaled))
+
+no_learning_scaled$block <- rep(seq(1, 1 + nrow(no_learning_scaled) %/% block_len), each = block_len, length.out = nrow(no_learning_scaled))
+
+
+granch_cumsum_d <- granch_scaled %>% 
+  group_by(id, block) %>% 
+  mutate(cum_scaled_sample = c(0, cumsum(scaled_sample)[-length(scaled_sample)])) %>% 
+  group_by(trial_number, trial_type) %>% 
+  filter(
+    !(stimuli_sequence == "BDBBBB" & trial_number > 2), 
+    !(stimuli_sequence == "BBBDBB" & trial_number > 4) 
+  ) %>% 
+  summarise(
+    mean_cum = mean(cum_scaled_sample), 
+    mean_s = mean(scaled_sample), 
+    res = mean_cl_boot(scaled_sample)
+  ) %>% 
+  unnest(res) %>% 
+  rename(mean_lt = y, 
+         min_lt = ymin, 
+         max_lt = ymax) %>% 
+  select(-mean_s) %>% 
+  mutate(type = "RANCH (adults) ")
+
+no_noise_cumsum_d <- no_noise_scaled %>% 
+  group_by(id, block) %>% 
+  mutate(cum_scaled_sample = c(0, cumsum(scaled_sample)[-length(scaled_sample)])) %>% 
+  group_by(trial_number, trial_type) %>% 
+  filter(
+    !(stimuli_sequence == "BDBBBB" & trial_number > 2), 
+    !(stimuli_sequence == "BBBDBB" & trial_number > 4) 
+  ) %>% 
+  summarise(
+    mean_cum = mean(cum_scaled_sample), 
+    mean_s = mean(scaled_sample), 
+    res = mean_cl_boot(scaled_sample)
+  ) %>% 
+  unnest(res) %>% 
+  rename(mean_lt = y, 
+         min_lt = ymin, 
+         max_lt = ymax) %>% 
+  select(-mean_s) %>% 
+  mutate(type = "No Noise")
+
+no_learning_cumsum_d <- no_learning_scaled %>% 
+  group_by(id, block) %>% 
+  mutate(cum_scaled_sample = c(0, cumsum(scaled_sample)[-length(scaled_sample)])) %>% 
+  group_by(trial_number, trial_type) %>% 
+  filter(
+    !(stimuli_sequence == "BDBBBB" & trial_number > 2), 
+    !(stimuli_sequence == "BBBDBB" & trial_number > 4) 
+  ) %>% 
+  summarise(
+    mean_cum = mean(cum_scaled_sample), 
+    mean_s = mean(scaled_sample), 
+    res = mean_cl_boot(scaled_sample)
+  ) %>% 
+  unnest(res) %>% 
+  rename(mean_lt = y, 
+         min_lt = ymin, 
+         max_lt = ymax) %>% 
+  select(-mean_s) %>% 
+  mutate(type = "No Learning")
+
+
+cum_lt_d <- cumsum_d %>% 
+  group_by(trial_number, trial_type) %>% 
+  filter(
+    !(stimuli_sequence == "BDBBBB" & trial_number > 2), 
+    !(stimuli_sequence == "BBBDBB" & trial_number > 4) 
+  ) %>% 
+  summarise(
+    mean_cum = mean(cum_scaled_sample), 
+    mean_s = mean(scaled_sample), 
+    res = mean_cl_boot(scaled_sample)
+  ) %>% 
+  unnest(res) %>% 
+  rename(mean_lt = y, 
+         min_lt = ymin, 
+         max_lt = ymax) %>% 
+  select(-mean_s) %>% 
+  mutate(type = "Adults")
+
+#bind_rows(cum_lt_d, granch_cumsum_d, no_noise_cumsum_d, no_learning_cumsum_d) %>% 
+ 
+
+
+
+```
+
+
+```{r fig.width=8, fig.height=2}
+
+adult_p <- cum_lt_d %>% 
+   mutate(mean_cum = mean_cum / 1000,
+    mean_lt = mean_lt / 1000, 
+         min_lt = min_lt / 1000, 
+         max_lt = max_lt / 1000) %>% 
+  ggplot(aes(x = mean_cum, y = mean_lt, color = trial_type, group = trial_type)) + 
+  geom_pointrange(aes(ymin = min_lt, ymax = max_lt))+ 
+  #geom_smooth(data = cumsum_d %>% mutate(scaled_sample = scaled_sample /1000, cum_scaled_sample = cum_scaled_sample/1000), 
+  #            aes(x = cum_scaled_sample, y = scaled_sample), method = "lm", formula = "y ~ poly(x, 2)") + 
+  geom_smooth(method = "lm", formula = "y~ poly(x, 2)") + 
+  theme_classic() + 
+  facet_wrap(~type, ncol = 4) + 
+  scale_color_manual(values = c("red", "blue")) +
+  guides(color=guide_legend(title="Test type")) + 
+  ylab("Looking time (s)") + 
+  #xlab("Accumulated Exposure (s)") + 
+  xlab("")+
+  theme(legend.position = "none") 
+
+sep_p <- bind_rows(granch_cumsum_d, no_noise_cumsum_d, no_learning_cumsum_d) %>% 
+  mutate(type=factor(type,levels=c("RANCH (adults) ","No Noise", "No Learning" ))) %>% 
+  mutate(mean_cum = mean_cum / 1000,
+    mean_lt = mean_lt / 1000, 
+         min_lt = min_lt / 1000, 
+         max_lt = max_lt / 1000) %>% 
+  ggplot(aes(x = mean_cum, y = mean_lt, color = trial_type, group = trial_type)) + 
+  geom_pointrange(aes(ymin = min_lt, ymax = max_lt))+ 
+  #geom_smooth(data = cumsum_d %>% mutate(scaled_sample = scaled_sample /1000, cum_scaled_sample = cum_scaled_sample/1000), 
+  #            aes(x = cum_scaled_sample, y = scaled_sample), method = "lm", formula = "y ~ poly(x, 2)") + 
+  geom_smooth(method = "lm", formula = "y~ poly(x, 2)") + 
+  theme_classic() + 
+  facet_wrap(~type, ncol = 4) + 
+  scale_color_manual(values = c("red", "blue")) +
+  guides(color=guide_legend(title="Test type")) + 
+  #ylab("Predicted Samples") + 
+  #xlab("Accumulated Exposure") + 
+  ylab("") + 
+  xlab("") + 
+  theme(legend.position = "none") 
+
+model_fit_p <- granch_cumsum_d %>% 
+  select(mean_lt, trial_type, trial_number) %>% 
+  rename(g_sample = mean_lt) %>% 
+  left_join(cum_lt_d %>% select(mean_lt, trial_type, trial_number) %>% rename(lt = mean_lt)) %>% 
+  mutate(g_sample = g_sample /1000, lt = lt/1000) %>% 
+  ggplot(aes(x = g_sample, y = lt)) + 
+  geom_point() + 
+  theme_classic() + 
+  geom_smooth(method = "lm") + 
+  #xlab("Predicted samples") + 
+  xlab("") + 
+  ylab("Looking time (s)") 
+
+
+
+
+```
+## baby plot
+
+```{r}
+baby_d <- read_csv(here("behavior_fit/data/processed_data/baby_plot_df.csv")) %>% 
+  mutate(value_type = case_when(
+    value_type == "Infant behavior" ~ "Infants",
+    TRUE ~ value_type
+  )) %>% 
+  mutate(value_type = factor(value_type, levels=c("Infants", "RANCH (infants)","No Noise", "No Learning" )))
+
+
+model_baby_d <-baby_d %>% 
+  select(fam_duration, value, value_type, test_type) %>% 
+  filter(value_type == "RANCH (infants)" ) %>% 
+  rename(sample = value)
+
+behavior_baby_d <- baby_d %>% 
+  select(fam_duration, value, value_type, test_type) %>% 
+  filter(value_type == "Infants" ) %>% 
+  rename(lt = value)
+
+
+
+infant_p <- baby_d %>% filter(value_type == "Infants") %>% 
+  ggplot(aes(x = fam_duration, y = value, color = test_type, group = test_type)) + geom_smooth(method = "lm") +  geom_point(size = 2)  + ylab('Looking time (s)') + xlab('fam duration') + theme_classic() + scale_color_manual(values = c("blue", "red")) +  scale_x_continuous(breaks = c(1,2,3,4,6,8,9)) + facet_grid(~value_type) + xlab('Exposure duration') + labs(color = 'Test type') + theme(legend.position = "none") + xlab(color = "")
+
+
+infant_sep_p <- baby_d %>% filter(value_type != "Infants") %>% ggplot(aes(x = fam_duration, y = value, color = test_type, group = test_type)) + geom_smooth(method = "lm") +  geom_point(size = 2)  + ylab('Looking time (s)') + xlab('fam duration') + theme_classic() + scale_color_manual(values = c("blue", "red")) + coord_trans(y = "log10")  +  scale_x_continuous(breaks = c(1,2,3,4,6,8,9)) + facet_grid(~value_type) + xlab('Exposure duration') + labs(color = 'Test type') + 
+  theme(legend.position = "bottom", 
+        legend.justification='left') + 
+  #theme(legend.position = c(5, 5)) + 
+  ylab("")
+
+baby_cor_p <- behavior_baby_d %>% select(-value_type) %>% 
+  left_join(model_baby_d %>% select(-value_type), by = c("fam_duration", "test_type")) %>% 
+  ggplot(aes(x = sample, y = lt)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  theme_classic() + 
+  xlab("Predicted samples") + 
+  ylab("Looking time (s)")
+
+
+adult_all <- adult_p + sep_p + model_fit_p + plot_layout(widths = c(1, 4, 1))
+infant_all <- infant_p + infant_sep_p + baby_cor_p + plot_layout(widths = c(1, 4, 1))
+
+#infant_all
+
+adult_all / infant_all
+```
+
+
+```{r}
+bind_rows(no_learning_scaled, no_noise_scaled, granch_scaled, test_plot_d)
+```
 
 
 
