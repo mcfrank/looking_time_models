@@ -473,6 +473,7 @@ cum_lt_d <- cumsum_d %>%
 ```{r fig.width=8, fig.height=2}
 
 adult_p <- cum_lt_d %>% 
+  mutate(type = "Adults (N = 342)") %>% 
    mutate(mean_cum = mean_cum / 1000,
     mean_lt = mean_lt / 1000, 
          min_lt = min_lt / 1000, 
@@ -481,10 +482,11 @@ adult_p <- cum_lt_d %>%
   geom_pointrange(aes(ymin = min_lt, ymax = max_lt))+ 
   #geom_smooth(data = cumsum_d %>% mutate(scaled_sample = scaled_sample /1000, cum_scaled_sample = cum_scaled_sample/1000), 
   #            aes(x = cum_scaled_sample, y = scaled_sample), method = "lm", formula = "y ~ poly(x, 2)") + 
-  geom_smooth(method = "lm", formula = "y~ poly(x, 2)") + 
+  #geom_smooth(method = "loess") + 
+  geom_smooth(method = "lm")+
   theme_classic() + 
   facet_wrap(~type, ncol = 4) + 
-  scale_color_manual(values = c("red", "blue")) +
+  scale_color_manual(values = c("blue", "red")) +
   guides(color=guide_legend(title="Test type")) + 
   ylab("Looking time (s)") + 
   #xlab("Accumulated Exposure (s)") + 
@@ -498,13 +500,14 @@ sep_p <- bind_rows(granch_cumsum_d, no_noise_cumsum_d, no_learning_cumsum_d) %>%
          min_lt = min_lt / 1000, 
          max_lt = max_lt / 1000) %>% 
   ggplot(aes(x = mean_cum, y = mean_lt, color = trial_type, group = trial_type)) + 
+  scale_y_continuous(breaks = seq(3, 6)) + 
   geom_pointrange(aes(ymin = min_lt, ymax = max_lt))+ 
   #geom_smooth(data = cumsum_d %>% mutate(scaled_sample = scaled_sample /1000, cum_scaled_sample = cum_scaled_sample/1000), 
   #            aes(x = cum_scaled_sample, y = scaled_sample), method = "lm", formula = "y ~ poly(x, 2)") + 
-  geom_smooth(method = "lm", formula = "y~ poly(x, 2)") + 
+  geom_line()+
   theme_classic() + 
   facet_wrap(~type, ncol = 4) + 
-  scale_color_manual(values = c("red", "blue")) +
+  scale_color_manual(values = c("blue", "red")) +
   guides(color=guide_legend(title="Test type")) + 
   #ylab("Predicted Samples") + 
   #xlab("Accumulated Exposure") + 
@@ -531,7 +534,7 @@ model_fit_p <- granch_cumsum_d %>%
 ```
 ## baby plot
 
-```{r}
+```{r fig.width= 10, fig.height=4}
 baby_d <- read_csv(here("behavior_fit/data/processed_data/baby_plot_df.csv")) %>% 
   mutate(value_type = case_when(
     value_type == "Infant behavior" ~ "Infants",
@@ -553,10 +556,11 @@ behavior_baby_d <- baby_d %>%
 
 
 infant_p <- baby_d %>% filter(value_type == "Infants") %>% 
-  ggplot(aes(x = fam_duration, y = value, color = test_type, group = test_type)) + geom_smooth(method = "lm") +  geom_point(size = 2)  + ylab('Looking time (s)') + xlab('fam duration') + theme_classic() + scale_color_manual(values = c("blue", "red")) +  scale_x_continuous(breaks = c(1,2,3,4,6,8,9)) + facet_grid(~value_type) + xlab('Exposure duration') + labs(color = 'Test type') + theme(legend.position = "none") + xlab(color = "")
+  mutate(value_type = "Infants (N = 92)") %>% 
+  ggplot(aes(x = 5 *fam_duration, y = value, color = test_type, group = test_type)) + geom_smooth(method = "lm") +  geom_point(size = 2)  + ylab('Looking time (s)') + xlab('fam duration') + theme_classic() + scale_color_manual(values = c("blue", "red")) + scale_x_continuous(breaks = c(0,5,10,15,20,30,40,45)) + facet_grid(~value_type) + xlab('Exposure duration') + labs(color = 'Test type') + theme(legend.position = "none") + xlab("")
 
 
-infant_sep_p <- baby_d %>% filter(value_type != "Infants") %>% ggplot(aes(x = fam_duration, y = value, color = test_type, group = test_type)) + geom_smooth(method = "lm") +  geom_point(size = 2)  + ylab('Looking time (s)') + xlab('fam duration') + theme_classic() + scale_color_manual(values = c("blue", "red")) + coord_trans(y = "log10")  +  scale_x_continuous(breaks = c(1,2,3,4,6,8,9)) + facet_grid(~value_type) + xlab('Exposure duration') + labs(color = 'Test type') + 
+infant_sep_p <- baby_d %>% filter(value_type != "Infants") %>% ggplot(aes(x = 5 *fam_duration, y = value, color = test_type, group = test_type)) + geom_line()+  geom_point(size = 2)  + ylab('Looking time (s)') + xlab('fam duration') + scale_y_continuous(breaks = seq(10, 25, 2))+ theme_classic() + scale_color_manual(values = c("blue", "red")) + coord_trans(y = "log10")  + scale_x_continuous(breaks = c(0,5,10,15,20,30,40,45))+ facet_grid(~value_type) + xlab('Prior exposure to familiar (s)') + labs(color = 'Test type') + 
   theme(legend.position = "bottom", 
         legend.justification='left') + 
   #theme(legend.position = c(5, 5)) + 
