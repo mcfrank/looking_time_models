@@ -513,7 +513,7 @@ sep_p <- bind_rows(granch_cumsum_d, no_noise_cumsum_d, no_learning_cumsum_d) %>%
   #xlab("Accumulated Exposure") + 
   ylab("") + 
   xlab("") + 
-  theme(legend.position = "none") 
+  theme(legend.position = "none", legend.title=element_text(size=20)) 
 
 model_fit_p <- granch_cumsum_d %>% 
   select(mean_lt, trial_type, trial_number) %>% 
@@ -562,7 +562,9 @@ infant_p <- baby_d %>% filter(value_type == "Infants") %>%
 
 infant_sep_p <- baby_d %>% filter(value_type != "Infants") %>% ggplot(aes(x = 5 *fam_duration, y = value, color = test_type, group = test_type)) + geom_line()+  geom_point(size = 2)  + ylab('Looking time (s)') + xlab('fam duration') + scale_y_continuous(breaks = seq(10, 25, 2))+ theme_classic() + scale_color_manual(values = c("blue", "red")) + coord_trans(y = "log10")  + scale_x_continuous(breaks = c(0,5,10,15,20,30,40,45))+ facet_grid(~value_type) + xlab('Prior exposure to familiar (s)') + labs(color = 'Test type') + 
   theme(legend.position = "bottom", 
-        legend.justification='left') + 
+        legend.justification='left', 
+        legend.title=element_text(size=14), 
+        legend.text=element_text(size=14)) + 
   #theme(legend.position = c(5, 5)) + 
   ylab("")
 
