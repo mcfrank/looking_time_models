@@ -24,12 +24,12 @@ def score_post_pred(model, params):
     res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon)
     padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.repeat(res.size()[0], 1, 1, 1, 1)
     lp_hypo_z_given_mu_sigma_for_y = res + padded_lp_y_given_mu_sigma
-
+   
     # goal: apply logSumExp based on the grouping of y
     hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 3)
     log_posterior = torch.log(model.cur_posterior )
-
     padded_log_posterior = log_posterior.repeat(obs.size()[0], 1, 1, 1)
+    
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, padded_log_posterior), dim = (1, 2,3))))
 
 # score posterior 
@@ -51,7 +51,6 @@ def score_posterior(model, params, hypothetical_obs):
 
    normalized_posterior = torch.exp(unlz_p - normalizing_term)
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
-   print(normalized_posterior.size())
    return normalized_posterior
 
 
