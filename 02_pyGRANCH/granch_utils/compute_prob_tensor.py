@@ -51,6 +51,7 @@ def score_posterior(model, params, hypothetical_obs):
 
    normalized_posterior = torch.exp(unlz_p - normalizing_term)
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
+   print(normalized_posterior.size())
    return normalized_posterior
 
 
@@ -86,11 +87,15 @@ def score_likelihood(model, params, hypothetical_obs):
                                                                       params.meshed_grid_epsilon), dim =  z_ij_collapse_dim).squeeze(), 
                                                 params.lp_y_given_mu_sigma  
                            
-                                             )    
+                                             )
 
+    
     # goal: apply logSumExp based on the grouping of y
     likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = y_dim)
     
+
+    # goal: apply logSumExp based on the grouping of y
+    likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = y_dim)
 
     if(model.current_stimulus_idx > 0): 
 

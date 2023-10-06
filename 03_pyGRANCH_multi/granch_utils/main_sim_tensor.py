@@ -22,7 +22,6 @@ def granch_main_simulation(params, model, stimuli):
         if model.current_t == 0 or (not model.if_same_stimulus_as_previous_t()): 
 
             model.update_possible_observations(params.epsilon, params.hypothetical_obs_grid_n)
-            print(model.possible_observations)
 
             # update the previous likelihood to be the "current likelihood"
             model.prev_likelihood = model.cur_likelihood
@@ -40,7 +39,6 @@ def granch_main_simulation(params, model, stimuli):
         model.cur_posterior = current_posterior     
         
 
-        # this will currently work for only single feature    
         # in the tensor mode we don't need to iterate through possibilities anymore
         model.ps_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=True)
         model.ps_posteriror = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)

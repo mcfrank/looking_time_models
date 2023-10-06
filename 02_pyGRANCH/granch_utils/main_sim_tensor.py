@@ -22,7 +22,7 @@ def granch_main_simulation(params, model, stimuli):
         if model.current_t == 0 or (not model.if_same_stimulus_as_previous_t()): 
 
             model.update_possible_observations(params.epsilon, params.hypothetical_obs_grid_n)
-            print(model.possible_observations)
+            
 
             # update the previous likelihood to be the "current likelihood"
             model.prev_likelihood = model.cur_likelihood

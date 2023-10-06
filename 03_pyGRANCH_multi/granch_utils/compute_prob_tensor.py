@@ -38,16 +38,17 @@ def score_posterior(model, params, hypothetical_obs):
    if hypothetical_obs: 
         likelihood = model.ps_likelihood
         unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
-
-        logsumxp_dim = (1, 2, 3)
+        
+        logsumxp_dim = (2, 3, 4)
         normalizing_term = helper.add_singleton_dim(unlz_p.logsumexp(dim = logsumxp_dim), 3)
+        
    else: 
         
         likelihood = model.cur_likelihood 
         unlz_p = likelihood + params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
-
-        logsumxp_dim = (0, 1, 2)
+        logsumxp_dim = (1, 2, 3)
         normalizing_term = unlz_p.logsumexp(dim = logsumxp_dim)
+        normalizing_term = normalizing_term.view(3, 1, 1, 1)
 
    normalized_posterior = torch.exp(unlz_p - normalizing_term)
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
@@ -63,16 +64,21 @@ def score_likelihood(model, params, hypothetical_obs):
     if hypothetical_obs: 
         current_obs = model.get_all_observations_on_current_stimulus()
         ps_obs = model.possible_observations
+        
         # needs to be changed when incorporating multiple feature
-        current_obs = current_obs.flatten(start_dim = 0)
-        obs = torch.cat([current_obs.repeat(ps_obs.size()[0], 1), ps_obs.unsqueeze(1)], dim = 1)
+        #current_obs = current_obs.flatten(start_dim = 0)
+
+        ps_obs = ps_obs.unsqueeze(0)
+        expanded_current_obs = current_obs.unsqueeze(0).expand_as(ps_obs)
+        obs = torch.stack((ps_obs.squeeze(), expanded_current_obs.squeeze()), dim=1)
+        #obs = torch.cat([current_obs.repeat(ps_obs.size()[0], 1), ps_obs.unsqueeze(1)], dim = 1)
         z_ij_collapse_dim = 1
-        y_dim = 3
+        y_dim = 4
 
     else: 
         obs = model.get_all_observations_on_current_stimulus()
         z_ij_collapse_dim = 0
-        y_dim = 2
+        y_dim = 3
 
     # lp(z|mu, sigma^2) = lp(z | y) + lp(y | mu, sigma^2)
     # note that we are using all the observations on the current stimuli z
@@ -84,17 +90,18 @@ def score_likelihood(model, params, hypothetical_obs):
     lp_z_given_mu_sigma_for_y = torch.add(torch.sum(score_z_ij_given_y(obs,
                                                                       params.meshed_grid_y, 
                                                                       params.meshed_grid_epsilon), dim =  z_ij_collapse_dim).squeeze(), 
-                                                params.lp_y_given_mu_sigma  
-                           
-                                             )    
+                                                params.lp_y_given_mu_sigma)
+    
+    
+
 
     # goal: apply logSumExp based on the grouping of y
     likelihood = lp_z_given_mu_sigma_for_y.logsumexp(dim = y_dim)
-    
 
     if(model.current_stimulus_idx > 0): 
 
         if hypothetical_obs: 
+            #FIX ME
             padded_last_stimuli_likelihood = model.prev_likelihood.repeat(likelihood.size()[0], 1, 1, 1)
             likelihood = likelihood + padded_last_stimuli_likelihood
         

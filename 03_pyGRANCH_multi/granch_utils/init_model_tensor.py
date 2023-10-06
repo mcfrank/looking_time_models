@@ -271,7 +271,7 @@ class granch_model:
     def update_possible_observations(self, noise_epsilon, hypothetical_obs_grid_n): 
         
         current_stimuli = self.stimuli.stimuli_sequence[self.current_stimulus_idx]
-        expanded_tensors = [torch.linspace(val - 0.1, val + 0.1, hypothetical_obs_grid_n) for val in current_stimuli]
+        expanded_tensors = [torch.linspace(val - noise_epsilon, val + noise_epsilon, hypothetical_obs_grid_n) for val in current_stimuli]
 
         expanded_tensor = torch.stack(expanded_tensors, dim=1).t()
         d1 = expanded_tensor[0]
