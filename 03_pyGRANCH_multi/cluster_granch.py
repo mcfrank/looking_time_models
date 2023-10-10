@@ -8,6 +8,7 @@ import torch.distributions as dist
 import pandas as pd
 import os 
 import re
+import numpy as np
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -27,12 +28,11 @@ BATCH_INFO = {
 
 
 GRID_INFO = {
-    "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 2, 
-    "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 3, 
-    "grid_y_start": -4, "grid_y_end": 4, "grid_y_step": 4, 
+    "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 5, 
+    "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 5, 
+    "grid_y_start": -4, "grid_y_end": 4, "grid_y_step": 5, 
     "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 5, 
-    "hypothetical_obs_grid_n": 10
-}
+    "hypothetical_obs_grid_n": 5}
 
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
 
@@ -42,25 +42,25 @@ PRIOR_INFO = {
     "alpha_prior": 1, 
     "beta_prior": 1, 
     "epsilon": 0.0001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
-    "hypothetical_obs_grid_n": 10, 
-    "world_EIGs": 0.0001, "max_observation": 500
+    "hypothetical_obs_grid_n": 5, 
+    "world_EIGs": 0.0001, "max_observation": 500, 
+    "forced_exposure_max": np.nan
 }
 
 p = [PRIOR_INFO]
 
 if EXP_INFO['stim_set'] == "spore": 
-    stimuli_info_list = num_stab_help.sample_spore_experiment(1)
+    stimuli_info_list = num_stab_help.sample_spore_experiment(pair_each_stim = 1, n_feature=3)
 elif EXP_INFO['stim_set'] == "unity":
     stimuli_info_list = num_stab_help.sample_condition_experiment(1, EXP_INFO['paradigm'])
 
 for STIMULI_INFO in stimuli_info_list: 
     for PRIOR_INFO in p: 
-        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO, MODEL_TYPE = "no_learning")
-        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO, MODEL_TYPE = "no_noise")
+        num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+       
 
 
-folder_path = "cache_results/no_learning/"
-folder_path = "cache_results/no_noise/"
+folder_path = "cache_results/"
 
 df_list = []
 for file_name in os.listdir(folder_path): 

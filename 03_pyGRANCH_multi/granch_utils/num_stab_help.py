@@ -116,7 +116,7 @@ def run_all_sim(
         curr_time = datetime.now()
         timestr = curr_time.strftime('%m-%d-%H:%M:%S.%f')[:-3] + "-" + stim_set + "-" + paradigm
         
-        batch_name = "02_pyGRANCH/cache_results/{t}.pickle".format(t = timestr)
+        batch_name = "cache_results/{t}.pickle".format(t = timestr)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df

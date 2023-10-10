@@ -5,7 +5,7 @@ import numpy as np
 import torch 
 import re 
 from torch.distributions import Normal  
-import ipdb
+#import ipdb
 
 
 class granch_stimuli: 
@@ -22,15 +22,15 @@ class granch_stimuli:
         stimuli_sequence = {}
         while idx < self.n_trial: 
             if(self.sequence_scheme[idx] == "B"): 
-                stimuli_sequence[idx] = torch.tensor([b])
+                stimuli_sequence[idx] = torch.tensor([b, b, b])
             elif(self.sequence_scheme[idx] == "D"): 
-                stimuli_sequence[idx] = torch.tensor([d])
+                stimuli_sequence[idx] = torch.tensor([d, d, d])
             else: 
                 warn("Wrong sequence scheme ")
             idx = idx + 1
 
-        self.b_val = torch.tensor([b])
-        self.d_val = torch.tensor([d])
+        self.b_val = torch.tensor([b, b, b])
+        self.d_val = torch.tensor([d, d, d])
         
         self.stimuli_sequence = stimuli_sequence
   

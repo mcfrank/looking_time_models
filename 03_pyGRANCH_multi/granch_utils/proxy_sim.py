@@ -1,13 +1,12 @@
-# version of the main simulation to support matrix multiplication instead
 
 import torch
 from . import compute_prob_tensor
 import numpy as np
-#import ipdb
 
-# main simulation function
-def granch_main_simulation(params, model, stimuli): 
 
+def granch_proxy_sim(params, model, stimuli): 
+
+    prev_observation_posterior = None
     stimulus_idx = 0
     t = 0 # following python tradition we are using 0-indexed
     current_stim_t = 0
@@ -16,7 +15,19 @@ def granch_main_simulation(params, model, stimuli):
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
-    
+       
+       #t = 0
+
+        if model.current_t == 0: 
+            padded_prior = params.prior.unsqueeze(0).repeat(3, 1, 1, 1, 1)
+            prev_observation_posterior = padded_prior
+            print("prior")
+            print(prev_observation_posterior.size())
+        else: 
+            prev_observation_posterior = model.cur_posterior
+            print("prev_obs")
+            print(prev_observation_posterior.size())
+
         # get all possible observation on current stimulus 
         # if we change stimulus 
         if model.current_t == 0 or (not model.if_same_stimulus_as_previous_t()): 
@@ -26,11 +37,15 @@ def granch_main_simulation(params, model, stimuli):
             # update the previous likelihood to be the "current likelihood"
             model.prev_likelihood = model.cur_likelihood
 
-
         # update model stimulus id 
         # update the noisy observation on current model stimulus 
         model.update_model_stimulus_id()
         model.update_noisy_observation(params.epsilon)
+
+        # can calculate surprisal here 
+        #SURPRISAL
+        #surprisal = compute_prob_tensor.
+
 
         current_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=False)
         model.cur_likelihood = current_likelihood
@@ -38,13 +53,14 @@ def granch_main_simulation(params, model, stimuli):
         current_posterior = compute_prob_tensor.score_posterior(model,params, hypothetical_obs=False)
         model.cur_posterior = current_posterior     
         
+        # CAN CALCULATE KL HERE
+
 
         # in the tensor mode we don't need to iterate through possibilities anymore
         model.ps_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=True)
         model.ps_posteriror = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)
         model.ps_kl = compute_prob_tensor.kl_div(model.ps_posteriror, model.cur_posterior)
         model.ps_pp = compute_prob_tensor.score_post_pred(model, params)
-        print(model.ps_pp.size())
        
         # compute EIG
         eig = torch.sum(model.ps_kl * model.ps_pp)
@@ -126,11 +142,3 @@ def granch_main_simulation(params, model, stimuli):
         current_stim_t += 1 
 
     return(model)
-
-
-
-
-
-
-
-

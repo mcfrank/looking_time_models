@@ -4,7 +4,7 @@
 import torch
 from . import compute_prob_tensor
 import numpy as np
-import ipdb
+#import ipdb
 
 def granch_no_learning_simulation(params, model, stimuli): 
     stimulus_idx = 0

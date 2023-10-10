@@ -89,6 +89,7 @@ summary_train_d <- train_d %>%
 ```{r}
 raw_sim <- read_csv(here("behavior_fit/data/raw_data/summarized_results_detailed_spore_adult.csv"), col_names = FALSE)
 ```
+
 ```{r}
 colnames(raw_sim) <- c("sub_id", "batch_id", "trial_num", "stim_sequence", "violation", "epsilon", "b_val", "d_val", "mu_prior", "v_prior", "alpha_prior", "beta_prior", "n_samples")
 

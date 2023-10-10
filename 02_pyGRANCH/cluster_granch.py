@@ -8,6 +8,7 @@ import torch.distributions as dist
 import pandas as pd
 import os 
 import re
+import numpy as np
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -27,11 +28,11 @@ BATCH_INFO = {
 
 
 GRID_INFO = {
-    "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 2, 
-    "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 3, 
-    "grid_y_start": -4, "grid_y_end": 4, "grid_y_step": 4, 
+    "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 5, 
+    "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 5, 
+    "grid_y_start": -4, "grid_y_end": 4, "grid_y_step": 5, 
     "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 5, 
-    "hypothetical_obs_grid_n": 10
+    "hypothetical_obs_grid_n": 5
 }
 
 BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
@@ -43,7 +44,8 @@ PRIOR_INFO = {
     "beta_prior": 1, 
     "epsilon": 0.0001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
     "hypothetical_obs_grid_n": 10, 
-    "world_EIGs": 0.0001, "max_observation": 500
+    "world_EIGs": 0.0001, "max_observation": 500,
+    "forced_exposure_max":np.nan
 }
 
 p = [PRIOR_INFO]

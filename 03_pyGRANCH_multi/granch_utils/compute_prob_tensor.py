@@ -10,6 +10,10 @@ from . import helper
 
 # --- major functions -- 
 
+def get_surprisal(prev_posterior, current_obs):
+    pass 
+
+
 # compute KL divergence
 def kl_div(new_post, prev_post): 
     # this is to make sure the prev post is of the same dimension as the new post
@@ -22,18 +26,18 @@ def kl_div(new_post, prev_post):
 
 # score posterior predictive 
 def score_post_pred(model, params): 
-    obs = model.possible_observations
-    res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon)
-    padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.expand(res.size())
+    obs = model.possible_observations.to(model.device)
+    res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon).to(model.device)
+    padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.expand(res.size()).to(model.device)
     lp_hypo_z_given_mu_sigma_for_y = res + padded_lp_y_given_mu_sigma
     
 
     # goal: apply logSumExp based on the grouping of y
-    hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 4)
-    log_posterior = torch.log(model.cur_posterior )
+    hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 4).to(model.device)
+    log_posterior = torch.log(model.cur_posterior ).to(model.device)
 
     
-    padded_log_posterior = log_posterior.expand(hypo_likelihood.size())
+    padded_log_posterior = log_posterior.expand(hypo_likelihood.size()).to(model.device)
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, padded_log_posterior), dim = (2, 3,4))))
 
 # score posterior 
@@ -76,12 +80,11 @@ def score_likelihood(model, params, hypothetical_obs):
         #current_obs = current_obs.unsqueeze(0)
         #ps_obs = ps_obs.unsqueeze(2)
        
-        expanded_current_obs = current_obs.unsqueeze(0).expand(ps_obs.size()[0], -1, -1)
-        expanded_ps_obs = ps_obs.unsqueeze(1)
+        expanded_current_obs = current_obs.unsqueeze(0).expand(ps_obs.size()[0], -1, -1).to(model.device)
+        expanded_ps_obs = ps_obs.unsqueeze(1).to(model.device)
 
 
         obs = torch.cat((expanded_ps_obs, expanded_current_obs), dim=1)
-        print("stacked observation",obs.size())
         #obs = torch.cat([current_obs.repeat(ps_obs.size()[0], 1), ps_obs.unsqueeze(1)], dim = 1)
         z_ij_collapse_dim = 1
         y_dim = 4

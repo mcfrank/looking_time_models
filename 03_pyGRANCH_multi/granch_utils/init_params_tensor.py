@@ -20,7 +20,8 @@ class granch_params:
                  sd_epsilon, 
                  world_EIGs,
                  max_observation,
-                 forced_exposure_max):
+                 forced_exposure_max, 
+                 linking_hypothesis):
         
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -44,6 +45,7 @@ class granch_params:
         self.world_EIGs = world_EIGs
         self.max_observation = max_observation
         self.forced_exposure_max = forced_exposure_max
+        self.linking_hypothesis = linking_hypothesis
 
     def print_params_info(self): 
         # this could be used to gather human readable form on parameters
