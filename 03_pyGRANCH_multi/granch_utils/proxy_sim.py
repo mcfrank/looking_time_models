@@ -11,7 +11,7 @@ def granch_proxy_sim(params, model, stimuli):
     t = 0 # following python tradition we are using 0-indexed
     current_stim_t = 0
     while t < params.max_observation and stimulus_idx < stimuli.n_trial: 
-
+        print(t)
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
@@ -19,25 +19,17 @@ def granch_proxy_sim(params, model, stimuli):
        #t = 0
 
         if model.current_t == 0: 
-
             prior =  params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
-            padded_prior = prior.unsqueeze(0).repeat(3, 1, 1, 1)
-            
+            padded_prior = prior.unsqueeze(0).repeat(3, 1, 1, 1)   
             normalizing_term = torch.logsumexp(padded_prior, dim = (1, 2, 3)).view(3, 1, 1, 1)
-
             normalized_prior= torch.exp(padded_prior - normalizing_term)
             normalized_prior[normalized_prior < np.exp(-720)] = 1/(10 ** 320)
 
-            print("normalized prior")
-            #print(padded_prior)
-            print(normalizing_term)
-            print(normalized_prior)
             prev_observation_posterior = normalized_prior
 
         else: 
             prev_observation_posterior = model.cur_posterior
-            print("posterior")
-            print(prev_observation_posterior)
+            
 
         # get all possible observation on current stimulus 
         # if we change stimulus 
@@ -56,8 +48,8 @@ def granch_proxy_sim(params, model, stimuli):
         # can calculate surprisal here 
         #SURPRISAL
         surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
-        print("sum?")
-        print(torch.sum(surprisal))
+        
+        model.update_model_surprisal(surprisal.item())
 
         current_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=False)
         model.cur_likelihood = current_likelihood
@@ -66,25 +58,10 @@ def granch_proxy_sim(params, model, stimuli):
         model.cur_posterior = current_posterior     
         
         # CAN CALCULATE KL HERE
+        #kl = compute_prob_tensor.kl_div(prev_observation_posterior, model.cur_posterior)
+        #print(kl)
 
-
-        # in the tensor mode we don't need to iterate through possibilities anymore
-        model.ps_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=True)
-        model.ps_posteriror = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)
-        model.ps_kl = compute_prob_tensor.kl_div(model.ps_posteriror, model.cur_posterior)
-        model.ps_pp = compute_prob_tensor.score_post_pred(model, params)
-       
-        # compute EIG
-        eig = torch.sum(model.ps_kl * model.ps_pp)
         
-       
-        
-        
-        # threshold at 0 for now to deal with negative EIG's
-        #eig = torch.clamp(eig, min=0)
-
-        model.update_model_eig(eig.item())
-
         # if forced exposure is not nan
         if ~np.isnan(params.forced_exposure_max): 
             # if it's not the last trial, you still have to look
@@ -100,14 +77,6 @@ def granch_proxy_sim(params, model, stimuli):
             else:
                 p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
                 #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
-
-                if not ((p_look_away >= 0) & (p_look_away <= 1)):
-                    print("p_look_away")
-                    print(p_look_away)
-                    print("params.world_EIGs")
-                    print(params.world_EIGs)
-                    print("eig.item()")
-                    print(eig.item())
                     
                 if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus
@@ -118,29 +87,13 @@ def granch_proxy_sim(params, model, stimuli):
                 # otherwise keep looking at this one
                     model.update_model_decision(False)
                 
-                # if (eig < params.world_EIGs): 
-                # # if EIG below threshold, increment stimulus
-                #     stimulus_idx += 1
-                #     current_stim_t = -1 # -1 so it starts with 0 when incremented 
-                #     model.update_model_decision(True)
-                # else: 
-                # # otherwise keep looking at this one
-                #     model.update_model_decision(False)
 
         # if it's a self-paced paradigm
         else:
             # luce's choice rule 
-            p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
+            p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
             #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
             
-            if not ((p_look_away >= 0) & (p_look_away <= 1)):
-                print("p_look_away")
-                print(p_look_away)
-                print("params.world_EIGs")
-                print(params.world_EIGs)
-                print("eig.item()")
-                print(eig.item())
-
             if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus
                 stimulus_idx = stimulus_idx + 1

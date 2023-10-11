@@ -241,6 +241,9 @@ class granch_model:
         self.max_observation = max_observation
         self.behavior = pd.DataFrame(None, index=np.arange(max_observation),
                                      columns=["stimulus_id", "EIG", "Look_away"])
+        
+        self.behavior["surprisal"] = np.nan
+
         self.possible_observations = None 
 
         
@@ -262,6 +265,9 @@ class granch_model:
     def update_model_stimulus_id(self): 
         self.behavior.at[self.current_t, "stimulus_id"] = self.current_stimulus_idx
 
+    def update_model_surprisal(self, surprisal):
+        self.behavior.at[self.current_t, "surprisal"] = surprisal
+    
     def update_model_eig(self, eig):
         self.behavior.at[self.current_t, "EIG"] = eig
 
