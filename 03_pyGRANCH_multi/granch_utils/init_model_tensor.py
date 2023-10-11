@@ -296,6 +296,9 @@ class granch_model:
                                     self.current_stimulus_idx].tolist()
         return torch.tensor(self.all_observations.iloc[obs_index].values).to(self.device)
 
+    def get_current_observation(self):
+        return torch.tensor(self.all_observations.iloc[self.current_t].values) 
+
     def get_last_stimuli_likelihood(self): 
         last_stimuli_last_obs_t = max(self.behavior.index[self.behavior['stimulus_id'] == 
                                     self.current_stimulus_idx-1].tolist())

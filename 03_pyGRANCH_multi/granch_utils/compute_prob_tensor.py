@@ -10,8 +10,20 @@ from . import helper
 
 # --- major functions -- 
 
-def get_surprisal(prev_posterior, current_obs):
-    pass 
+
+def score_surprisal(model, params, prev_observation_posterior):
+    obs = model.get_current_observation()
+    res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon).to(model.device)
+    padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.expand(res.size()).to(model.device)
+    lp_z_given_mu_sigma_for_y = res + padded_lp_y_given_mu_sigma
+    
+    # goal: apply logSumExp based on the grouping of y
+    likelihood =  torch.logsumexp(lp_z_given_mu_sigma_for_y, dim = 3).to(model.device)
+    padded_log_posterior = torch.log(prev_observation_posterior.expand(likelihood.size())).to(model.device)
+    surprisal = -torch.log(torch.logsumexp(torch.add(likelihood, padded_log_posterior), dim = (1, 2,3)))
+    #print(padded_log_posterior)
+    return (surprisal)
+
 
 
 # compute KL divergence
@@ -31,14 +43,15 @@ def score_post_pred(model, params):
     padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.expand(res.size()).to(model.device)
     lp_hypo_z_given_mu_sigma_for_y = res + padded_lp_y_given_mu_sigma
     
-
     # goal: apply logSumExp based on the grouping of y
     hypo_likelihood =  torch.logsumexp(lp_hypo_z_given_mu_sigma_for_y, dim = 4).to(model.device)
     log_posterior = torch.log(model.cur_posterior ).to(model.device)
 
-    
+   
     padded_log_posterior = log_posterior.expand(hypo_likelihood.size()).to(model.device)
+
     return (torch.exp(torch.logsumexp(torch.add(hypo_likelihood, padded_log_posterior), dim = (2, 3,4))))
+
 
 # score posterior 
 def score_posterior(model, params, hypothetical_obs):

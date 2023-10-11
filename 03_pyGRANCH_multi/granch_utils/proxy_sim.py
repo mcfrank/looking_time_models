@@ -19,14 +19,25 @@ def granch_proxy_sim(params, model, stimuli):
        #t = 0
 
         if model.current_t == 0: 
-            padded_prior = params.prior.unsqueeze(0).repeat(3, 1, 1, 1, 1)
-            prev_observation_posterior = padded_prior
-            print("prior")
-            print(prev_observation_posterior.size())
+
+            prior =  params.lp_epsilon.mean(dim = 2) + params.lp_mu_sigma.mean(dim = 2)
+            padded_prior = prior.unsqueeze(0).repeat(3, 1, 1, 1)
+            
+            normalizing_term = torch.logsumexp(padded_prior, dim = (1, 2, 3)).view(3, 1, 1, 1)
+
+            normalized_prior= torch.exp(padded_prior - normalizing_term)
+            normalized_prior[normalized_prior < np.exp(-720)] = 1/(10 ** 320)
+
+            print("normalized prior")
+            #print(padded_prior)
+            print(normalizing_term)
+            print(normalized_prior)
+            prev_observation_posterior = normalized_prior
+
         else: 
             prev_observation_posterior = model.cur_posterior
-            print("prev_obs")
-            print(prev_observation_posterior.size())
+            print("posterior")
+            print(prev_observation_posterior)
 
         # get all possible observation on current stimulus 
         # if we change stimulus 
@@ -44,8 +55,9 @@ def granch_proxy_sim(params, model, stimuli):
 
         # can calculate surprisal here 
         #SURPRISAL
-        #surprisal = compute_prob_tensor.
-
+        surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
+        print("sum?")
+        print(torch.sum(surprisal))
 
         current_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=False)
         model.cur_likelihood = current_likelihood
@@ -64,7 +76,7 @@ def granch_proxy_sim(params, model, stimuli):
        
         # compute EIG
         eig = torch.sum(model.ps_kl * model.ps_pp)
-
+        
        
         
         
