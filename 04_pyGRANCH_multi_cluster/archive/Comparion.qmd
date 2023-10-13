@@ -1,0 +1,188 @@
+---
+title: "R-Python Comparison"
+format: html
+editor: visual
+---
+
+```{python}
+import pandas as pd
+
+
+#b1d7_df = pd.read_pickle("cache_results/cache_summary/b1d7.pickle")
+#b1d3_df = pd.read_pickle("cache_results/cache_summary/b1d3.pickle")
+
+#b1d15_df = pd.read_pickle("cache_results/cache_summary/b1d15.pickle")
+#b1d18_df = pd.read_pickle("cache_results/cache_summary/b1d18.pickle")
+summary_df =  pd.read_pickle("cache_results/cache_summary/summary.pickle")
+#summary_df =  pd.read_pickle("cache_results/cache_results/cache_summary/summary.pickle")
+
+main_df = pd.concat([summary_df])
+main_df = main_df[main_df["stimuli"].isin(["BBBBBB", "BBBBBD", "BDBBBB", "BBBDBB"])]
+
+
+
+
+main_df
+
+```
+
+# Visualization in R
+
+```{R}
+library(tidyverse)
+library(here)
+library(reticulate)
+library(ggthemes)
+
+
+py$main_df
+```
+
+```{R}
+library(tidyverse)
+library(here)
+library(reticulate)
+library(ggthemes)
+
+summary_df <- py$main_df %>% 
+  unnest(stimulus_id) %>% 
+  group_by(stimulus_id, stimuli, batch_id, b_val, d_val, j_i, epsilon, weig) %>% 
+  count() 
+
+
+
+summary_small_sim <- summary_df %>% 
+  group_by(stimulus_id, stimuli, b_val, d_val, epsilon, weig) %>% 
+  summarise(mean_sample_n = mean(n))
+
+write_csv(summary_small_sim, here("data/summary_small_sim.csv"))
+```
+
+# READ GIANT FILE
+
+```{r}
+library(tidyverse)
+library(here)
+
+d <- read_csv(here("cache_results/combined_df_shortened.csv"))
+```
+
+# General trend
+
+```{R}
+summary_df %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_wrap(~stimuli) + 
+  theme_few()
+
+summary_df %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(weig~stimuli) + 
+  theme_few()
+
+summary_df %>% 
+  #filter(weig > 1) %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(weig~stimuli) + 
+  theme_few()
+
+```
+
+# distance gradient?
+
+```{R}
+summary_df %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(d_val), group = as.factor(d_val)), group = d_val) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(epsilon~stimuli) + 
+  theme_few()
+```
+
+```{R}
+summary_df %>% 
+  filter(d_val < 0.5 | d_val > 0.8) %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(d_val), group = as.factor(d_val)), color = d_val) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(epsilon~stimuli) + 
+  theme_few()
+```
+
+```{r}
+summary_df %>% 
+  #filter(d_val < 0.5 | d_val > 0.8) %>% 
+  filter(stimuli == "BBBDBB") %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(d_val), group = as.factor(d_val)), color = d_val) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .4)) + 
+  facet_grid(~epsilon) + 
+  theme_few()
+```
+
+```{R}
+
+
+summary_df %>% 
+  filter(grid_relationship == "normal") %>% 
+  mutate(distance = round(distance, 1)) %>% 
+  filter(distance_type == "dist < 1") %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(distance))) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_wrap(~stimuli) + 
+  theme_few()
+
+```
+
+## focus on the in bounds ones
+
+```{R}
+
+summary_df %>% 
+  #filter(grid_relationship == "normal") %>% 
+  filter(distance_type == "dist < 1") %>% 
+  mutate(distance = round(distance, 1)) %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = as.factor(distance))) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .5)) + 
+  stat_summary(fun.data = "mean_cl_boot", geom = "line", position = position_dodge(width = .5)) + 
+  facet_grid(~stimuli) + 
+  theme_few()
+
+```
+
+```{r}
+summary_df %>% 
+  filter(
+    (stimuli == "BDBBBB" & stimulus_id == 1) | 
+    (stimuli == "BBBDBB" & stimulus_id == 3) | 
+    (stimuli == "BBBBBD" & stimulus_id == 5) 
+  ) %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = stimuli_spec)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .4)) + 
+  theme_few()
+ 
+```
+
+```{r}
+library(bayesAB)
+#plotNormalInvGamma(0.001, 0.001, 1, 1)
+
+
+#plotNormalInvGamma(0.001, 1, 1, 1)
+#plotNormalInvGamma(0.001, 0.1, 1, 1)
+#plotNormalInvGamma(0.001, 0.01, 1, 1)
+plotNormalInvGamma(0, 3, 10, 1)
+plotNormalInvGamma(0, 3, 1, 2)
+
+#plotNormalInvGamma(0, 3, 2, 1)
+
+
+
+```
