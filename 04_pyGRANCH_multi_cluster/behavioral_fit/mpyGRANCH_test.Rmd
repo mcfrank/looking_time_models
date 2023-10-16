@@ -1,0 +1,86 @@
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggthemes)
+
+d <- read_csv(here("multifeature_test.csv"))
+test_d <- read_csv(here("data/test_d.csv"))
+
+source(here("helper/fitting.r"))
+source(here("helper/scaling.r"))
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = stimulus_id, y = n, color = complexity_type)) + 
+  stat_summary(fun.data = "mean_cl_boot") + 
+
+  facet_wrap(~stim_squence) + 
+  theme_few()
+```
+
+# Wrangle d into what we actually want 
+
+```{r}
+
+
+tidy_d <-d %>% 
+  rename(sub_id = file_id, 
+         batch_id = j_i, 
+         stimuli_sequence = stim_squence) %>% 
+  mutate(trial_number = stimulus_id + 1) %>% 
+  select(batch_id, sub_id, trial_number, stimuli_sequence, complexity_type, n) %>% 
+  mutate(param_info = "selected")
+
+
+summarised_sample <- tidy_d %>% 
+  group_by(param_info, stimuli_sequence, trial_number, complexity_type) %>% 
+  rename(complexity = complexity_type) %>% 
+  summarise(mean_sample = mean(n)) 
+
+
+summary_test_d <- test_d %>% 
+  group_by(stimuli_sequence, trial_number, trial_type, complexity) %>% 
+  summarise(mean_lt = mean(trial_looking_time))
+```
+
+
+```{r}
+all_sim_d <- summary_test_d %>% 
+  left_join(summarised_sample, by = c("stimuli_sequence", "trial_number", "complexity")) %>% 
+  ungroup() %>% 
+  group_by(param_info) %>% 
+  nest(data = -param_info)
+
+scaling_param_f <- get_scaling_param_flipped(all_sim_d)
+fitting_test_res <- get_fitting_stats(all_sim_d )
+
+fitting_test_res
+```
+```{r}
+prev_complexity <- readRDS(here("prev_cache/test_by_complexity_fit.RDS"))
+prev_complexity %>% filter(param_info == "mu_0_v_1_a_1_b_1_ep_1e-04")
+```
+
+# make plot 
+
+```{r} 
+scaled_tidy_n <- tidy_d %>% 
+  mutate(
+    scaled_sample_n = n * scaling_param_f$coef + scaling_param_f$intercept
+  ) %>% mutate(type = "sim") %>% 
+  select(trial_number, stimuli_sequence, scaled_sample_n, type)
+
+test_d %>% rename(scaled_sample_n = trial_looking_time) %>% 
+  ungroup() %>% 
+   select(trial_number, stimuli_sequence, scaled_sample_n) %>% 
+  mutate(type = "behavior") %>% 
+  bind_rows(scaled_tidy_n) %>% 
+ ggplot(aes(x = trial_number, y = scaled_sample_n, color = type)) + 
+  stat_summary(fun.data = "mean_cl_boot", position = position_dodge(width = .2)) + 
+
+  facet_wrap(~stimuli_sequence) + 
+  theme_few()
+```
+
