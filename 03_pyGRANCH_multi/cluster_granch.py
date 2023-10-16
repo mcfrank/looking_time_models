@@ -43,8 +43,10 @@ PRIOR_INFO = {
     "beta_prior": 1, 
     "epsilon": 0.0001, "mu_epsilon": 0.001, "sd_epsilon": 4, 
     "hypothetical_obs_grid_n": 5, 
-    "world_EIGs": 0.0001, "max_observation": 500, 
-    "forced_exposure_max": np.nan
+    "world_EIGs": 2, "max_observation": 500, 
+    "forced_exposure_max": np.nan, 
+    "linking_hypothesis":"surprisal"
+    
 }
 
 p = [PRIOR_INFO]
@@ -60,17 +62,4 @@ for STIMULI_INFO in stimuli_info_list:
        
 
 
-folder_path = "cache_results/"
-
-df_list = []
-for file_name in os.listdir(folder_path): 
-    pattern_batch_info = r"batch_(\d+)_cache_([A-Z]+)"
-    #pattern_stim_spec = r"b_([\d\.]+)_d_([\d\.]+)"
-    if file_name.endswith(".pickle"):    
-        file_path = os.path.join(folder_path, file_name)
-        df = pd.read_pickle(file_path)
-        df_list.append(df)
-
-main_df = pd.concat(df_list)
-main_df = main_df.dropna()
 

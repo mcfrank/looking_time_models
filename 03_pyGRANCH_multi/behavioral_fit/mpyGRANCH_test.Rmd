@@ -4,7 +4,7 @@ library(tidyverse)
 library(here)
 library(ggthemes)
 
-d <- read_csv(here("multifeature_test.csv"))
+d <- read_csv(here("surprisal_test.csv"))
 test_d <- read_csv(here("data/test_d.csv"))
 
 source(here("helper/fitting.r"))
@@ -13,7 +13,13 @@ source(here("helper/scaling.r"))
 
 ```{r}
 d %>% 
-  ggplot(aes(x = stimulus_id, y = n, color = complexity_type)) + 
+  group_by()
+```
+
+
+```{r}
+d %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
   stat_summary(fun.data = "mean_cl_boot") + 
 
   facet_wrap(~stim_squence) + 

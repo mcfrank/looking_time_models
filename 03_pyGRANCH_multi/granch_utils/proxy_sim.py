@@ -23,13 +23,14 @@ def granch_proxy_sim(params, model, stimuli):
             padded_prior = prior.unsqueeze(0).repeat(3, 1, 1, 1)   
             normalizing_term = torch.logsumexp(padded_prior, dim = (1, 2, 3)).view(3, 1, 1, 1)
             normalized_prior= torch.exp(padded_prior - normalizing_term)
-            normalized_prior[normalized_prior < np.exp(-720)] = 1/(10 ** 320)
-
+            normalized_prior[normalized_prior < 0.0000000000000000000000000000001] = 0.0000000000000000000000000000001
+            #print(normalized_prior[normalized_prior < np.exp(-720)])
+            #print(normalized_prior[normalized_prior < 0.00000000000001])
             prev_observation_posterior = normalized_prior
+            #print(normalized_prior)
 
         else: 
             prev_observation_posterior = model.cur_posterior
-            
 
         # get all possible observation on current stimulus 
         # if we change stimulus 
@@ -58,8 +59,9 @@ def granch_proxy_sim(params, model, stimuli):
         model.cur_posterior = current_posterior     
         
         # CAN CALCULATE KL HERE
-        #kl = compute_prob_tensor.kl_div(prev_observation_posterior, model.cur_posterior)
-        #print(kl)
+        kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
+        print(kl)
+        print(torch.sum(kl))
 
         
         # if forced exposure is not nan
