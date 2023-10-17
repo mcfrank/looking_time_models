@@ -36,6 +36,8 @@ def run_model(args):
 
     PRIOR_INFO = param_funcs.get_params(args.param_names_path, args.param_values_path) 
 
+    PRIOR_INFO["linking_hypothesis"] = "surprisal"
+
     # replace forced exposure with nan for adult paradigm
     if EXP_INFO["paradigm"] == "adult":
         PRIOR_INFO["forced_exposure_max"] = np.nan

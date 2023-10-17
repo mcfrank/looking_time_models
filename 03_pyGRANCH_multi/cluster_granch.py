@@ -1,4 +1,3 @@
-
 from granch_utils import  compute_prob_tensor,init_model_tensor, main_sim_tensor, init_params_tensor 
 from granch_utils import num_stab_help
 import torch 
@@ -60,6 +59,3 @@ for STIMULI_INFO in stimuli_info_list:
     for PRIOR_INFO in p: 
         num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
        
-
-
-

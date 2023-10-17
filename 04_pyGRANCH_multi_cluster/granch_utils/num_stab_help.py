@@ -8,7 +8,7 @@ import torch
 #import main_sim_tensor
 import pandas as pd
 import pickle
-from . import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor, lesioned_sim
+from . import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor, lesioned_sim, proxy_sim
 import gc
 #import ipdb
 
@@ -45,7 +45,7 @@ def run_all_sim(
     hypothetical_obs_grid_n = PRIOR_INFO["hypothetical_obs_grid_n"]
     max_observation = PRIOR_INFO["max_observation"]
     forced_exposure_max = PRIOR_INFO["forced_exposure_max"]
-
+    linking_hypothesis = PRIOR_INFO["linking_hypothesis"]
 
     tensor_stimuli = STIMULI_INFO
     tensor_model =  init_model_tensor.granch_model(max_observation, tensor_stimuli)
@@ -73,7 +73,8 @@ def run_all_sim(
                 sd_epsilon = sd_epsilon, 
                 world_EIGs = world_EIGs,
                 max_observation = max_observation,
-                forced_exposure_max = forced_exposure_max)
+                forced_exposure_max = forced_exposure_max, 
+                linking_hypothesis = linking_hypothesis)
         
             # add the various different cached bits
             params.add_meshed_grid()
@@ -81,8 +82,10 @@ def run_all_sim(
             params.add_y_given_mu_sigma()
             params.add_lp_epsilon()
             params.add_priors()
-            if MODEL_TYPE == "normal": 
+            if MODEL_TYPE == "normal" and linking_hypothesis == "EIG": 
                 res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
+            elif MODEL_TYPE == "normal" and linking_hypothesis == "surprisal":
+                res = proxy_sim.granch_proxy_sim(params, tensor_model, tensor_stimuli)
             elif MODEL_TYPE == "no_learning": 
                 res = lesioned_sim.granch_no_learning_simulation(params, tensor_model, tensor_stimuli)
             elif MODEL_TYPE == "no_noise": 
@@ -232,7 +235,7 @@ def sample_spore_experiment(pair_each_stim, n_feature):
 
     return all_stimuli_info
 
-def sample_condition_experiment(pair_each_stim, paradigm):
+def sample_condition_experiment(pair_each_stim, paradigm, n_feature):
 
     if paradigm == "adult":
    
@@ -246,17 +249,17 @@ def sample_condition_experiment(pair_each_stim, paradigm):
         for i in range(pair_each_stim): 
             for v_type in all_violation_type: 
                 for s_type in all_deviant_blocks: 
-                    s = init_model_tensor.granch_stimuli(1, s_type)
-                    s.get_violation_stimuli_sequence("embeddings/unity_embeddings_afterPCA.csv", v_type)
+                    s = init_model_tensor.granch_stimuli(n_feature, s_type)
+                    s.get_violation_stimuli_sequence("04_pyGRANCH_multi_cluster/embeddings/unity_embeddings_afterPCA.csv", v_type)
                     
                     all_stimuli_info.extend([s])
 
         # then go through the background blocks 
         for i in range(pair_each_stim): 
             for s_type in all_background_blocks: 
-                s = init_model_tensor.granch_stimuli(1, s_type)
+                s = init_model_tensor.granch_stimuli(n_feature, s_type)
                 # just put one because it doesn't really matter not gonna use the d
-                s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", "animacy")
+                s.get_violation_stimuli_sequence("04_pyGRANCH_multi_cluster/embeddings/unity_embeddings_afterPCA.csv", "animacy")
                 all_stimuli_info.extend([s])
 
     if paradigm == "infant":
@@ -271,7 +274,7 @@ def sample_condition_experiment(pair_each_stim, paradigm):
             for v_type in all_violation_type: 
                 for s_type in all_deviant_blocks: 
                     s = init_model_tensor.granch_stimuli(1, s_type)
-                    s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", v_type)
+                    s.get_violation_stimuli_sequence("04_pyGRANCH_multi_cluster/embeddings/unity_embeddings_afterPCA.csv", v_type)
                     
                     all_stimuli_info.extend([s])
 
@@ -280,7 +283,7 @@ def sample_condition_experiment(pair_each_stim, paradigm):
             for s_type in all_background_blocks: 
                 s = init_model_tensor.granch_stimuli(1, s_type)
                 # just put one because it doesn't really matter not gonna use the d
-                s.get_violation_stimuli_sequence("02_pyGRANCH/embeddings/unity_embeddings_afterPCA.csv", "animacy")
+                s.get_violation_stimuli_sequence("04_pyGRANCH_multi_cluster/embeddings/unity_embeddings_afterPCA.csv", "animacy")
                 all_stimuli_info.extend([s])
 
 

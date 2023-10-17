@@ -7,6 +7,9 @@ import numpy as np
 import torch 
 from torch.distributions import Normal  
 from . import helper
+import ipdb
+import torch.nn.functional as F
+
 
 # --- major functions -- 
 
@@ -45,10 +48,29 @@ def kl_div(new_post, prev_post, context = "EIG"):
     elif context == "proxy": 
         collapse_dim = (1, 2, 3)
 
+    #ipdb.set_trace() 
+
+    
+
     #print(new_post/paded_prev_post)
-    #print(torch.log(new_post/paded_prev_post))
-    return torch.sum(torch.mul(new_post, 
+    KL1 = torch.sum(torch.mul(new_post, 
                          torch.log(new_post/paded_prev_post)), dim = collapse_dim)
+    
+    KL2 = F.kl_div(new_post[0,:,:,:].log(),paded_prev_post[0,:,:,:], reduction = "sum")
+
+    print("KL1")
+    print(KL1)
+    
+    print("KL2")
+    print(KL2)
+
+    print("KL1/KL2")
+    print(KL1[0]/KL2)
+    
+    if (KL1[0]/KL2 > 2) | (KL1[0]/KL2 < 0.5):
+        ipdb.set_trace()
+
+    return KL1
 
 # score posterior predictive 
 def score_post_pred(model, params): 

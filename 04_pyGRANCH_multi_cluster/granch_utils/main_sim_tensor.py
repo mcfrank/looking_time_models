@@ -44,9 +44,12 @@ def granch_main_simulation(params, model, stimuli):
         model.ps_posteriror = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)
         model.ps_kl = compute_prob_tensor.kl_div(model.ps_posteriror, model.cur_posterior)
         model.ps_pp = compute_prob_tensor.score_post_pred(model, params)
-        print(model.ps_pp.size())
        
         # compute EIG
+        print("eig kl")
+        print(model.ps_kl)
+        print(model.ps_pp)
+        print(torch.sum(model.ps_kl * model.ps_pp))
         eig = torch.sum(model.ps_kl * model.ps_pp)
 
        

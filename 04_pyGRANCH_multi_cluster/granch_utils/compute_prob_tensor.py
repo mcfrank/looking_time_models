@@ -7,12 +7,13 @@ import numpy as np
 import torch 
 from torch.distributions import Normal  
 from . import helper
+import ipdb
 
 # --- major functions -- 
 
 
 def score_surprisal(model, params, prev_observation_posterior):
-    obs = model.get_current_observation()
+    obs = model.get_current_observation().to(model.device)
     res = score_z_ij_given_y(obs, params.meshed_grid_y,  params.meshed_grid_epsilon).to(model.device)
     padded_lp_y_given_mu_sigma = params.lp_y_given_mu_sigma.expand(res.size()).to(model.device)
     
@@ -22,23 +23,38 @@ def score_surprisal(model, params, prev_observation_posterior):
     likelihood =  torch.logsumexp(lp_z_given_mu_sigma_for_y, dim = 3).to(model.device)
     padded_log_posterior = torch.log(prev_observation_posterior.expand(likelihood.size())).to(model.device)
    
-    prior_pred = torch.exp(torch.logsumexp(torch.add(likelihood, padded_log_posterior), dim = (1, 2,3)))
+    prior_pred = torch.exp(torch.logsumexp(torch.add(likelihood, padded_log_posterior), dim = (1, 2,3))).to(model.device)
    
-    surprisal = torch.sum(-torch.log2(prior_pred))
+    surprisal = torch.sum(-torch.log2(prior_pred)).to(model.device)
 
     return (surprisal)
 
 
 
 # compute KL divergence
-def kl_div(new_post, prev_post): 
+def kl_div(new_post, prev_post, context = "EIG"): 
     # this is to make sure the prev post is of the same dimension as the new post
     
     paded_prev_post = prev_post.expand(new_post.size())
-    
 
-    return torch.sum(torch.mul(new_post, 
-                         torch.log(new_post/paded_prev_post)), dim = (2, 3, 4))
+    #print(prev_post)
+    #print(torch.sum(prev_post, dim = (1, 2, 3)))
+    #print(new_post)
+    
+    if context == "EIG": 
+        collapse_dim = (2, 3, 4)
+    elif context == "proxy": 
+        collapse_dim = (1, 2, 3)
+
+    #ipdb.set_trace() 
+
+    #print(new_post/paded_prev_post)
+    KL = torch.sum(torch.mul(new_post, 
+                         torch.log(new_post/paded_prev_post)), dim = collapse_dim)
+    
+    print("KL")
+    print(KL)
+    return KL
 
 # score posterior predictive 
 def score_post_pred(model, params): 
@@ -77,6 +93,7 @@ def score_posterior(model, params, hypothetical_obs):
 
    normalized_posterior = torch.exp(unlz_p - normalizing_term)
    normalized_posterior[normalized_posterior < np.exp(-720)] = 1/(10 ** 320)
+   #normalized_posterior[normalized_posterior <  0.000000000000000000001] =  0.000000000000000000001
    return normalized_posterior
 
 
