@@ -45,6 +45,8 @@ def granch_main_simulation(params, model, stimuli):
         model.ps_kl = compute_prob_tensor.kl_div(model.ps_posteriror, model.cur_posterior)
         model.ps_pp = compute_prob_tensor.score_post_pred(model, params)
        
+    
+
         # compute EIG
         print("eig kl")
         print(model.ps_kl)

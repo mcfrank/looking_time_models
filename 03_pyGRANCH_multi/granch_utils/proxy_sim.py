@@ -2,16 +2,19 @@
 import torch
 from . import compute_prob_tensor
 import numpy as np
+import pandas as pd
 
 
 def granch_proxy_sim(params, model, stimuli): 
+
+    kl_test_df = pd.DataFrame(None, index=np.arange(model.max_observation),
+                                     columns=["t", "kl1", "kl2"])
 
     prev_observation_posterior = None
     stimulus_idx = 0
     t = 0 # following python tradition we are using 0-indexed
     current_stim_t = 0
     while t < params.max_observation and stimulus_idx < stimuli.n_trial: 
-        print(t)
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
@@ -60,8 +63,11 @@ def granch_proxy_sim(params, model, stimuli):
         
         # CAN CALCULATE KL HERE
         kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
-        print(kl)
-        print(torch.sum(kl))
+        
+        kl_df = compute_prob_tensor.kl_div_test(t, kl_test_df, model.cur_posterior, prev_observation_posterior, context = "proxy")
+        #print(kl_df)
+        #print(kl)
+        #print(torch.sum(kl))
 
         
         # if forced exposure is not nan
@@ -109,3 +115,4 @@ def granch_proxy_sim(params, model, stimuli):
         current_stim_t += 1 
 
     return(model)
+    #return kl_df
