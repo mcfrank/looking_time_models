@@ -1,0 +1,33 @@
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggthemes)
+
+d <- read_csv(here("visualize_kl_turbo.csv"))
+```
+
+```{r}
+d %>% 
+  filter(!is.na(kl1)) %>% 
+  select(-`...1`) %>% 
+  pivot_longer(cols = c("kl1", "kl2"), names_to = "value_type", values_to = "val") %>% 
+  ggplot(aes(x = t, y = val, color = value_type)) + 
+  geom_point()+ 
+  facet_wrap(~id) + 
+  theme_few()
+```
+```{r}
+d %>% 
+  filter(!is.na(kl1)) %>% 
+  select(-`...1`) %>% 
+  pivot_longer(cols = c("kl1", "kl2"), names_to = "value_type", values_to = "val") %>% 
+  filter(!is.infinite(val)) %>% 
+  group_by(value_type, t) %>% 
+  summarise(mean_val = mean(val)) %>% 
+  ggplot(aes(x = t, y = mean_val, color = value_type)) + 
+  geom_point() + 
+  theme_few() + 
+  facet_wrap(~value_type)
+```
+

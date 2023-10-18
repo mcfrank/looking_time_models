@@ -33,6 +33,32 @@ def score_surprisal(model, params, prev_observation_posterior):
 
 
 
+def kl_div_test(t, kl_test_df, new_post, prev_post, context = "EIG"): 
+    paded_prev_post = prev_post.expand(new_post.size())
+
+    #print(prev_post)
+    #print(torch.sum(prev_post, dim = (1, 2, 3)))
+    #print(new_post)
+    
+    if context == "EIG": 
+        collapse_dim = (2, 3, 4)
+    elif context == "proxy": 
+        collapse_dim = (1, 2, 3)
+
+
+    KL1 = torch.sum(torch.mul(new_post, 
+                         torch.log(new_post/paded_prev_post)), dim = collapse_dim)
+    
+    KL2 = F.kl_div(torch.log(new_post),paded_prev_post, reduction = "none").sum(dim=collapse_dim)
+
+    kl_test_df.at[t, "kl1"] = KL1[0].item()
+    kl_test_df.at[t, "kl2"] = KL2[0].item()
+    kl_test_df.at[t, "t"] = t
+
+    return kl_test_df
+
+
+
 # compute KL divergence
 def kl_div(new_post, prev_post, context = "EIG"): 
     # this is to make sure the prev post is of the same dimension as the new post
@@ -51,24 +77,27 @@ def kl_div(new_post, prev_post, context = "EIG"):
     #ipdb.set_trace() 
 
     
-
     #print(new_post/paded_prev_post)
     KL1 = torch.sum(torch.mul(new_post, 
                          torch.log(new_post/paded_prev_post)), dim = collapse_dim)
     
-    KL2 = F.kl_div(new_post[0,:,:,:].log(),paded_prev_post[0,:,:,:], reduction = "sum")
+    KL2 = F.kl_div(torch.log(new_post),paded_prev_post, reduction = "none").sum(dim=collapse_dim)
 
-    print("KL1")
-    print(KL1)
-    
-    print("KL2")
-    print(KL2)
 
-    print("KL1/KL2")
-    print(KL1[0]/KL2)
+
+    #print("KL1 - homemade")
+    #print(KL1)
     
-    if (KL1[0]/KL2 > 2) | (KL1[0]/KL2 < 0.5):
-        ipdb.set_trace()
+    #print("KL2 - builtin")
+    #print(KL2)
+
+    #print("KL1/KL2")
+    #print(KL1/KL2)
+    
+   # if ((KL1/KL2)[0] > 2) | ((KL1/KL2)[0] < 0.5):
+   #     print((KL1[0], KL2[0]))
+   #     print("KL1", KL1)
+   #     print("KL2", KL2)
 
     return KL1
 
