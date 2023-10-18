@@ -10,9 +10,7 @@ import pandas as pd
 import pickle
 from . import init_model_tensor, main_sim_tensor, init_params_tensor, compute_prob_tensor, lesioned_sim, proxy_sim
 import gc
-#import ipdb
-
-
+import ipdb
 
 # just in case wanna implement the sample version
 #grid_mu_distribution = uniform.Uniform(all_jittered_params["grid_mu_starts"][0], all_jittered_params["grid_mu_ends"][0])
@@ -210,12 +208,32 @@ def get_batch_grid(BATCH_INFO,
             batch_grid["grid_sigmas"].append(grid_sigma)
             batch_grid["grid_ys"].append(grid_y)
             batch_grid["grid_epsilons"].append(grid_epsilon)
-    
-    
-    
-    
+
     return batch_grid
 
+def sample_baby_stims(pair_each_stim, n_feature):
+
+    all_deviant_blocks = ["B"*num_fam + "D" for num_fam in range(1,10)]
+    all_background_blocks = ["B"*num_fam for num_fam in range(1,11)]
+
+    all_stimuli_info = []
+
+    # loop through everything with deviant blocks 
+    for i in range(pair_each_stim): 
+        for s_type in all_deviant_blocks: 
+            s = init_model_tensor.granch_stimuli(1, s_type)
+            s.get_baby_exposure_duration_pairings("embeddings/exposdur_afterPCA.csv", "identity", n_feature)
+            
+            all_stimuli_info.extend([s])
+
+    # then go through the background blocks 
+    for i in range(pair_each_stim): 
+        for s_type in all_background_blocks: 
+            s = init_model_tensor.granch_stimuli(1, s_type)
+            s.get_baby_exposure_duration_pairings("embeddings/exposdur_afterPCA.csv", "identity", n_feature)
+            all_stimuli_info.extend([s])
+
+    return all_stimuli_info
 
 
 def sample_spore_experiment(pair_each_stim, n_feature):
