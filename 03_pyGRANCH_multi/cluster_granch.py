@@ -45,7 +45,6 @@ PRIOR_INFO = {
     "world_EIGs": 2, "max_observation": 500, 
     "forced_exposure_max": np.nan, 
     "linking_hypothesis":"surprisal"
-    
 }
 
 p = [PRIOR_INFO]

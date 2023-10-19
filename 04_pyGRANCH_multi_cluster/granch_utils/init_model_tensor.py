@@ -5,7 +5,7 @@ import numpy as np
 import torch 
 import re 
 from torch.distributions import Normal  
-#import ipdb
+import ipdb
 
 
 class granch_stimuli: 
@@ -131,6 +131,10 @@ class granch_stimuli:
 
         pattern = r"(\w+)_(\d+)_([\w_]+?)(?:_pair)?\.png"
         match = re.match(pattern, stim_name)
+
+        if match == None:
+            ipdb.set_trace()
+
         stim_obj["animacy"] = match.group(1)
         stim_obj["id"] = match.group(2)
 
@@ -203,7 +207,6 @@ class granch_stimuli:
         d = deviant_pool.sample(1)
         d_val = d.iloc[:, 1:self.n_feature +1] 
 
-        
         b = torch.tensor(b_val.values[0])
         d = torch.tensor(d_val.values[0])
 
@@ -226,7 +229,72 @@ class granch_stimuli:
         self.violation_type = violation_type
 
 
+    def get_baby_exposure_duration_pairings(self, embedding_path, violation_type, n_feature): 
 
+        self.n_feature  = n_feature
+
+        embeddings = pd.read_csv(embedding_path, header = None)
+        
+        # sort alphabetically as that is the presentation order
+        embeddings = embeddings.sort_values(by=0)
+        
+        # grab a random animal
+        b = embeddings.sample(1)
+        b_name = b.iloc[:, 0].values[0].replace("animate_", "")
+
+        b_val = b.iloc[:, 1:self.n_feature +1] 
+
+        b_obj_type = self.parse_stim_type("animate_" + b_name)
+
+        # select the corresponding deviant
+        # first get the number
+        background_num = int(b_name[0:3])
+        
+        if background_num % 2 == 0:  # if n is even
+            dev_num = background_num - 1
+        else:  # if n is odd
+            dev_num = background_num + 1
+
+        # get the orientation
+        orientation = b_name[4:].replace('.png','')
+
+        # corresponding deviant animal
+        if dev_num < 10:
+            dev_string = '00' + str(dev_num)
+        else:
+            dev_string = '0' + str(dev_num)
+        
+        # name of deviant images
+        dev_string = "animate_" + dev_string + '_' + orientation + '.png'
+
+        # index into embeddings to find dev string
+        d = embeddings[embeddings.iloc[:,0] == dev_string]
+
+        d_val = d.iloc[:, 1:self.n_feature +1] 
+
+        b = torch.tensor(b_val.values[0])
+        d = torch.tensor(d_val.values[0])
+
+        self.b_val = b_val
+        self.d_val = d_val
+       
+        idx = 0 
+        stimuli_sequence = {}
+        while idx < self.n_trial: 
+            if(self.sequence_scheme[idx] == "B"): 
+                stimuli_sequence[idx] = b
+            elif(self.sequence_scheme[idx] == "D"): 
+                stimuli_sequence[idx] = d
+            else: 
+                warn("Wrong sequence scheme ")
+            idx = idx + 1
+        
+        self.stimuli_sequence = stimuli_sequence
+        self.violation_type = violation_type
+
+    def get_baby_graded_dishab_pairing(self, embedding_path, violation_type): 
+
+        return
 
 class granch_model: 
     def __init__(self, max_observation, stimuli):
@@ -255,8 +323,6 @@ class granch_model:
         self.cur_likelihood = None
         self.prev_likelihood = None
         self.cur_posterior = None
-
-
 
         self.ps_kl = torch.tensor([])
         self.ps_pp = torch.tensor([])

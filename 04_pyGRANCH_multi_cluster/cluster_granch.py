@@ -8,6 +8,7 @@ import pandas as pd
 import os 
 import re
 import numpy as np
+import ipdb
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -23,8 +24,6 @@ BATCH_INFO = {
     "total_batch_n": 20, 
     "jitter_mode": "sampling"
 }
-
-
 
 GRID_INFO = {
     "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 5, 
@@ -45,15 +44,13 @@ PRIOR_INFO = {
     "world_EIGs": 2, "max_observation": 500, 
     "forced_exposure_max": np.nan, 
     "linking_hypothesis":"surprisal"
-    
 }
 
 p = [PRIOR_INFO]
 
-if EXP_INFO['stim_set'] == "spore": 
-    stimuli_info_list = num_stab_help.sample_spore_experiment(pair_each_stim = 1, n_feature=3)
-elif EXP_INFO['stim_set'] == "unity":
-    stimuli_info_list = num_stab_help.sample_condition_experiment(1, EXP_INFO['paradigm'])
+stimuli_info_list = num_stab_help.sample_baby_stims(pair_each_stim=1, n_feature=3)
+
+ipdb.set_trace()
 
 for STIMULI_INFO in stimuli_info_list: 
     for PRIOR_INFO in p: 
