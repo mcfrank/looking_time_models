@@ -114,5 +114,5 @@ def granch_proxy_sim(params, model, stimuli):
         t += 1  
         current_stim_t += 1 
 
-    return(model)
-    #return kl_df
+    #return(model)
+    return kl_df
