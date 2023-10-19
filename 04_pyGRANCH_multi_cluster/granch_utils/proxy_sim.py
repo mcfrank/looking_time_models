@@ -2,7 +2,7 @@
 import torch
 from . import compute_prob_tensor
 import numpy as np
-
+import ipdb
 
 def granch_proxy_sim(params, model, stimuli): 
 
@@ -11,7 +11,6 @@ def granch_proxy_sim(params, model, stimuli):
     t = 0 # following python tradition we are using 0-indexed
     current_stim_t = 0
     while t < params.max_observation and stimulus_idx < stimuli.n_trial: 
-        print(t)
         # update model behavior with current t and current stimulus_idx 
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
@@ -58,12 +57,15 @@ def granch_proxy_sim(params, model, stimuli):
         current_posterior = compute_prob_tensor.score_posterior(model,params, hypothetical_obs=False)
         model.cur_posterior = current_posterior     
         
-        # CAN CALCULATE KL HERE
+        # CALCULATE KL HERE
         kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
-        print(kl)
-        print(torch.sum(kl))
 
-        
+        if params.linking_hypothesis == 'surprisal':
+            proxy_metric = surprisal.item()
+
+        elif params.linking_hypothesis == 'kl':
+            proxy_metric = kl.sum().item()
+
         # if forced exposure is not nan
         if ~np.isnan(params.forced_exposure_max): 
             # if it's not the last trial, you still have to look
@@ -77,14 +79,15 @@ def granch_proxy_sim(params, model, stimuli):
                 current_stim_t = -1 
 
             else:
-                p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
-                #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+                p_look_away = max(min(params.world_EIGs / (proxy_metric + params.world_EIGs), 1), 0)
                     
                 if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus
                     stimulus_idx = stimulus_idx + 1
                     current_stim_t = -1 # -1 so it starts with 0 when incremented 
                     model.update_model_decision(True)
+                    print("stimulus_idx")
+                    print(stimulus_idx)
                 else: 
                 # otherwise keep looking at this one
                     model.update_model_decision(False)
@@ -93,8 +96,7 @@ def granch_proxy_sim(params, model, stimuli):
         # if it's a self-paced paradigm
         else:
             # luce's choice rule 
-            p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
-            #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+            p_look_away = max(min(params.world_EIGs / (proxy_metric + params.world_EIGs), 1), 0)
             
             if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus

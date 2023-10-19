@@ -21,8 +21,8 @@ if real_run:
                 'alpha_prior': [0.1,1,10],
                 'beta_prior': [0.1,1,10],
                 "epsilon": [0.0001], "mu_epsilon": [0.001], "sd_epsilon": [0.1,0.5,1], 
-                "hypothetical_obs_grid_n": [10], 
-                "world_EIGs": [3,7], "max_observation": [500], "forced_exposure_max":[5],
+                "hypothetical_obs_grid_n": [5], 
+                "world_EIGs": [3,7], "max_observation": [500], "forced_exposure_max":[5], # for KL try ~10e-5, for surprisal between 1 and 10
                 }
 else:
     param_dict = {'mu_prior': [1,2],

@@ -36,24 +36,15 @@ def kl_div(new_post, prev_post, context = "EIG"):
     # this is to make sure the prev post is of the same dimension as the new post
     
     paded_prev_post = prev_post.expand(new_post.size())
-
-    #print(prev_post)
-    #print(torch.sum(prev_post, dim = (1, 2, 3)))
-    #print(new_post)
     
     if context == "EIG": 
         collapse_dim = (2, 3, 4)
     elif context == "proxy": 
         collapse_dim = (1, 2, 3)
 
-    #ipdb.set_trace() 
-
-    #print(new_post/paded_prev_post)
     KL = torch.sum(torch.mul(new_post, 
                          torch.log(new_post/paded_prev_post)), dim = collapse_dim)
     
-    print("KL")
-    print(KL)
     return KL
 
 # score posterior predictive 

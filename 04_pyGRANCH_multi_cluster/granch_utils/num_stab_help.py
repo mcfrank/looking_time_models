@@ -12,13 +12,6 @@ from . import init_model_tensor, main_sim_tensor, init_params_tensor, compute_pr
 import gc
 import ipdb
 
-# just in case wanna implement the sample version
-#grid_mu_distribution = uniform.Uniform(all_jittered_params["grid_mu_starts"][0], all_jittered_params["grid_mu_ends"][0])
-#grid_sigma_distribution = uniform.Uniform(max(0.0000001, all_jittered_params["grid_sigma_starts"][0]), all_jittered_params["grid_sigma_ends"][0])
-# grid_y_distribution = uniform.Uniform(all_jittered_params["grid_y_starts"][0], all_jittered_params["grid_y_ends"][0])
-#grid_epsilon_distribution = uniform.Uniform(max(0.0000001, all_jittered_params["grid_epsilon_starts"][0]), all_jittered_params["grid_epsilon_ends"][0])
-
-
 def run_all_sim(
         EXP_INFO,
         BATCH_GRID_INFO, 
@@ -82,7 +75,7 @@ def run_all_sim(
             params.add_priors()
             if MODEL_TYPE == "normal" and linking_hypothesis == "EIG": 
                 res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
-            elif MODEL_TYPE == "normal" and linking_hypothesis == "surprisal":
+            elif MODEL_TYPE == "normal" and (linking_hypothesis == "surprisal" or linking_hypothesis == "kl"):
                 res = proxy_sim.granch_proxy_sim(params, tensor_model, tensor_stimuli)
             elif MODEL_TYPE == "no_learning": 
                 res = lesioned_sim.granch_no_learning_simulation(params, tensor_model, tensor_stimuli)
@@ -97,32 +90,33 @@ def run_all_sim(
         # Cache each batch 
         res_df["b_val"] = STIMULI_INFO.b_val.iloc[0].at[1]
         res_df["d_val"] = STIMULI_INFO.d_val.iloc[0].at[1]
-        res_df["mu_prior"] = mu_prior 
+        #res_df["mu_prior"] = mu_prior 
         res_df["v_prior"] = V_prior     
         res_df["alpha_prior"] = alpha_prior.item()
         res_df["beta_prior"] = beta_prior.item()
-        res_df["epsilon"] = epsilon
+        #res_df["epsilon"] = epsilon
         res_df["weig"] = world_EIGs
         res_df["stim_squence"] = tensor_stimuli.sequence_scheme
         res_df["forced_exposure_max"] = forced_exposure_max
+        res_df["linking_hypothesis"] = linking_hypothesis[0] # only taking first value to reduce file size
+        res_df['sd_epsilon'] = sd_epsilon.item()
 
         if stim_set == "spore":
             res_df["complexity_type"] = tensor_stimuli.complexity_type
             res_df["violation_type"] = "identity"
 
         else:
-            res_df["violation_type"] = tensor_stimuli.violation_type
-
+            res_df["violation_type"] = tensor_stimuli.violation_type[0]
 
         curr_time = datetime.now()
-        timestr = curr_time.strftime('%m-%d-%H:%M:%S.%f')[:-3] + "-" + stim_set + "-" + paradigm
+        timestr = curr_time.strftime('%m-%d-%H:%M:%S.%f')[:-3] + linking_hypothesis
         
-        batch_name = "cache_results/{t}.pickle".format(t = timestr)
+        batch_name = "04_pyGRANCH_multi_cluster/cache_results/{t}.pickle".format(t = timestr)
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df
-        gc.collect()
-
+        gc.collect() # garbage collector (clears memory)
+ 
 
     return 
 
@@ -222,7 +216,7 @@ def sample_baby_stims(pair_each_stim, n_feature):
     for i in range(pair_each_stim): 
         for s_type in all_deviant_blocks: 
             s = init_model_tensor.granch_stimuli(1, s_type)
-            s.get_baby_exposure_duration_pairings("embeddings/exposdur_afterPCA.csv", "identity", n_feature)
+            s.get_baby_exposure_duration_pairings("04_pyGRANCH_multi_cluster/embeddings/exposdur_afterPCA.csv", "identity", n_feature)
             
             all_stimuli_info.extend([s])
 
@@ -230,7 +224,7 @@ def sample_baby_stims(pair_each_stim, n_feature):
     for i in range(pair_each_stim): 
         for s_type in all_background_blocks: 
             s = init_model_tensor.granch_stimuli(1, s_type)
-            s.get_baby_exposure_duration_pairings("embeddings/exposdur_afterPCA.csv", "identity", n_feature)
+            s.get_baby_exposure_duration_pairings("04_pyGRANCH_multi_cluster/embeddings/exposdur_afterPCA.csv", "identity", n_feature)
             all_stimuli_info.extend([s])
 
     return all_stimuli_info
