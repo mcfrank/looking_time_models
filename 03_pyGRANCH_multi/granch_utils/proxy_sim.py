@@ -62,12 +62,13 @@ def granch_proxy_sim(params, model, stimuli):
         model.cur_posterior = current_posterior     
         
         # CAN CALCULATE KL HERE
-        kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
+        #kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
         
-        kl_df = compute_prob_tensor.kl_div_test(t, kl_test_df, model.cur_posterior, prev_observation_posterior, context = "proxy")
+        kl, kl_df = compute_prob_tensor.kl_div_test(t, kl_test_df, model.cur_posterior, prev_observation_posterior, context = "proxy")
         #print(kl_df)
         #print(kl)
         #print(torch.sum(kl))
+        kl_sum  = torch.sum(kl)
 
         
         # if forced exposure is not nan
@@ -99,7 +100,7 @@ def granch_proxy_sim(params, model, stimuli):
         # if it's a self-paced paradigm
         else:
             # luce's choice rule 
-            p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
+            p_look_away = max(min(params.world_EIGs / (kl_sum.item() + params.world_EIGs), 1), 0)
             #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
             
             if (np.random.binomial(1, p_look_away) == 1): 
@@ -115,4 +116,4 @@ def granch_proxy_sim(params, model, stimuli):
         current_stim_t += 1 
 
     #return(model)
-    return kl_df
+    return (model.behavior, kl_df)

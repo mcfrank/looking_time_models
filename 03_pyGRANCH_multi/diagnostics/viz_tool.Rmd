@@ -4,11 +4,52 @@ library(tidyverse)
 library(here)
 library(ggthemes)
 
-d <- read_csv(here("visualize_kl_turbo_smaller.csv"))
+d <- read_csv(here("sim_res.csv")) 
+kl_d <- read_csv(here("sim_res_kl.csv"))
+```
+```{r}
+d %>% 
+  filter(!is.na(stimulus_id)) %>% 
+  group_by(stimulus_id, id) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = stimulus_id, y = n)) + 
+  stat_summary(fun.data = "mean_cl_boot")
+```
+```{r}
+kl_d %>% 
+  filter(kl1 < 0) %>% 
+  group_by(t) %>% count()
+
+kl_d %>% 
+  mutate(ratio = kl1/kl2) %>% 
+  ggplot(aes(x = ratio)) + 
+  geom_density() + 
+  labs(title = "kl1/kl2 ratio density")
+
+kl_d %>% 
+  filter(!is.na(kl1)) %>% 
+  group_by(t) %>% 
+  count() %>% 
+  left_join(
+      kl_d %>% 
+    filter(kl1 < 0) %>% 
+    group_by(t) %>% count() %>% rename(under_zero_kl_n = n), 
+    by = c("t")
+  ) %>% 
+  mutate(
+    under_zero_ratio = under_zero_kl_n / n
+  ) %>% 
+  ggplot(aes(x = t, y = under_zero_ratio)) + 
+  geom_point()+
+  geom_line()+
+  xlim(0, 20) + 
+  labs(title = "kl1 under 0 proportion")
 ```
 
+
+
 ```{r}
-sub_d <- d %>% filter(id %in% seq(1, 10)) %>% filter(t < 50) %>% filter(id == 10)
+sub_d <- d %>% filter(id %in% seq(100, 110)) %>% filter(t < 50) 
 
 sub_d  %>% 
   filter(!is.na(kl1)) %>% 
@@ -19,18 +60,27 @@ sub_d  %>%
   #geom_jitter()+
   facet_wrap(~id) + 
   theme_few()
+
+sub_d  %>% 
+  filter(!is.na(kl1)) %>% 
+  select(-`...1`) %>% 
+  ggplot(aes(x = t, y = ratio)) + 
+  geom_point() + 
+  geom_hline(yintercept = -1) + 
+  geom_hline(yintercept = 1)
 ```
 ```{r}
 d %>% 
   filter(!is.na(kl1)) %>% 
   select(-`...1`) %>% 
+  filter(t < 50) %>% 
   pivot_longer(cols = c("kl1", "kl2"), names_to = "value_type", values_to = "val") %>% 
   filter(!is.infinite(val)) %>% 
   group_by(value_type, t) %>% 
   summarise(mean_val = mean(val)) %>% 
   ggplot(aes(x = t, y = mean_val, color = value_type)) + 
-  geom_point() + 
-  theme_few() + 
-  facet_wrap(~value_type)
+  geom_point(position = position_dodge(width=.2)) + 
+  theme_few()  
+  #facet_wrap(~value_type)
 ```
 

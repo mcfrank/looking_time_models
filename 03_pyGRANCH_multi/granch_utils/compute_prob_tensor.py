@@ -36,6 +36,11 @@ def score_surprisal(model, params, prev_observation_posterior):
 def kl_div_test(t, kl_test_df, new_post, prev_post, context = "EIG"): 
     paded_prev_post = prev_post.expand(new_post.size())
 
+
+    # just wanna see the first one
+
+    
+
     #print(prev_post)
     #print(torch.sum(prev_post, dim = (1, 2, 3)))
     #print(new_post)
@@ -46,16 +51,29 @@ def kl_div_test(t, kl_test_df, new_post, prev_post, context = "EIG"):
         collapse_dim = (1, 2, 3)
 
 
+    mask = paded_prev_post < 1e-8
+    paded_prev_post[mask] = 1e-8
+    mask = new_post < 1e-8
+    new_post[mask] = 1e-8
+
+
     KL1 = torch.sum(torch.mul(new_post, 
                          torch.log(new_post/paded_prev_post)), dim = collapse_dim)
     
-    KL2 = F.kl_div(torch.log(new_post),paded_prev_post, reduction = "none").sum(dim=collapse_dim)
+    KL2 = F.kl_div(torch.log(paded_prev_post),new_post, reduction = "none").sum(dim=collapse_dim)
+
+    if KL1[0] < 0 or KL1[0] == 0: 
+        print(t)
+        print(KL1[0])
+        print(new_post.sum())
+        print(paded_prev_post.sum(dim = (1, 2, 3)))
+    
 
     kl_test_df.at[t, "kl1"] = KL1[0].item()
     kl_test_df.at[t, "kl2"] = KL2[0].item()
     kl_test_df.at[t, "t"] = t
 
-    return kl_test_df
+    return (KL1, kl_test_df)
 
 
 
