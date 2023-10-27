@@ -243,6 +243,7 @@ class granch_model:
                                      columns=["stimulus_id", "EIG", "Look_away"])
         
         self.behavior["surprisal"] = np.nan
+        self.behavior["kl"] = np.nan
 
         self.possible_observations = None 
 
@@ -267,6 +268,9 @@ class granch_model:
 
     def update_model_surprisal(self, surprisal):
         self.behavior.at[self.current_t, "surprisal"] = surprisal
+
+    def update_model_kl(self, kl):
+        self.behavior.at[self.current_t, "kl"] = kl
     
     def update_model_eig(self, eig):
         self.behavior.at[self.current_t, "EIG"] = eig

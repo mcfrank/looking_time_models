@@ -7,8 +7,8 @@ import pandas as pd
 
 def granch_proxy_sim(params, model, stimuli): 
 
-    kl_test_df = pd.DataFrame(None, index=np.arange(model.max_observation),
-                                     columns=["t", "kl1", "kl2"])
+    #kl_test_df = pd.DataFrame(None, index=np.arange(model.max_observation),
+    #                                 columns=["t", "kl1", "kl2"])
 
     prev_observation_posterior = None
     stimulus_idx = 0
@@ -51,9 +51,8 @@ def granch_proxy_sim(params, model, stimuli):
 
         # can calculate surprisal here 
         #SURPRISAL
-        surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
-        
-        model.update_model_surprisal(surprisal.item())
+        #surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
+        #model.update_model_surprisal(surprisal.item())
 
         current_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=False)
         model.cur_likelihood = current_likelihood
@@ -62,14 +61,16 @@ def granch_proxy_sim(params, model, stimuli):
         model.cur_posterior = current_posterior     
         
         # CAN CALCULATE KL HERE
-        #kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
+        kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
+        surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
+        model.update_model_surprisal(surprisal.item())
         
-        kl, kl_df = compute_prob_tensor.kl_div_test(t, kl_test_df, model.cur_posterior, prev_observation_posterior, context = "proxy")
+        #kl, kl_df = compute_prob_tensor.kl_div_test(t, kl_test_df, model.cur_posterior, prev_observation_posterior, context = "proxy")
         #print(kl_df)
         #print(kl)
         #print(torch.sum(kl))
         kl_sum  = torch.sum(kl)
-
+        model.update_model_kl(kl_sum.item())
         
         # if forced exposure is not nan
         if ~np.isnan(params.forced_exposure_max): 
@@ -100,7 +101,7 @@ def granch_proxy_sim(params, model, stimuli):
         # if it's a self-paced paradigm
         else:
             # luce's choice rule 
-            p_look_away = max(min(params.world_EIGs / (kl_sum.item() + params.world_EIGs), 1), 0)
+            p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
             #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
             
             if (np.random.binomial(1, p_look_away) == 1): 
@@ -116,4 +117,4 @@ def granch_proxy_sim(params, model, stimuli):
         current_stim_t += 1 
 
     #return(model)
-    return (model.behavior, kl_df)
+    return (model)

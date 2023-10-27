@@ -136,6 +136,10 @@ ggplot(long_distance_df, aes(x = violation_type, y = as.numeric(value), color = 
 
 ```
 
+
+
+
+
 # Inanimate
 ```{r}
 

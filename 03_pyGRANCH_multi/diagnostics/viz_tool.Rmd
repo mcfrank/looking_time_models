@@ -5,9 +5,11 @@ library(here)
 library(ggthemes)
 
 d <- read_csv(here("sim_res.csv")) 
-kl_d <- read_csv(here("sim_res_kl.csv"))
+kl_d <- read_csv(here("kl_df.csv"))
 ```
 ```{r}
+
+
 d %>% 
   filter(!is.na(stimulus_id)) %>% 
   group_by(stimulus_id, id) %>% 
@@ -15,6 +17,8 @@ d %>%
   ggplot(aes(x = stimulus_id, y = n)) + 
   stat_summary(fun.data = "mean_cl_boot")
 ```
+
+
 ```{r}
 kl_d %>% 
   filter(kl1 < 0) %>% 

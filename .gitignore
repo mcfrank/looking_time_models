@@ -3,7 +3,8 @@
 03_pyGRANCH_multi/behavior_fit/data/raw_data/*.csv
 03_pyGRANCH_multi/behavioral_fit/cache_results/*
 
-
+embedding_tool/resnet50var/TC-SAY-resnext.tar
+embedding_tool/resnet50var/stims_smaller_set/*
 
 
 gaussian_ranch/.RDataTmp

@@ -1,0 +1,37 @@
+
+```{r}
+library(tidyverse)
+library(here)
+
+source(here("helper/tidy.R"))
+```
+
+```{r}
+
+pa_resnet50_embedding_path <- here("embeddings/pa_resnet50/all_embeddings_afterPCA.csv")
+pa_resnet50_euc_path <- here("embeddings/pa_resnet50/eucledian_distances.csv")
+resnet50_embedding_path <- here("embeddings/resnet50/resnet50_all_embeddings_afterPCA.csv")
+resnet50_euc_path <- here("embeddings/resnet50/resnet50_eucledian_distances.csv")
+sc_resnet50_embedding_path <- here("embeddings/sc_resnet50/resnet50_SC_all_embeddings_afterPCA.csv")
+sc_resnet50_euc_path <- here("embeddings/sc_resnet50/resnet50_SC_eucledian_distances.csv")
+
+
+
+pa_df <- get_visualization_for_animate(pa_resnet50_euc_path, pa_resnet50_embedding_path) %>% mutate(nn_type = "pa")
+resnet50_df <- get_visualization_for_animate(resnet50_euc_path, resnet50_embedding_path) %>% mutate(nn_type = "resnet50")
+sc_df <- get_visualization_for_animate(sc_resnet50_euc_path, sc_resnet50_embedding_path) %>% mutate(nn_type = "sc")
+
+```
+
+```{r}
+bind_rows(pa_df, resnet50_df, sc_df) %>% 
+  mutate(nn_type_print = case_when(
+    nn_type == "pa" ~ "Perceptually Aligned", 
+    nn_type == "resnet50" ~ "Base Resnet50",
+    nn_type == "sc" ~ "ResNext - SayCam"
+  ))
+  ggplot(aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic() + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Animals')  + 
+  facet_wrap(~nn_type, scales = "free")
+
+```
+
