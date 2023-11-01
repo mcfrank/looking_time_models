@@ -21,7 +21,7 @@ def run_model(args):
 
     BATCH_INFO = {
         "jitter_n": 20, 
-        "total_batch_n": 20, # can change this reduce memory load
+        "total_batch_n": 1, # can change this reduce memory load
         "jitter_mode": "sampling"
     }
 
@@ -29,8 +29,7 @@ def run_model(args):
         "grid_mu_start": -4, "grid_mu_end": 4, "grid_mu_step": 20, # can change this reduce memory load
         "grid_sigma_start": 0.001, "grid_sigma_end": 1.8, "grid_sigma_step": 20, 
         "grid_y_start": -4, "grid_y_end": 4, "grid_y_step": 20, 
-        "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 20
-    }
+        "grid_epsilon_start": 0.001, "grid_epsilon_end": 1.8, "grid_epsilon_step": 20}
 
 
     BATCH_GRID_INFO = num_stab_help.get_batch_grid(BATCH_INFO, GRID_INFO)
@@ -44,6 +43,7 @@ def run_model(args):
     for STIMULI_INFO in stimuli_info_list: 
         print('running:', STIMULI_INFO)
         num_stab_help.run_all_sim(EXP_INFO, BATCH_GRID_INFO, PRIOR_INFO, STIMULI_INFO)
+
 
 if __name__ == '__main__':
     print('entered main script')

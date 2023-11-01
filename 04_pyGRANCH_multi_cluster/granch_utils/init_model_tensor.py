@@ -340,7 +340,7 @@ class granch_model:
     def update_model_decision(self, decision): 
         self.behavior.at[self.current_t, "Look_away"] = decision
 
-    def update_possible_observations(self, noise_epsilon, hypothetical_obs_grid_n): 
+    def update_possible_observations(self, noise_epsilon, hypothetical_obs_grid_n, n_feature): 
         
         current_stimuli = self.stimuli.stimuli_sequence[self.current_stimulus_idx]
         expanded_tensors = [torch.linspace(val - noise_epsilon, val + noise_epsilon, hypothetical_obs_grid_n) for val in current_stimuli]

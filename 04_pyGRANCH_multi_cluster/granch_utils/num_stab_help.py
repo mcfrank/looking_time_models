@@ -73,9 +73,10 @@ def run_all_sim(
             params.add_y_given_mu_sigma()
             params.add_lp_epsilon()
             params.add_priors()
+
             if MODEL_TYPE == "normal" and linking_hypothesis == "EIG": 
                 res = main_sim_tensor.granch_main_simulation(params, tensor_model, tensor_stimuli)
-            elif MODEL_TYPE == "normal" and (linking_hypothesis == "surprisal" or linking_hypothesis == "kl"):
+            elif MODEL_TYPE == "normal" and (linking_hypothesis == "surprisal" or linking_hypothesis == "KL"):
                 res = proxy_sim.granch_proxy_sim(params, tensor_model, tensor_stimuli)
             elif MODEL_TYPE == "no_learning": 
                 res = lesioned_sim.granch_no_learning_simulation(params, tensor_model, tensor_stimuli)

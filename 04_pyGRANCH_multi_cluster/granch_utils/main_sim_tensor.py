@@ -3,7 +3,7 @@
 import torch
 from . import compute_prob_tensor
 import numpy as np
-#import ipdb
+import ipdb
 
 # main simulation function
 def granch_main_simulation(params, model, stimuli): 
@@ -17,11 +17,12 @@ def granch_main_simulation(params, model, stimuli):
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
     
+
         # get all possible observation on current stimulus 
         # if we change stimulus 
         if model.current_t == 0 or (not model.if_same_stimulus_as_previous_t()): 
 
-            model.update_possible_observations(params.epsilon, params.hypothetical_obs_grid_n)
+            model.update_possible_observations(params.epsilon, params.hypothetical_obs_grid_n, stimuli.n_feature)
 
             # update the previous likelihood to be the "current likelihood"
             model.prev_likelihood = model.cur_likelihood

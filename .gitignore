@@ -61,6 +61,10 @@ vignettes/*.pdf
 02_pyGRANCH/model_results/*.pickle
 02_pyGRANCH/cache_results/cache_summary/*.pickle
 
+04_pyGRANCH_multi_cluster/cache_results
+04_pyGRANCH_multi_cluster/cache_results/*.pickle
+04_pyGRANCH_multi_cluster/model_results/*.pickle
+04_pyGRANCH_multi_cluster/cache_results/cache_summary/*.pickle
 
 # slurm outputs
 *.err
@@ -73,4 +77,6 @@ vignettes/*.pdf
 *.pt
 
 # output summarize files
-*02_pyGRANCH/MIT_cluster_tool/summarizing_tool/*.csv
+02_pyGRANCH/MIT_cluster_tool/summarizing_tool/*.csv
+04_pyGRANCH_multi_cluster/MIT_cluster_tool/summarizing_tool/*.csv
+

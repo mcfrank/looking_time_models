@@ -63,7 +63,7 @@ def granch_proxy_sim(params, model, stimuli):
         if params.linking_hypothesis == 'surprisal':
             proxy_metric = surprisal.item()
 
-        elif params.linking_hypothesis == 'kl':
+        elif params.linking_hypothesis == 'KL':
             proxy_metric = kl.sum().item()
 
         # if forced exposure is not nan
@@ -86,8 +86,6 @@ def granch_proxy_sim(params, model, stimuli):
                     stimulus_idx = stimulus_idx + 1
                     current_stim_t = -1 # -1 so it starts with 0 when incremented 
                     model.update_model_decision(True)
-                    print("stimulus_idx")
-                    print(stimulus_idx)
                 else: 
                 # otherwise keep looking at this one
                     model.update_model_decision(False)
