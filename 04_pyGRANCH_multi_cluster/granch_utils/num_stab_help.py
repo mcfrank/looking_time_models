@@ -116,8 +116,10 @@ def run_all_sim(
         with open(batch_name, 'wb') as f:
             pickle.dump(res_df, f)
         del res_df
-        gc.collect() # garbage collector (clears memory)
- 
+       
+        # garbage collector
+        gc.collect()
+        torch.cuda.empty_cache()
 
     return 
 

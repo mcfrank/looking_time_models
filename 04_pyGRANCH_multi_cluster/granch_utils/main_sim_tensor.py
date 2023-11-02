@@ -17,7 +17,6 @@ def granch_main_simulation(params, model, stimuli):
         model.current_t = t 
         model.current_stimulus_idx = stimulus_idx
     
-
         # get all possible observation on current stimulus 
         # if we change stimulus 
         if model.current_t == 0 or (not model.if_same_stimulus_as_previous_t()): 
@@ -68,12 +67,17 @@ def granch_main_simulation(params, model, stimuli):
             else:
                 p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
                 #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
-                    
+                
+                if np.isnan(p_look_away):
+                    p_look_away = 1
+                    model.update_model_eig(999) # marker for invalid trials
+
                 if (np.random.binomial(1, p_look_away) == 1): 
-            # if the model is looking away, increment stimulus
+                    # if the model is looking away, increment stimulus
                     stimulus_idx = stimulus_idx + 1
                     current_stim_t = -1 # -1 so it starts with 0 when incremented 
                     model.update_model_decision(True)
+                
                 else: 
                 # otherwise keep looking at this one
                     model.update_model_decision(False)

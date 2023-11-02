@@ -20,8 +20,8 @@ def run_model(args):
     EXP_INFO = {"stim_set": "unity", "paradigm": "infant"}
 
     BATCH_INFO = {
-        "jitter_n": 20, 
-        "total_batch_n": 1, # can change this reduce memory load
+        "jitter_n": 10, 
+        "total_batch_n": 10, # can change this reduce memory load
         "jitter_mode": "sampling"
     }
 

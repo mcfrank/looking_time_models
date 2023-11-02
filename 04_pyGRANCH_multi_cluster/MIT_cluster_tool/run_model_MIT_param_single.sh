@@ -1,12 +1,12 @@
 #!/bin/bash -l
 #SBATCH --mail-type=END
 #SBATCH -n 1 
-#SBATCH --mem=16GB
+#SBATCH --mem=8GB
 #SBATCH --constraint=40GB
 #SBATCH --gres=gpu:1
 #SBATCH --time=24:00:00
-#SBATCH --output=R-%x.%j.out
-#SBATCH --error=R-%x.%j.err
+#SBATCH --output=%x.%j.out
+#SBATCH --error=%x.%j.err
 
 params=("${@:2}")
 current_param_values=${params[${SLURM_ARRAY_TASK_ID}]}
