@@ -106,14 +106,14 @@ def granch_no_noise_simulation(params, model, stimuli):
         current_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=False)
         model.cur_likelihood = current_likelihood
         
-        current_posterior = compute_prob_tensor.score_posterior_no_noise(model,params, hypothetical_obs=False)
+        current_posterior = compute_prob_tensor.score_posterior(model,params, hypothetical_obs=False)
         model.cur_posterior = current_posterior     
         
 
         # this will currently work for only single feature    
         # in the tensor mode we don't need to iterate through possibilities anymore
         model.ps_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=True)
-        model.ps_posteriror = compute_prob_tensor.score_posterior_no_noise(model, params, hypothetical_obs=True)
+        model.ps_posteriror = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)
         model.ps_kl = compute_prob_tensor.kl_div(model.ps_posteriror, model.cur_posterior)
         model.ps_pp = compute_prob_tensor.score_post_pred(model, params)
 

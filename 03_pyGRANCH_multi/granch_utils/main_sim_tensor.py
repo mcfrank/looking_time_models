@@ -48,10 +48,7 @@ def granch_main_simulation(params, model, stimuli):
     
 
         # compute EIG
-        print("eig kl")
-        print(model.ps_kl)
-        print(model.ps_pp)
-        print(torch.sum(model.ps_kl * model.ps_pp))
+       
         eig = torch.sum(model.ps_kl * model.ps_pp)
 
        

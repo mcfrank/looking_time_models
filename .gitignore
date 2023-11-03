@@ -2,6 +2,8 @@
 02_pyGRANCH/behavior_fit/data/raw_data/*.csv
 03_pyGRANCH_multi/behavior_fit/data/raw_data/*.csv
 03_pyGRANCH_multi/behavioral_fit/cache_results/*
+03_pyGRANCH_multi/behavioral_fit/data/param_fit_raw/*
+
 
 embedding_tool/resnet50var/TC-SAY-resnext.tar
 embedding_tool/resnet50var/stims_smaller_set/*

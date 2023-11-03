@@ -29,9 +29,9 @@ bind_rows(pa_df, resnet50_df, sc_df) %>%
     nn_type == "pa" ~ "Perceptually Aligned", 
     nn_type == "resnet50" ~ "Base Resnet50",
     nn_type == "sc" ~ "ResNext - SayCam"
-  ))
+  )) %>% 
   ggplot(aes(x = violation_type, y = as.numeric(value))) + geom_jitter(width = 0.02) + geom_line(alpha = 0.2, aes(group = stim_name)) + theme_classic() + xlab('Violation type') + ylab('embedding distance') + scale_x_discrete(labels = c('Animacy', 'Identity', 'Pose', 'Number')) + ggtitle('Animals')  + 
-  facet_wrap(~nn_type, scales = "free")
+  facet_wrap(~nn_type_print, scales = "free")
 
 ```
 

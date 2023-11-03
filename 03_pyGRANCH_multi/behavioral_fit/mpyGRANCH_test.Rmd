@@ -4,27 +4,101 @@ library(tidyverse)
 library(here)
 library(ggthemes)
 
-d <- read_csv(here("surprisal_test.csv"))
-test_d <- read_csv(here("data/test_d.csv"))
+#d <- read_csv(here("data/param_fit_raw/kl.csv"))
+d <- read_csv(here("data/param_fit_raw/eig.csv"))
+#test_d <- read_csv(here("data/test_d.csv"))
 
 source(here("helper/fitting.r"))
 source(here("helper/scaling.r"))
 ```
 
+
 ```{r}
 d %>% 
-  group_by()
+  distinct(b_val, d_val)  
+  
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = n_samples)) + 
+  geom_density()
+```
+
+```{r}
+d 
+
+summarised_d <- d %>% 
+  mutate(
+    param_info = paste("v", v_prior, "ap", alpha_prior, "bp", beta_prior, "sdep", sd_epsilon, "weig", weig, sep = "_"), 
+    ab_prior = paste("a", alpha_prior, "b", beta_prior, sep = "_")
+  ) %>% 
+  mutate(dist = abs(b_val - d_val)) %>% 
+  group_by(sub_id, batch_id, trial_num, stim_sequence, test_type, param_info) %>% 
+  summarise(
+    mean_sample = mean(n_samples)
+  )
+  
+
 ```
 
 
 ```{r}
-d %>% 
-  ggplot(aes(x = stimulus_id, y = n)) + 
-  stat_summary(fun.data = "mean_cl_boot") + 
+nov_sim <- summarised_d %>% 
+  ungroup() %>% 
+  filter(grepl("D", stim_sequence)) %>% 
+  select(-stim_sequence) %>% 
+  group_by(batch_id, trial_num, dist) %>% 
+  summarise(nov_sample = mean(mean_sample))%>% 
+  ungroup()
 
-  facet_wrap(~stim_squence) + 
-  theme_few()
+fam_sim  <- summarised_d %>% 
+  ungroup() %>% 
+  filter(!grepl("D", stim_sequence)) %>% 
+  select(-stim_sequence) %>% 
+  filter(trial_num != 0) %>% 
+  group_by(batch_id, trial_num, dist) %>% 
+  summarise(fam_sample = mean(mean_sample)) %>% 
+  ungroup()
+
+
+nov_sim %>% 
+  left_join(fam_sim %>% select(batch_id, trial_num, fam_sample) , 
+            by = c("batch_id", "trial_num")) %>% 
+  mutate(dishab_magnitude = nov_sample - fam_sample) %>% 
+  ggplot(aes(x = dist,  y = dishab_magnitude)) + 
+  #stat_summary(fun.data = "mean_cl_boot") +
+  geom_point(alpha = .3) + 
+  facet_wrap(~trial_num) + 
+  theme_few() + 
+  geom_smooth(method = "lm")
+  
 ```
+
+
+# check out the general trend 
+
+
+
+```{r}
+summarised_d %>% 
+  ggplot(aes(x = trial_num, y = mean_sample, color = test_type)) + 
+  stat_summary(fun.data = "mean_cl_boot") +
+  theme_few() 
+```
+
+
+```{r}
+summarised_d %>% 
+  ggplot(aes(x = trial_num, y = mean_sample, color = test_type)) + 
+  stat_summary(fun.data = "mean_cl_boot") +
+  theme_few() + 
+  facet_wrap(~param_info)
+```
+
+
+
+
 
 # Wrangle d into what we actually want 
 
