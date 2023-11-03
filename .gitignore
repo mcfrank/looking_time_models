@@ -1,4 +1,6 @@
 
+.DS_Store
+
 02_pyGRANCH/behavior_fit/data/raw_data/*.csv
 03_pyGRANCH_multi/behavior_fit/data/raw_data/*.csv
 03_pyGRANCH_multi/behavioral_fit/cache_results/*
