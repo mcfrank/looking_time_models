@@ -8,8 +8,15 @@ d <- read_csv(here("s.csv"))
 ```{r}
 d %>% 
   rename(t = `...1`) %>% 
-  filter(t < 50) %>% 
-  ggplot(aes(x = prob, y = surprisal)) + 
+  filter(t < 150) %>% 
+  ggplot(aes(x = t, y = prob, color = as.factor(stimulus_id))) + 
+  geom_point() + 
+  geom_line() 
+
+d %>% 
+  rename(t = `...1`) %>% 
+  filter(t < 150) %>% 
+  ggplot(aes(x = t, y = surprisal, color = as.factor(stimulus_id))) +
   geom_point() + 
   geom_line() 
 ```

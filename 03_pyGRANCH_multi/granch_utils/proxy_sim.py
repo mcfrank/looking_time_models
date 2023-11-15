@@ -3,7 +3,7 @@ import torch
 from . import compute_prob_tensor
 import numpy as np
 import pandas as pd
-
+import math
 
 def granch_proxy_sim(params, model, stimuli): 
 
@@ -64,18 +64,26 @@ def granch_proxy_sim(params, model, stimuli):
             kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
             kl_sum  = torch.sum(kl)
             model.update_model_kl(kl_sum.item())
+
+        # experiment with surpirsal function here 
+        f_s = surprisal.item() 
+
+        a = -5  # Assuming the parabola opens downwards
+        f_s = math.exp(a * (f_s - 0.8)**2)
+        #world_eig = params.world_EIGs
+        world_eig = math.exp(-4)
         
         # if forced exposure is not nan
         if ~np.isnan(params.forced_exposure_max): 
             # if it's not the last trial, you still have to look
             if (stimulus_idx < (stimuli.n_trial - 1)) & (current_stim_t < params.forced_exposure_max - 1):
-                raw_prob = (params.world_EIGs / ((surprisal.item()) + params.world_EIGs))
+                raw_prob = (world_eig / ((f_s) + world_eig))
                 model.update_model_prob(raw_prob)
                 model.update_model_decision(False)
 
             # if i'm in a fam trial and i reached the max exposure, i have to look away (to go to next stimulus)
             elif (stimulus_idx < (stimuli.n_trial - 1)) & (current_stim_t == params.forced_exposure_max - 1):
-                raw_prob = (params.world_EIGs / ((surprisal.item()) + params.world_EIGs))
+                raw_prob = (world_eig / ((f_s) + world_eig))
                 model.update_model_prob(raw_prob)
                 model.update_model_decision(True)
                 stimulus_idx += 1
@@ -83,11 +91,11 @@ def granch_proxy_sim(params, model, stimuli):
 
             else:
                 if params.linking_hypothesis == "surprisal": 
-                    raw_prob = (params.world_EIGs / ((surprisal.item()) + params.world_EIGs))
-                    p_look_away = max(min(params.world_EIGs / ((surprisal.item()) + params.world_EIGs), 1), 0)
+                    raw_prob = (world_eig / ((f_s) + world_eig))
+                    p_look_away = max(min(world_eig / ((f_s) + world_eig), 1), 0)
                     model.update_model_prob(raw_prob)
                 elif params.linking_hypothesis == "kl": 
-                    p_look_away = max(min(params.world_EIGs / (kl_sum.item() + params.world_EIGs), 1), 0)
+                    p_look_away = max(min(world_eig / (kl_sum.item() + world_eig), 1), 0)
                     model.update_model_prob(p_look_away)
             
                 #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
@@ -106,8 +114,9 @@ def granch_proxy_sim(params, model, stimuli):
         else:
             # luce's choice rule 
             if params.linking_hypothesis == "surprisal": 
+                raw_prob = (params.world_EIGs / ((f_s) + params.world_EIGs))
+                model.update_model_prob(raw_prob)
                 p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
-                print("raw: ", params.world_EIGs / (surprisal.item() + params.world_EIGs))
             elif params.linking_hypothesis == "kl": 
                 p_look_away = max(min(params.world_EIGs / (kl_sum.item() + params.world_EIGs), 1), 0)
             
