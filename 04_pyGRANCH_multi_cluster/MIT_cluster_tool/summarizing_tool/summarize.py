@@ -20,8 +20,6 @@ detailed_output_file = "04_pyGRANCH_multi_cluster/MIT_cluster_tool/summarizing_t
 # grouped output file
 grouped_output_file = "04_pyGRANCH_multi_cluster/MIT_cluster_tool/summarizing_tool/summarized_results_grouped_" + linking_hypothesis + ".csv"
 
-ipdb.set_trace()
-
 print("file_names:", file_names[0:20])
 
 for idx, file_name in enumerate(file_names):

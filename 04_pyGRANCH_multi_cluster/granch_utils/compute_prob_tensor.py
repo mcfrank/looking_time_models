@@ -171,8 +171,6 @@ def score_y_given_mu_sigma(y_val, mu, sigma):
 
 def score_z_ij_given_y(z_val, y_val, epsilon):
 
-    z_val = z_val.type(torch.float32)
-
     dist = Normal(y_val, epsilon)
     # add 4 dimension because the grid are four dimension
     # when padded 4 dimension singleton dimension the tensor became broadcastable

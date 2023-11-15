@@ -21,7 +21,7 @@ def granch_main_simulation(params, model, stimuli):
         # if we change stimulus 
         if model.current_t == 0 or (not model.if_same_stimulus_as_previous_t()): 
 
-            model.update_possible_observations(params.epsilon, params.hypothetical_obs_grid_n, stimuli.n_feature)
+            model.update_possible_observations(params.epsilon, params.hypothetical_obs_grid_n)
 
             # update the previous likelihood to be the "current likelihood"
             model.prev_likelihood = model.cur_likelihood
@@ -38,7 +38,6 @@ def granch_main_simulation(params, model, stimuli):
         current_posterior = compute_prob_tensor.score_posterior(model,params, hypothetical_obs=False)
         model.cur_posterior = current_posterior     
         
-
         # in the tensor mode we don't need to iterate through possibilities anymore
         model.ps_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=True)
         model.ps_posteriror = compute_prob_tensor.score_posterior(model, params, hypothetical_obs=True)
@@ -68,10 +67,6 @@ def granch_main_simulation(params, model, stimuli):
                 p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
                 #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
                 
-                if np.isnan(p_look_away):
-                    p_look_away = 1
-                    model.update_model_eig(999) # marker for invalid trials
-
                 if (np.random.binomial(1, p_look_away) == 1): 
                     # if the model is looking away, increment stimulus
                     stimulus_idx = stimulus_idx + 1
