@@ -1,0 +1,16 @@
+```{r}
+library(tidyverse)
+library(here)
+
+d <- read_csv(here("s.csv"))
+```
+
+```{r}
+d %>% 
+  rename(t = `...1`) %>% 
+  filter(t < 50) %>% 
+  ggplot(aes(x = prob, y = surprisal)) + 
+  geom_point() + 
+  geom_line() 
+```
+

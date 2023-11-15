@@ -308,6 +308,7 @@ class granch_model:
         
         self.behavior["surprisal"] = np.nan
         self.behavior["kl"] = np.nan
+        self.behavior["prob"] = np.nan
 
         self.possible_observations = None 
 
@@ -332,6 +333,9 @@ class granch_model:
 
     def update_model_surprisal(self, surprisal):
         self.behavior.at[self.current_t, "surprisal"] = surprisal
+    
+    def update_model_prob(self, prob):
+        self.behavior.at[self.current_t, "prob"] = prob
 
     def update_model_kl(self, kl):
         self.behavior.at[self.current_t, "kl"] = kl
