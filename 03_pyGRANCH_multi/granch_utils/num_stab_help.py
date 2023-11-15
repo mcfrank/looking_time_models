@@ -290,6 +290,31 @@ def sample_condition_experiment(pair_each_stim, paradigm):
     return all_stimuli_info
 
 
+def sample_baby_stims(pair_each_stim, n_feature):
+
+    all_deviant_blocks = ["B"*num_fam + "D" for num_fam in range(1,10)]
+    all_background_blocks = ["B"*num_fam for num_fam in range(1,11)]
+
+    all_stimuli_info = []
+
+    # loop through everything with deviant blocks 
+    for i in range(pair_each_stim): 
+        for s_type in all_deviant_blocks: 
+            s = init_model_tensor.granch_stimuli(1, s_type)
+            s.get_baby_exposure_duration_pairings("embeddings/exposdur_afterPCA.csv", "identity", n_feature)
+            
+            all_stimuli_info.extend([s])
+
+    # then go through the background blocks 
+    for i in range(pair_each_stim): 
+        for s_type in all_background_blocks: 
+            s = init_model_tensor.granch_stimuli(1, s_type)
+            s.get_baby_exposure_duration_pairings("embeddings/exposdur_afterPCA.csv", "identity", n_feature)
+            all_stimuli_info.extend([s])
+
+    return all_stimuli_info
+
+
 def sample_multiple_pair(pair_each_stim, distance_range = []):
    
 

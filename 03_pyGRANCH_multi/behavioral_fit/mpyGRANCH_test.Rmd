@@ -3,9 +3,15 @@
 library(tidyverse)
 library(here)
 library(ggthemes)
+library(reticulate)
 
 #d <- read_csv(here("data/param_fit_raw/kl.csv"))
-d <- read_csv(here("data/param_fit_raw/eig.csv"))
+nl_d <- read_csv(here("data/param_fit_raw/no_learning.csv"))
+nn_d <- read_csv(here("nn_try.csv"), col_names = FALSE)
+colnames_d <- read_csv(here("colnames.csv"))
+colnames(nn_d) <-c(colnames(colnames_d)[-1], "file_id")
+
+
 #test_d <- read_csv(here("data/test_d.csv"))
 
 source(here("helper/fitting.r"))
@@ -14,10 +20,99 @@ source(here("helper/scaling.r"))
 
 
 ```{r}
-d %>% 
-  distinct(b_val, d_val)  
+nn_d
+```
+
+
+```{r}
+summarized_nn_d <- nn_d %>% 
+  filter(EIG != 999) %>% 
+  group_by(file_id, j_i, b_val, d_val,stimulus_id,  mu_prior, v_prior, alpha_prior, beta_prior, weig, stim_squence, forced_exposure_max, violation_type) %>% 
+  count() %>% 
+  rename(n_samples = n ) %>% 
+  rename(trial_num = stimulus_id) %>% 
+  rename(sub_id = file_id) %>% 
+  rename(batch_id = j_i) %>% 
+  mutate(
+    test_type = case_when(
+      grepl("D", stim_squence) ~ "nov", 
+      !grepl("D", stim_squence) ~ "fam"
+    ),
+    fam_trial = str_length(stim_squence) - 1 
+  ) %>% 
+  mutate(
+    param_info = paste("v", v_prior, "ap", alpha_prior, "bp", beta_prior, "weig", weig, sep = "_"), 
+    ab_prior = paste("a", alpha_prior, "b", beta_prior, sep = "_")
+  ) %>% 
+  mutate(dist = abs(b_val - d_val)) %>% 
+  group_by(sub_id, batch_id, trial_num, stim_squence, test_type, fam_trial, param_info) %>% 
+  summarise(
+    mean_sample = mean(n_samples)
+  ) 
+```
+
+```{r}
+# distribution of the error out trial
+
+error_distribution_d <- nn_d %>% 
+  filter(!is.na(EIG)) %>% 
+  rename(trial_num = stimulus_id) %>% 
+  rename(sub_id = file_id) %>% 
+  rename(batch_id = j_i) %>% 
+  mutate(
+    param_info = paste("v", v_prior, "ap", alpha_prior, "bp", beta_prior, "weig", weig, sep = "_"), 
+  ) %>% 
+  ungroup() %>% 
+  mutate(
+    error = if_else(EIG == 999, TRUE, FALSE)
+  ) %>% 
+  ungroup() %>% 
+  group_by(error, param_info) %>% 
+  count()
   
 ```
+
+
+```{r}
+error_distribution_d %>% 
+  filter(error == FALSE) %>% 
+  rename(success_n = n) %>% 
+  select(-error) %>% 
+  left_join(error_distribution_d %>% filter(error == TRUE) %>% rename(error_n = n) %>% select(-error), by = "param_info") %>% 
+  select(param_info, error_n, success_n) %>% 
+  ungroup() %>% 
+  mutate(error_n = ifelse(is.na(error_n), 0, error_n)) %>% 
+  mutate(rate = error_n / (error_n + success_n)) %>% 
+  ggplot(aes(x = param_info, y = rate)) + 
+  geom_point() +  
+  coord_flip() + 
+  theme_few() +
+  ylab("Error Rate")
+```
+
+
+```{r}
+nl_d
+
+colnames()
+
+
+
+clean_nn_d <- nn_d %>% 
+  tail(-2)
+
+colnames(clean_nn_d) <- c("..1","sub_id","batch_id", "trial_num","stim_sequence",
+                          "violation","b_val","d_val","v_prior","alpha_prior","beta_prior",      
+                          "forced_exposure_num","weig","n_samples")
+
+clean_nn_d
+```
+
+```{r}
+clean_nn_d
+```
+
+
 
 ```{r}
 d %>% 
@@ -30,7 +125,7 @@ d
 
 summarised_d <- d %>% 
   mutate(
-    param_info = paste("v", v_prior, "ap", alpha_prior, "bp", beta_prior, "sdep", sd_epsilon, "weig", weig, sep = "_"), 
+    param_info = paste("v", v_prior, "ap", alpha_prior, "bp", beta_prior, "weig", weig, sep = "_"), 
     ab_prior = paste("a", alpha_prior, "b", beta_prior, sep = "_")
   ) %>% 
   mutate(dist = abs(b_val - d_val)) %>% 
@@ -78,13 +173,18 @@ nov_sim %>%
 
 # check out the general trend 
 
+```{r}
+summarised_d %>% ungroup() %>% distinct(param_info)
+```
 
 
 ```{r}
-summarised_d %>% 
+summarized_nn_d %>% 
+  filter(trial_num == str_length(stim_squence) - 1) %>% 
   ggplot(aes(x = trial_num, y = mean_sample, color = test_type)) + 
   stat_summary(fun.data = "mean_cl_boot") +
-  theme_few() 
+  theme_few()  + 
+  facet_wrap(~param_info, scales = "free")
 ```
 
 
