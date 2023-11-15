@@ -30,6 +30,9 @@ def load_and_concatenate_pickles(directory):
             else: 
                 main_df.to_csv(detailed_output_file, mode = 'a', index=False, header=False)
             df_list = []
+    
+    
+    
 
 
 

@@ -27,10 +27,7 @@ def granch_proxy_sim(params, model, stimuli):
             normalizing_term = torch.logsumexp(padded_prior, dim = (1, 2, 3)).view(3, 1, 1, 1)
             normalized_prior= torch.exp(padded_prior - normalizing_term)
             normalized_prior[normalized_prior < 0.0000000000000000000000000000001] = 0.0000000000000000000000000000001
-            #print(normalized_prior[normalized_prior < np.exp(-720)])
-            #print(normalized_prior[normalized_prior < 0.00000000000001])
             prev_observation_posterior = normalized_prior
-            #print(normalized_prior)
 
         else: 
             prev_observation_posterior = model.cur_posterior
@@ -50,9 +47,11 @@ def granch_proxy_sim(params, model, stimuli):
         model.update_noisy_observation(params.epsilon)
 
         # can calculate surprisal here 
-        #SURPRISAL
-        #surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
-        #model.update_model_surprisal(surprisal.item())
+        
+        if params.linking_hypothesis == "surprisal": 
+            surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
+            model.update_model_surprisal(surprisal.item())
+        
 
         current_likelihood = compute_prob_tensor.score_likelihood(model, params, hypothetical_obs=False)
         model.cur_likelihood = current_likelihood
@@ -61,16 +60,10 @@ def granch_proxy_sim(params, model, stimuli):
         model.cur_posterior = current_posterior     
         
         # CAN CALCULATE KL HERE
-        kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
-        surprisal = compute_prob_tensor.score_surprisal(model, params, prev_observation_posterior)
-        model.update_model_surprisal(surprisal.item())
-        
-        #kl, kl_df = compute_prob_tensor.kl_div_test(t, kl_test_df, model.cur_posterior, prev_observation_posterior, context = "proxy")
-        #print(kl_df)
-        #print(kl)
-        #print(torch.sum(kl))
-        kl_sum  = torch.sum(kl)
-        model.update_model_kl(kl_sum.item())
+        if params.linking_hypothesis == "kl": 
+            kl = compute_prob_tensor.kl_div(model.cur_posterior, prev_observation_posterior, context = "proxy")
+            kl_sum  = torch.sum(kl)
+            model.update_model_kl(kl_sum.item())
         
         # if forced exposure is not nan
         if ~np.isnan(params.forced_exposure_max): 
@@ -85,7 +78,11 @@ def granch_proxy_sim(params, model, stimuli):
                 current_stim_t = -1 
 
             else:
-                p_look_away = max(min(params.world_EIGs / (eig.item() + params.world_EIGs), 1), 0)
+                if params.linking_hypothesis == "surprisal": 
+                    p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
+                elif params.linking_hypothesis == "kl": 
+                    p_look_away = max(min(params.world_EIGs / (kl_sum.item() + params.world_EIGs), 1), 0)
+            
                 #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
                     
                 if (np.random.binomial(1, p_look_away) == 1): 
@@ -101,8 +98,10 @@ def granch_proxy_sim(params, model, stimuli):
         # if it's a self-paced paradigm
         else:
             # luce's choice rule 
-            p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
-            #p_look_away = params.world_EIGs / (eig.item() + params.world_EIGs)
+            if params.linking_hypothesis == "surprisal": 
+                p_look_away = max(min(params.world_EIGs / (surprisal.item() + params.world_EIGs), 1), 0)
+            elif params.linking_hypothesis == "kl": 
+                p_look_away = max(min(params.world_EIGs / (kl_sum.item() + params.world_EIGs), 1), 0)
             
             if (np.random.binomial(1, p_look_away) == 1): 
             # if the model is looking away, increment stimulus

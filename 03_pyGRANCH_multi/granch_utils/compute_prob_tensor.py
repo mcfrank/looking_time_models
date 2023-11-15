@@ -47,7 +47,6 @@ def score_surprisal(model, params, prev_observation_posterior):
 
     surprisal = torch.sum(-torch.log(torch.exp(prior_pred))).to(model.device)
 
-    print(surprisal)
     return (surprisal)
     #return (loss)
 
